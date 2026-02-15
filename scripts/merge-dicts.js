@@ -189,7 +189,8 @@ const MANUAL_ADDITIONS = {
     "KFP": "けーえふぴー",
     "あとは任せた！": "あとはまかせた",
     "ホロリスの輪": "ほろりすのわ",
-    "WHAT'S UP!!!!! KEEEEEP GROWING!!!!!": "わっつあっぷきーぷぐろーいんぐ"
+    "WHAT'S UP!!!!! KEEEEEP GROWING!!!!!": "わっつあっぷきーぷぐろーいんぐ",
+    "みっころね24": "みっころねにじゅうよん"
 };
 
 function mergeDictionaries() {
