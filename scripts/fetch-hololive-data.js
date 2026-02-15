@@ -8,7 +8,38 @@ const __dirname = path.dirname(__filename);
 
 const TARGET_URL = 'https://hololive-official-cardgame.com/cardlist/cardsearch/?keyword=&attribute%5B%5D=all&expansion_name=&card_kind%5B%5D=all&rare%5B%5D=all&bloom_level%5B%5D=all&parallel%5B%5D=all&view=text'; // Switched to text view
 const OUTPUT_FILE = path.join(__dirname, '../src/data/hololive-cards.json');
+const KANA_DICT_FILE = path.join(__dirname, '../src/data/kana-dictionary.json');
 const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
+
+// Load kana dictionary
+let kanaDict = {};
+if (fs.existsSync(KANA_DICT_FILE)) {
+    kanaDict = JSON.parse(fs.readFileSync(KANA_DICT_FILE, 'utf-8'));
+}
+
+function generateKana(card) {
+    const textToAnalyze = [
+        card.name,
+        card.tags,
+        card.expansion,
+        card.cardType
+    ].filter(Boolean).join(' ');
+
+    let kanaResult = new Set();
+
+    // Check dictionary for keywords
+    // Sort keys by length descending to match longest possible keywords first
+    const sortedKeys = Object.keys(kanaDict).sort((a, b) => b.length - a.length);
+
+    // Simple keyword extraction
+    for (const key of sortedKeys) {
+        if (textToAnalyze.includes(key)) {
+            kanaResult.add(kanaDict[key]);
+        }
+    }
+
+    return Array.from(kanaResult).join(' ');
+}
 
 (async () => {
     console.log('🚀 Starting Hololive Card Data Fetcher (Text Mode)...');
@@ -289,10 +320,16 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
                 console.warn('This might indicate an issue with scraping or the website structure has changed.');
             }
 
-            // For now, simple save. User said ~52 yell cards.
             const filteredCards = cards.filter(c => !c.name.includes('(エール)')); // Provisional filter
 
-            console.log(`📊 Found ${cards.length} cards.`);
+            // Add Kana Readings
+            console.log('📖 Generating kana readings...');
+            const enrichedCards = filteredCards.map(c => ({
+                ...c,
+                kana: generateKana(c)
+            }));
+
+            console.log(`📊 Found ${enrichedCards.length} cards.`);
             console.log(`💾 Saving to ${OUTPUT_FILE}...`);
 
             // Ensure dir exists
@@ -301,7 +338,7 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
                 fs.mkdirSync(dir, { recursive: true });
             }
 
-            fs.writeFileSync(OUTPUT_FILE, JSON.stringify(cards, null, 2));
+            fs.writeFileSync(OUTPUT_FILE, JSON.stringify(enrichedCards, null, 2));
             console.log('🎉 Done!');
         }
 

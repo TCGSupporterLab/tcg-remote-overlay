@@ -90,7 +90,8 @@ export const useCardSearch = () => {
                 normalizeText(card.color) +
                 normalizeText(card.tags || '') +
                 normalizeText(card.expansion || '') +
-                normalizeText(card.bloomLevel || '')
+                normalizeText(card.bloomLevel || '') +
+                normalizeText((card as any).kana || '')
             ),
             _normName: normalizeText(card.name),
             _hiraName: toHiragana(normalizeText(card.name))
