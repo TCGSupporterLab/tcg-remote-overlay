@@ -128,9 +128,8 @@ export const useCardSearch = () => {
             // 2. Color Filter
             if (hasColorFilter) {
                 const cardColor = card.color || '';
-                // 'multi' check handled by specific logic if needed, but assuming data has "多色" or specific colors.
-                // Replicating original logic:
-                // If special colors (not multi/not_multi) exist:
+
+                // First, check if basic color requirements are met if any are selected
                 if (colorSpecial.length > 0) {
                     const match = colorSpecial.some(s => {
                         if (s === 'colorless') {
@@ -140,17 +139,17 @@ export const useCardSearch = () => {
                     });
                     if (!match) return false;
                 }
-                // If only 'multi' / 'not_multi' was selected, we'd need logic here. 
-                // But original logic filtered `filters.color` for !multi && !not_multi before checking exact match.
-                // So if user ONLY selected 'multi', `colorSpecial` is empty. 
-                // Original logic: `if (validSelections.length > 0) { ... } else { result = true; }`
-                // So 'multi' logic was MISSING in previous CheckCategory for 'color'!?
-                // Wait, previous logic:
-                // const validSelections = selected.filter(s => s !== 'multi' ...);
-                // if (validSelections.length > 0) { check } else { result = true; }
-                // So selecting ONLY 'multi' did NOTHING (returned true for all).
-                // I will preserve this behavior for now to ensure stability, 
-                // but strictly speaking 'multi' filter seems unimplemented in logic.
+
+                // Then, apply special filters (multi / not_multi)
+                if (selectedColors.includes('multi')) {
+                    // Multi-color is defined as 2 or more characters (e.g., "白緑")
+                    if (cardColor.length < 2) return false;
+                }
+                if (selectedColors.includes('not_multi')) {
+                    // Single-color is defined as 1 character or empty (but excluding colorless if it's special?)
+                    // Actually, "not multi" should simply mean length < 2.
+                    if (cardColor.length >= 2) return false;
+                }
             }
 
             // 3. Card Type Filter
