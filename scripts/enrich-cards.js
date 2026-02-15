@@ -17,10 +17,7 @@ const cards = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
 const kanaDict = JSON.parse(fs.readFileSync(KANA_DICT_FILE, 'utf-8'));
 
 function generateKana(card) {
-    const textToAnalyze = [
-        card.name,
-        card.tags
-    ].filter(Boolean).join(' ');
+    const textToAnalyze = card.name;
 
     let kanaResult = new Set();
     const sortedKeys = Object.keys(kanaDict).sort((a, b) => b.length - a.length);
