@@ -87,7 +87,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             let shadow = '0 0 10px rgba(37, 99, 235, 0.6)';
             if (activeTab === 'color') {
                 switch (colorValue) {
-                    case 'all': bg = '#2563eb'; shadow = '0 0 12px rgba(37,99,235,0.8)'; break;
+                    case 'all': bg = '#0891b2'; shadow = '0 0 10px rgba(6,182,212,0.6), 0 0 4px rgba(6,182,212,0.8)'; break;
                     case '白': bg = '#e5e7eb'; shadow = '0 0 10px rgba(255,255,255,0.6)'; break;
                     case '緑': bg = '#16a34a'; shadow = '0 0 10px rgba(22,163,74,0.6)'; break;
                     case '赤': bg = '#dc2626'; shadow = '0 0 10px rgba(220,38,38,0.6)'; break;
