@@ -29,8 +29,36 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
         // --- ENHANCEMENT: Pre-check Count ---
         console.log('🔍 Checking total card count for updates...');
         const stats = await page.evaluate(() => {
-            const countEl = document.querySelector('.cardlist-Result_Count span:last-child');
-            const total = countEl ? parseInt(countEl.innerText.replace(/[^0-9]/g, ''), 10) : 0;
+            // Try multiple common selectors for the count
+            const selectors = [
+                '.cardlist-Result_Count span:last-child',
+                '.cardlist-Result_Count',
+                '.count',
+                '.result-count'
+            ];
+
+            let total = 0;
+            for (const selector of selectors) {
+                const el = document.querySelector(selector);
+                if (el) {
+                    const text = el.innerText.replace(/,/g, '');
+                    const match = text.match(/([0-9]+)/);
+                    if (match) {
+                        total = parseInt(match[1], 10);
+                        if (total > 0) break;
+                    }
+                }
+            }
+
+            // Fallback: search all text for "全XXX件" pattern if results or total is still 0
+            if (total === 0) {
+                const bodyText = document.body.innerText;
+                const match = bodyText.match(/全\s*([0-9,]+)\s*件/);
+                if (match) {
+                    total = parseInt(match[1].replace(/,/g, ''), 10);
+                }
+            }
+
             const maxPage = (typeof window.max_page !== 'undefined') ? window.max_page : 1;
             return { total, maxPage };
         });
