@@ -44,7 +44,7 @@ export const CardGrid: React.FC<CardGridProps> = ({ cards, onPin, pinnedCards, o
                             `}
                         >
                             <img
-                                src={card.imageUrl}
+                                src={`${import.meta.env.BASE_URL}${card.imageUrl.startsWith('/') ? card.imageUrl.slice(1) : card.imageUrl}`}
                                 alt={card.name}
                                 className="w-full h-auto object-contain bg-gray-800/50 aspect-[7/10]"
                             />
