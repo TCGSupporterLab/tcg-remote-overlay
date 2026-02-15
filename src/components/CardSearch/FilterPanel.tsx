@@ -85,12 +85,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         if (isSelected) {
             let bg = '#2563eb'; // Default Blue
             let shadow = '0 0 10px rgba(37, 99, 235, 0.6)';
-            let borderColor = 'transparent';
-
             if (activeTab === 'color') {
                 switch (colorValue) {
                     case 'all': bg = '#2563eb'; shadow = '0 0 12px rgba(37,99,235,0.8)'; break;
-                    case '白': bg = '#e5e7eb'; shadow = '0 0 10px rgba(255,255,255,0.6)'; borderColor = '#fff'; break;
+                    case '白': bg = '#e5e7eb'; shadow = '0 0 10px rgba(255,255,255,0.6)'; break;
                     case '緑': bg = '#16a34a'; shadow = '0 0 10px rgba(22,163,74,0.6)'; break;
                     case '赤': bg = '#dc2626'; shadow = '0 0 10px rgba(220,38,38,0.6)'; break;
                     case '青': bg = '#2563eb'; shadow = '0 0 10px rgba(37,99,235,0.6)'; break;
@@ -116,7 +114,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 ...base,
                 background: bg,
                 boxShadow: shadow,
-                borderColor: 'transparent', // Ensure border doesn't double up
+                borderColor: 'transparent', // Use transparent for all selected states for consistency
             };
         } else {
             // Unselected
