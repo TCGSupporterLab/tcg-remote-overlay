@@ -54,6 +54,12 @@ export const CardSearchContainer: React.FC = () => {
                                 src={`${import.meta.env.BASE_URL}${selectedCard.imageUrl.startsWith('/') ? selectedCard.imageUrl.slice(1) : selectedCard.imageUrl}`}
                                 alt={selectedCard.name}
                                 className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                                onError={(e) => {
+                                    const target = e.currentTarget;
+                                    if (selectedCard.originalImageUrl && target.src !== selectedCard.originalImageUrl) {
+                                        target.src = selectedCard.originalImageUrl;
+                                    }
+                                }}
                             />
 
                             {/* Detail View Pin Badge (Hover) */}

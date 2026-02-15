@@ -13,6 +13,7 @@ export interface Card {
     tags: string;
     expansion: string;
     imageUrl: string;
+    originalImageUrl?: string;
 }
 
 export type FilterCategory = 'color' | 'cardType' | 'bloomLevel';
