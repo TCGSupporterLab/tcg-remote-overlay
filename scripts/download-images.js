@@ -99,12 +99,17 @@ const downloadImage = (url, filepath) => {
         card.imageUrl = publicPath;
     }
 
-    console.log('\n💾 Saving updated JSON...');
-    fs.writeFileSync(DATA_FILE, JSON.stringify(cards, null, 2));
-
-    console.log('🎉 Done!');
     console.log(`   Downloaded: ${downloadedCount}`);
     console.log(`   Skipped:    ${skippedCount}`);
     console.log(`   Errors:     ${errorCount}`);
 
+    if (errorCount > 10) {
+        console.error('\n❌ Too many download errors. Aborting JSON update to keep data consistent.');
+        process.exit(1);
+    }
+
+    console.log('\n💾 Saving updated JSON...');
+    fs.writeFileSync(DATA_FILE, JSON.stringify(cards, null, 2));
+
+    console.log('🎉 Done!');
 })();

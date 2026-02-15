@@ -138,6 +138,7 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
         console.log(`📄 Detected max pages: ${maxPage}`);
 
         // Loop for remaining pages
+        let failedPages = 0;
         for (let i = 2; i <= maxPage; i++) {
             process.stdout.write(`\rCreating fetch for page ${i}/${maxPage}...`);
             const pageUrl = `https://hololive-official-cardgame.com/cardlist/cardsearch_ex?keyword=&attribute%5B0%5D=all&expansion_name=&card_kind%5B0%5D=all&rare%5B0%5D=all&bloom_level%5B0%5D=all&parallel%5B0%5D=all&view=text&page=${i}`;
@@ -222,8 +223,21 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
             }, pageUrl);
 
             allCards = allCards.concat(newCards);
+
+            if (newCards.length === 0) {
+                failedPages++;
+                console.log(`\n❌ Failed to fetch page ${i}. (Total failures: ${failedPages})`);
+            } else {
+                // Success: reset consecutive failure count if we want, 
+                // but let's keep a total failure budget for the whole run.
+            }
+
+            if (failedPages >= 3) {
+                throw new Error('Too many page fetch failures. Aborting update to prevent data corruption.');
+            }
+
             // Random delay to be polite
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 300));
         }
 
         console.log('\n✅ Fetch complete.');
