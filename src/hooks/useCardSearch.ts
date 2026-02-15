@@ -38,7 +38,15 @@ const MAX_PINS = 100;
 // *Note*: The site sort option had "50音順", so maybe we could have scraped it?
 // But for now, let's stick to what we have.
 const normalizeText = (text: string) => {
-    return text
+    // Normalization: 
+    // 1. Full-width numbers/alphabet to half-width
+    // 2. Remove symbols and spaces
+    // 3. Lowercase
+    let normalized = text
+        .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0)) // Full-width to half-width
+        .replace(/　/g, " "); // Ideographic space to normal space
+
+    return normalized
         .replace(/[\u3000-\u303F\uFF00-\uFFEF]/g, "") // Remove common symbols
         .replace(/[・=＝！!？?]/g, "") // Remove specific symbols mentioned
         .replace(/\s+/g, "") // Remove spaces
