@@ -24,7 +24,7 @@ export interface Filters {
     bloomLevel: string[];
 }
 
-const MAX_PINS = 10;
+const MAX_PINS = 100;
 
 // Helper: Normalize text for search (Hiragana/Katakana, ignore symbols)
 // This is a simplified version. For full Kanji-to-Kana, we need a dictionary, 
