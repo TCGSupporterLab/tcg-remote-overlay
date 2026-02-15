@@ -1,0 +1,50 @@
+name: Scheduled Data Update
+
+on:
+  schedule:
+    # 毎日 午前4時 (JST) に実行 (UTC 19:00)
+    - cron: '0 19 * * *'
+  workflow_dispatch: # 手動実行も可能にする
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright/Puppeteer dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgbm-dev libnss3 libatk-bridge2.0-0 libgtk-3-0 libasound2
+
+      - name: Run Fetch Data
+        run: npm run fetch-data
+        env:
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'false'
+
+      - name: Run Download Images
+        run: npm run download-images
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/data/hololive-cards.json public/images/cards/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: scheduled data update [$(date +'%Y-%m-%d')]"
+            git push origin master
+          fi
