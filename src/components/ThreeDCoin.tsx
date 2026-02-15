@@ -11,7 +11,7 @@ export const ThreeDCoin: React.FC<ThreeDCoinProps> = ({ value, flipping }) => {
     return (
         <div className="scene-3d" style={{ width: '140px', height: '140px' }}>
             <div className={`coin w-full h-full relative ${flipping ? 'animate-flipping' : (value === '表' ? 'show-heads' : 'show-tails')}`}
-                style={{ transformStyle: 'preserve-3d', transition: 'transform 1s ease-out' }}>
+                style={{ transformStyle: 'preserve-3d' }}>
 
                 {/* HEADS (Gold/Sun) */}
                 <div className="coin__face coin__face--heads">

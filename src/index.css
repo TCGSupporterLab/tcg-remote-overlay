@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --bg-color: #1a1b26;
   --text-color: #f8f8f2;
@@ -47,17 +51,12 @@ body.obs-transparent #root {
   background-color: transparent !important;
   padding: 0 !important;
   margin: 0 !important;
-  max-width: none !important;
   width: 100% !important;
   height: 100vh !important;
-  text-align: left !important;
-  place-items: start !important;
-  /* Override body centering */
 }
 
 body.obs-transparent .bg-panel {
   background-color: rgba(26, 27, 38, 0.8);
-  /* Slightly more transparent in OBS mode */
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -66,7 +65,7 @@ body.obs-green {
   background-color: #00ff00 !important;
 }
 
-/* Utility Classes */
+/* Legacy Utilities - Restored to fix layout regression */
 .flex {
   display: flex;
 }
@@ -183,12 +182,41 @@ body.obs-green {
   position: relative;
 }
 
+
 .bg-panel {
   background-color: var(--panel-bg);
 }
 
+/* Scroll & Position Utilities - Restored/Enforced */
+.absolute {
+  position: absolute;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+.min-h-0 {
+  min-height: 0;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.flex-none {
+  flex: none;
+}
+
 .btn {
-  border-radius: 8px;
+  border-radius: 0.5rem;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
@@ -208,20 +236,38 @@ body.obs-green {
   transform: translateY(1px);
 }
 
-.btn:focus,
-.btn:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
 .card {
-  padding: 2em;
-  background-color: var(--panel-bg);
-  border-radius: 8px;
+  padding: 2rem;
+  border-radius: 0.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color);
+  border-width: 1px;
+  border-style: solid;
+  background-color: var(--panel-bg);
+  border-color: var(--border-color);
 }
 
 .font-orbitron {
   font-family: 'Orbitron', sans-serif;
   letter-spacing: 0.1em;
 }
+
+.shadow-up {
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 4px;
+}
+/* Pin Badge Hover Logic */
+.pin-badge { opacity: 0; transition: opacity 0.2s ease-in-out; }
+.card-hover-group:hover .pin-badge, .pin-badge:hover { opacity: 1 !important; }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, RefreshCw, ExternalLink } from 'lucide-react';
-import { YugiohLife } from './components/YugiohLife';
-import { HololiveOCR } from './components/HololiveOCR';
+import { YugiohTools } from './components/YugiohTools';
+import { HololiveTools } from './components/HololiveTools';
 import './App.css';
 
 type GameMode = 'yugioh' | 'hololive';
@@ -226,14 +226,14 @@ function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 flex flex-col ${!isOverlayMode ? 'bg-panel border border-border rounded-lg p-4 mb-4' : ''} overflow-y-auto relative`}>
+      <main className={`flex-1 flex flex-col ${!isOverlayMode ? 'bg-panel border border-border rounded-lg p-4 mb-4' : ''} overflow-hidden relative`}>
 
         {/* Standalone OverlayDisplay (For Controller Mode or Non-Yugioh Overlay) */}
         {/* In Yugioh Overlay mode, the overlay is embedded inside YugiohLife for layout control */}
         {/* Standalone OverlayDisplay Removed - now handled internally by each component */}
 
         {gameMode === 'yugioh' ? (
-          <YugiohLife
+          <YugiohTools
             key={`yugioh-${resetKey}`}
             isOverlay={isOverlayMode}
             diceValue={diceValue}
@@ -244,7 +244,7 @@ function App() {
             onCoinClick={!isOverlayMode ? handleFlipCoin : undefined}
           />
         ) : (
-          <HololiveOCR
+          <HololiveTools
             key={`hololive-${resetKey}`}
             isOverlay={isOverlayMode}
             diceValue={diceValue}

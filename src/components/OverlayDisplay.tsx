@@ -20,20 +20,26 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
     const [isDiceRolling, setIsDiceRolling] = useState(false);
     const [isCoinFlipping, setIsCoinFlipping] = useState(false);
 
+    // Track last animated key to prevent animation on mount
+    const lastAnimatedDiceKey = React.useRef(diceKey);
+    const lastAnimatedCoinKey = React.useRef(coinKey);
+
     // Dice Animation trigger
     useEffect(() => {
-        if (diceKey > 0) {
+        if (diceKey !== lastAnimatedDiceKey.current && diceKey > 0) {
             setIsDiceRolling(true);
             const timer = setTimeout(() => setIsDiceRolling(false), 450);
+            lastAnimatedDiceKey.current = diceKey;
             return () => clearTimeout(timer);
         }
     }, [diceKey]);
 
     // Coin Animation trigger
     useEffect(() => {
-        if (coinKey > 0) {
+        if (coinKey !== lastAnimatedCoinKey.current && coinKey > 0) {
             setIsCoinFlipping(true);
-            const timer = setTimeout(() => setIsCoinFlipping(false), 450); // Coin animation is now faster to match dice
+            const timer = setTimeout(() => setIsCoinFlipping(false), 450);
+            lastAnimatedCoinKey.current = coinKey;
             return () => clearTimeout(timer);
         }
     }, [coinKey]);
@@ -43,8 +49,8 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
         : "flex items-center gap-32 pointer-events-none z-50"; // Overlay Gap
 
     const itemWrapperClass = compact
-        ? "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-all hover:scale-105 active:scale-95"
-        : "flex flex-col items-center gap-4 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-4 transition-all hover:scale-105 active:scale-95";
+        ? "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-lg p-2 hover:scale-105 active:scale-95"
+        : "flex flex-col items-center gap-4 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-4 hover:scale-105 active:scale-95";
 
     const itemSizeClass = compact
         ? "relative h-16 w-16 flex items-center justify-center scale-90" // Compact Size
