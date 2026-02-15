@@ -26,7 +26,37 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
     try {
         await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
-        console.log('📜 Scrolling to load all cards...');
+        // --- ENHANCEMENT: Pre-check Count ---
+        console.log('🔍 Checking total card count for updates...');
+        const stats = await page.evaluate(() => {
+            const countEl = document.querySelector('.cardlist-Result_Count span:last-child');
+            const total = countEl ? parseInt(countEl.innerText.replace(/[^0-9]/g, ''), 10) : 0;
+            const maxPage = (typeof window.max_page !== 'undefined') ? window.max_page : 1;
+            return { total, maxPage };
+        });
+
+        console.log(`📊 Current official site total: ${stats.total} cards (${stats.maxPage} pages)`);
+
+        // Get local count
+        if (fs.existsSync(OUTPUT_FILE)) {
+            const localData = JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf-8'));
+            const localCount = Array.isArray(localData) ? localData.length : 0;
+            console.log(`🏠 Local data total: ${localCount} cards`);
+
+            if (stats.total > 0 && stats.total === localCount) {
+                console.log('✅ Card counts match. No new cards detected. Skipping remaining process.');
+                await browser.close();
+                process.exit(0);
+            }
+            if (stats.total > 0 && stats.total < localCount) {
+                console.log('⚠️ Official count is lower than local (rare/deletion?). Proceeding to re-fetch just in case.');
+            } else {
+                console.log('🆕 New cards detected! Proceeding to fetch...');
+            }
+        }
+        // ------------------------------------
+
+        console.log('📜 Scrolling or navigating to load all cards...');
 
         // Helper function to parsing visible cards on current page (for Page 1)
         async function parseCardsFromPage(page) {
