@@ -20,9 +20,7 @@ if (fs.existsSync(KANA_DICT_FILE)) {
 function generateKana(card) {
     const textToAnalyze = [
         card.name,
-        card.tags,
-        card.expansion,
-        card.cardType
+        card.tags
     ].filter(Boolean).join(' ');
 
     let kanaResult = new Set();
