@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import cardDataOriginal from '../data/hololive-cards.json';
 
 // Type Definitions
@@ -54,17 +54,30 @@ const toHiragana = (str: string) => {
 };
 
 export const useCardSearch = () => {
-    const [filters, setFilters] = useState<Filters>({
-        keyword: '',
-        color: ['all'],
-        cardType: ['all'],
-        bloomLevel: ['all'],
+    const [filters, setFilters] = useState<Filters>(() => {
+        const saved = localStorage.getItem('hololive_search_filters');
+        return saved ? JSON.parse(saved) : {
+            keyword: '',
+            color: ['all'],
+            cardType: ['all'],
+            bloomLevel: ['all'],
+        };
     });
 
     const [pinnedCards, setPinnedCards] = useState<Card[]>(() => {
         const saved = localStorage.getItem('hololive_pinned_cards');
         return saved ? JSON.parse(saved) : [];
     });
+
+    // Persist Filters
+    useEffect(() => {
+        localStorage.setItem('hololive_search_filters', JSON.stringify(filters));
+    }, [filters]);
+
+    // Persist Pinned Cards
+    useEffect(() => {
+        localStorage.setItem('hololive_pinned_cards', JSON.stringify(pinnedCards));
+    }, [pinnedCards]);
 
     // Filter Logic
     // Pre-calculate normalized strings once
@@ -204,28 +217,29 @@ export const useCardSearch = () => {
         setPinnedCards(prev => {
             if (prev.find(c => c.id === card.id)) {
                 // Unpin
-                const next = prev.filter(c => c.id !== card.id);
-                localStorage.setItem('hololive_pinned_cards', JSON.stringify(next));
-                return next;
+                return prev.filter(c => c.id !== card.id);
             } else {
                 // Pin (check limit)
                 if (prev.length >= MAX_PINS) {
                     alert(`ピン留めできるのは最大${MAX_PINS}件までです。`);
                     return prev;
                 }
-                const next = [...prev, card];
-                localStorage.setItem('hololive_pinned_cards', JSON.stringify(next));
-                return next;
+                return [...prev, card];
             }
         });
     };
 
     const resetPins = () => {
         setPinnedCards([]);
-        localStorage.removeItem('hololive_pinned_cards');
     };
 
-    const [showPinnedOnOverlay, setShowPinnedOnOverlay] = useState(false);
+    const [showPinnedOnOverlay, setShowPinnedOnOverlay] = useState(() => {
+        return localStorage.getItem('hololive_show_pinned_overlay') === 'true';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('hololive_show_pinned_overlay', String(showPinnedOnOverlay));
+    }, [showPinnedOnOverlay]);
 
     const toggleShowPinnedOnOverlay = () => {
         setShowPinnedOnOverlay(prev => !prev);

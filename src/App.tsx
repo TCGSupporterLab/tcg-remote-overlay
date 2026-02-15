@@ -11,11 +11,37 @@ type ObsMode = 'normal' | 'transparent' | 'green';
 const CHANNEL_NAME = 'remote_duel_sync';
 
 function App() {
-  const [obsMode, setObsMode] = useState<ObsMode>('normal');
+  const [obsMode, setObsMode] = useState<ObsMode>(() => {
+    const saved = (localStorage.getItem('remote_duel_obs_mode') as ObsMode);
+    return saved || 'normal';
+  });
   const [isOverlayMode, setIsOverlayMode] = useState(false);
 
+  // Apply initial OBS mode class
+  useEffect(() => {
+    if (obsMode !== 'normal') {
+      document.body.classList.add(`obs-${obsMode}`);
+    }
+    return () => {
+      document.body.classList.remove('obs-transparent', 'obs-green');
+    };
+  }, []);
+
+  // Persist OBS mode
+  useEffect(() => {
+    localStorage.setItem('remote_duel_obs_mode', obsMode);
+  }, [obsMode]);
+
   // Shared State
-  const [gameMode, setGameMode] = useState<GameMode>('yugioh');
+  const [gameMode, setGameMode] = useState<GameMode>(() => {
+    const saved = localStorage.getItem('remote_duel_game_mode');
+    return (saved as GameMode) || 'yugioh';
+  });
+
+  // Persist gameMode
+  useEffect(() => {
+    localStorage.setItem('remote_duel_game_mode', gameMode);
+  }, [gameMode]);
 
   // Persistent Tool State
   const [diceValue, setDiceValue] = useState<number>(1);
