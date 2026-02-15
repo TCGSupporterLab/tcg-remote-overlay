@@ -29,12 +29,12 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
         // --- ENHANCEMENT: Pre-check Count ---
         console.log('🔍 Checking total card count for updates...');
         const stats = await page.evaluate(() => {
-            // Try multiple common selectors for the count
+            // Try specific selector based on observed HTML
             const selectors = [
+                '.cardlist-Result_Target_Num .num', // Direct hit based on shared HTML
+                '.cardlist-Result_Target_Num',
                 '.cardlist-Result_Count span:last-child',
-                '.cardlist-Result_Count',
-                '.count',
-                '.result-count'
+                '.cardlist-Result_Count'
             ];
 
             let total = 0;
@@ -50,10 +50,10 @@ const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
                 }
             }
 
-            // Fallback: search all text for "全XXX件" pattern if results or total is still 0
+            // Fallback: search all text for "全XXX件" or "検索結果XXX件" pattern
             if (total === 0) {
                 const bodyText = document.body.innerText;
-                const match = bodyText.match(/全\s*([0-9,]+)\s*件/);
+                const match = bodyText.match(/(?:全|検索結果)\s*([0-9,]+)\s*件/);
                 if (match) {
                     total = parseInt(match[1].replace(/,/g, ''), 10);
                 }
