@@ -1,73 +1,74 @@
-# React + TypeScript + Vite
+# Remote Duel Overlay (リモートデュエル・オーバーレイ)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[English](./README_en.md) <!-- 将来的に英語READMEを作る場合のリンク -->
 
-Currently, two official plugins are available:
+OBSなどの配信ソフトで使用することを想定した、トレーディングカードゲーム（TCG）のリモート対戦用オーバーレイツールです。
+特に「遊戯王OCG」および「ホロライブOCG」に対応（予定）しています。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🌟 主な機能
 
-## React Compiler
+### 🃏 遊戯王モード
+- **ライフポイント計算機**: 
+  - プレイヤーごとのライフ管理
+  - ログ機能（履歴表示）
+  - Undo / Redo（取り消し・やり直し）機能
+- **3D ダイス機能**: 物理演算風の3Dサイコロアニメーション
+- **コイントス機能**: 3Dコイントスアニメーション
+- **計算機UI**: キーボード操作に最適化された入力インターフェース
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 📹 オーバーレイ機能
+- **背景透過**: OBSのブラウザソースとして追加することで、カメラ映像の上にオーバーレイ表示可能
+- **クロマキー不要**: 背景は最初から透過設定済み
+- **レスポンシブ**: ウィンドウサイズに合わせてレイアウトが調整されます
 
-## Expanding the ESLint configuration
+## 🚀 使い方
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### インストールと起動
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. **リポジトリをクローン**
+   ```bash
+   git clone https://github.com/icns-sj/RemoteDuelTool.git
+   cd RemoteDuelTool
+   ```
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+2. **依存関係のインストール**
+   ```bash
+   npm install
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+3. **開発サーバーの起動**
+   ```bash
+   npm run dev
+   ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+4. **OBSへの追加**
+   - OBSの「ソース」→「ブラウザ」を追加
+   - URLに `http://localhost:5173` (または表示されたURL) を入力
+   - 幅・高さを設定（例: 1920x1080）
+   - 「カスタムCSS」は空にするか必要に応じて調整
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## ⌨️ キーボードショートカット
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| キー | 動作 |
+| --- | --- |
+| `0-9` (テンキー) | 数字入力 |
+| `+` | 加算 (+) |
+| `-` (または Enter) | 減算 (-) |
+| `/` | ライフを半分にする (ハーフ) |
+| `Delete` / `Backspace` | 入力クリア |
+| `Ctrl + Z` | Undo (取り消し) |
+| `Ctrl + Y` | Redo (やり直し) |
+| `↑` / `←` | Player 1 (自分) を選択 |
+| `↓` / `→` | Player 2 (相手) を選択 |
+
+## 🛠 技術スタック
+
+- **Framework**: React (Vite)
+- **Language**: TypeScript
+- **Styling**: CSS Modules / Tailwind CSS (一部)
+- **State Management**: React Hooks (Context/Reducer pattern)
+- **Icons**: Lucide React
+
+## 📝 ライセンス
+
+MIT License
