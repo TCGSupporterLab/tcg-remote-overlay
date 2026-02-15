@@ -20,8 +20,8 @@ const FILTER_OPTIONS = {
         { label: '紫', value: '紫' },
         { label: '黄', value: '黄' },
         { label: '無', value: 'colorless' },
-        { label: '多色', value: 'multi' },
         { label: '単色', value: 'not_multi' },
+        { label: '多色', value: 'multi' },
     ],
     cardType: [
         { label: 'すべて', value: 'all' },
