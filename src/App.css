@@ -1,0 +1,84 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Header Layout */
+.header-row {
+  display: flex;
+  align-items: stretch;
+  /* Stretch children to match height */
+  gap: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.game-mode-tabs {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.btn-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  /* Fixed width for icon button */
+  padding: 0;
+  border-radius: 0.5rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  /* red-500/10 */
+  color: rgba(252, 165, 165, 0.8);
+  /* red-300/80 */
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  /* red-500/20 */
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.btn-reset:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
