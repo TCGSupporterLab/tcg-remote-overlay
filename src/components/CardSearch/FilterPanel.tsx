@@ -139,7 +139,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             <div style={{ position: 'relative', marginBottom: '4px' }}>
                 <input
                     type="text"
-                    placeholder="カード名・No.で検索..."
+                    placeholder="カード名で検索..."
                     value={filters.keyword}
                     onChange={(e) => onKeywordChange(e.target.value)}
                     style={{
