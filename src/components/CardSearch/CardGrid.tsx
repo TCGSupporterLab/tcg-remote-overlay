@@ -47,6 +47,12 @@ export const CardGrid: React.FC<CardGridProps> = ({ cards, onPin, pinnedCards, o
                                 src={card.imageUrl}
                                 alt={card.name}
                                 className="w-full h-auto object-contain bg-gray-800/50 aspect-[7/10]"
+                                onError={(e) => {
+                                    const target = e.currentTarget;
+                                    if (card.originalImageUrl && target.src !== card.originalImageUrl) {
+                                        target.src = card.originalImageUrl;
+                                    }
+                                }}
                             />
 
                             {/* Hover Pin Badge */}
