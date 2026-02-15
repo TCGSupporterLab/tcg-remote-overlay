@@ -146,9 +146,9 @@ export const useCardSearch = () => {
                     if (cardColor.length < 2) return false;
                 }
                 if (selectedColors.includes('not_multi')) {
-                    // Single-color is defined as 1 character or empty (but excluding colorless if it's special?)
-                    // Actually, "not multi" should simply mean length < 2.
-                    if (cardColor.length >= 2) return false;
+                    // Single-color is now defined as exactly 1 character (e.g., "赤", "青")
+                    // This excludes multi-color (2+) and empty color/colorless.
+                    if (cardColor.length !== 1) return false;
                 }
             }
 

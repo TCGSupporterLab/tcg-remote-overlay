@@ -21,7 +21,7 @@ const FILTER_OPTIONS = {
         { label: '黄', value: '黄' },
         { label: '無', value: 'colorless' },
         { label: '多色', value: 'multi' },
-        { label: '多色を含めない', value: 'not_multi' },
+        { label: '単色', value: 'not_multi' },
     ],
     cardType: [
         { label: 'すべて', value: 'all' },
