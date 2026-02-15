@@ -2756,19 +2756,6 @@
     "originalImageUrl": "https://hololive-official-cardgame.com/wp-content/images/cardlist/hBP01/hBP01-125_C.png"
   },
   {
-    "id": "hBD24-001",
-    "name": "パヴォリア・レイネ",
-    "cardType": "推しホロメン",
-    "rarity": "P",
-    "color": "緑",
-    "hp": "5",
-    "bloomLevel": "",
-    "tags": "",
-    "expansion": "PRカード",
-    "imageUrl": "/images/cards/hBD24-001.png",
-    "originalImageUrl": "https://hololive-official-cardgame.com/wp-content/images/cardlist/hPR/hBD24-001_P.png"
-  },
-  {
     "id": "hBD24-002",
     "name": "獅白ぼたん",
     "cardType": "推しホロメン",
