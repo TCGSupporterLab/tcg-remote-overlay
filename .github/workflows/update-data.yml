@@ -24,10 +24,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright/Puppeteer dependencies
+      - name: Install Puppeteer dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgbm-dev libnss3 libatk-bridge2.0-0 libgtk-3-0 libasound2
+          sudo apt-get install -y \
+            libgbm-dev \
+            libnss3 \
+            libatk-bridge2.0-0 \
+            libgtk-3-0 \
+            libasound2t64 \
+            libxss1 \
+            libxtst6 \
+            libxshmfence1 \
+            libglu1-mesa
 
       - name: Run Fetch Data
         run: npm run fetch-data
