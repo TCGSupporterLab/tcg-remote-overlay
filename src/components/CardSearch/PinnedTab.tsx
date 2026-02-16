@@ -117,7 +117,6 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
                             onSelect={onSelect}
                             selectedId={selectedId}
                             selectedImageUrl={selectedImageUrl}
-                            containerRef={scrollRef}
                         />
                     )}
                 </div>
