@@ -2,6 +2,7 @@ import React from 'react';
 import { RotateCcw } from 'lucide-react';
 import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import { OverlayDisplay } from './OverlayDisplay';
+import { useCardSearch } from '../hooks/useCardSearch';
 
 interface HololiveToolsProps {
     isOverlay?: boolean;
@@ -22,6 +23,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     onDiceClick,
     onCoinClick
 }) => {
+    const { overlayCard } = useCardSearch();
+
     // Overlay View: Only show result and image
     if (isOverlay) {
         return (
@@ -41,6 +44,17 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
             >
                 {/* Main Content Row */}
                 <div className="flex flex-row items-center justify-center gap-16 w-full pointer-events-auto">
+                    {/* Card Display (Optional) */}
+                    {overlayCard && (
+                        <div className="flex flex-col items-center justify-center relative p-4 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl animate-in zoom-in duration-500 transform">
+                            <img
+                                src={overlayCard.imageUrl.startsWith('/') ? overlayCard.imageUrl.slice(1) : overlayCard.imageUrl}
+                                alt={overlayCard.name}
+                                className="h-[500px] w-auto object-contain drop-shadow-2xl"
+                            />
+                        </div>
+                    )}
+
                     <OverlayDisplay
                         diceValue={diceValue}
                         coinValue={coinValue}

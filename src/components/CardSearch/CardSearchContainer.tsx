@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useCardSearch, type Card } from '../../hooks/useCardSearch';
+import React, { useState } from 'react';
+import { useCardSearch } from '../../hooks/useCardSearch';
 import { SearchTab } from './SearchTab';
 import { PinnedTab } from './PinnedTab';
 import { FilterPanel } from './FilterPanel';
 import { PinBadge } from './PinBadge';
+import { OverlayBadge } from './OverlayBadge';
 import { Search, Pin } from 'lucide-react';
 
 export const CardSearchContainer: React.FC = () => {
@@ -11,28 +12,18 @@ export const CardSearchContainer: React.FC = () => {
         filters,
         filteredCards,
         pinnedCards,
-        showPinnedOnOverlay,
+        selectedCard,
+        isOverlayEnabled,
         updateFilter,
         setKeyword,
         togglePin,
         resetPins,
-        toggleShowPinnedOnOverlay
+        setSelectedCard,
+        toggleOverlayMode
     } = useCardSearch();
 
     const [activeTab, setActiveTab] = useState<'search' | 'pinned'>('search');
-    const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
-    // Auto-select first card if nothing selected or current selection is filtered out
-    useEffect(() => {
-        if (filteredCards.length > 0) {
-            const isSelectedVisible = selectedCard && filteredCards.some(c => c.id === selectedCard.id);
-            if (!isSelectedVisible) {
-                setSelectedCard(filteredCards[0]);
-            }
-        } else {
-            setSelectedCard(null);
-        }
-    }, [filteredCards, selectedCard]);
 
     const searchTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
 
@@ -60,6 +51,12 @@ export const CardSearchContainer: React.FC = () => {
                             <PinBadge
                                 isPinned={pinnedCards.some(c => c.id === selectedCard?.id)}
                                 onToggle={() => selectedCard && togglePin(selectedCard)}
+                            />
+
+                            {/* Detail View Overlay Badge (Hover) */}
+                            <OverlayBadge
+                                isActive={isOverlayEnabled}
+                                onToggle={() => toggleOverlayMode()}
                             />
                         </div>
                     </div>
@@ -127,15 +124,15 @@ export const CardSearchContainer: React.FC = () => {
                                 pinnedCards={pinnedCards}
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
+                                selectedId={selectedCard?.id}
                             />
                         ) : (
                             <PinnedTab
                                 pinnedCards={pinnedCards}
-                                showOnOverlay={showPinnedOnOverlay}
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
                                 onResetPins={resetPins}
-                                onToggleOverlay={toggleShowPinnedOnOverlay}
+                                selectedId={selectedCard?.id}
                             />
                         )}
                     </div>

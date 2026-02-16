@@ -236,27 +236,87 @@ export const useCardSearch = () => {
         setPinnedCards([]);
     };
 
-    const [showPinnedOnOverlay, setShowPinnedOnOverlay] = useState(() => {
-        return localStorage.getItem('hololive_show_pinned_overlay') === 'true';
+    const [selectedCard, setSelectedCard] = useState<Card | null>(() => {
+        const saved = localStorage.getItem('hololive_selected_card');
+        return saved ? JSON.parse(saved) : null;
     });
+    const [isOverlayEnabled, setIsOverlayEnabled] = useState(() => {
+        return localStorage.getItem('hololive_overlay_enabled') === 'true';
+    });
+    const [remoteOverlayCard, setRemoteOverlayCard] = useState<Card | null>(null);
 
+    // Auto-select first card if nothing selected (only if no cache)
     useEffect(() => {
-        localStorage.setItem('hololive_show_pinned_overlay', String(showPinnedOnOverlay));
-    }, [showPinnedOnOverlay]);
+        if (filteredCards.length > 0) {
+            if (!selectedCard || !filteredCards.some(c => c.id === selectedCard.id)) {
+                // If nothing selected or selection is no longer in filtered list,
+                // we ONLY auto-select if we don't have a valid cached selection in current filter
+                // However, to keep it simple, we auto-select first if current selection is invalid.
+                setSelectedCard(filteredCards[0]);
+            }
+        } else {
+            setSelectedCard(null);
+        }
+    }, [filteredCards]); // Remove selectedCard from dependency to avoid loop with cache logic
 
-    const toggleShowPinnedOnOverlay = () => {
-        setShowPinnedOnOverlay(prev => !prev);
+    // Sync logic for Overlay
+    useEffect(() => {
+        const channel = new BroadcastChannel('remote_duel_sync');
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data.type === 'HOLOLIVE_OVERLAY_STATE_UPDATE') {
+                setIsOverlayEnabled(event.data.value);
+            }
+            if (event.data.type === 'HOLOLIVE_OVERLAY_CARD_UPDATE') {
+                setRemoteOverlayCard(event.data.value);
+            }
+            if (event.data.type === 'REQUEST_STATE') {
+                // If a new window (like overlay) asks for state, send current status and card
+                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: isOverlayEnabled });
+                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: isOverlayEnabled ? selectedCard : null });
+            }
+        };
+
+        channel.onmessage = handleMessage;
+        return () => channel.close();
+    }, [isOverlayEnabled, selectedCard]);
+
+    // When selectedCard or isOverlayEnabled changes, broadcast the update and save to localStorage
+    useEffect(() => {
+        localStorage.setItem('hololive_overlay_enabled', String(isOverlayEnabled));
+        if (selectedCard) {
+            localStorage.setItem('hololive_selected_card', JSON.stringify(selectedCard));
+        } else {
+            localStorage.removeItem('hololive_selected_card');
+        }
+
+        const channel = new BroadcastChannel('remote_duel_sync');
+        channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: isOverlayEnabled });
+        channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: isOverlayEnabled ? selectedCard : null });
+        channel.close();
+    }, [isOverlayEnabled, selectedCard]);
+
+    const toggleOverlayMode = () => {
+        setIsOverlayEnabled(prev => !prev);
     };
+
+    // The card to actually display on the overlay
+    // If we are in the overlay window, we use remoteOverlayCard
+    // If we are in the controller window, we use (enabled ? selected : null)
+    const overlayCard = remoteOverlayCard || (isOverlayEnabled ? selectedCard : null);
 
     return {
         filters,
         filteredCards,
         pinnedCards,
-        showPinnedOnOverlay, // Export state
+        selectedCard,
+        overlayCard,
+        isOverlayEnabled,
         updateFilter,
         setKeyword,
         togglePin,
         resetPins,
-        toggleShowPinnedOnOverlay // Export toggle
+        setSelectedCard,
+        toggleOverlayMode
     };
 };

@@ -1,46 +1,27 @@
 import React from 'react';
 import type { Card } from '../../hooks/useCardSearch';
 import { CardGrid } from './CardGrid';
-import { Trash2, Monitor } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface PinnedTabProps {
     pinnedCards: Card[];
-    showOnOverlay: boolean;
     onTogglePin: (card: Card) => void;
     onSelect: (card: Card) => void;
     onResetPins: () => void;
-    onToggleOverlay: () => void;
+    selectedId?: string;
 }
 
 export const PinnedTab: React.FC<PinnedTabProps> = ({
     pinnedCards,
-    showOnOverlay,
     onTogglePin,
     onSelect,
     onResetPins,
-    onToggleOverlay
+    selectedId
 }) => {
     return (
         <div className="flex flex-col h-full w-full bg-gray-900">
             {/* Toolbar */}
-            <div className="flex-none bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
-
-                {/* Overlay Toggle Switch */}
-                <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={showOnOverlay}
-                            onChange={onToggleOverlay}
-                        />
-                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-300 group-hover:text-white flex items-center gap-2">
-                        <Monitor size={16} />
-                        オーバーレイに表示
-                    </span>
-                </label>
+            <div className="flex-none bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-end">
 
                 {/* Reset Button */}
                 {pinnedCards.length > 0 && (
@@ -73,6 +54,7 @@ export const PinnedTab: React.FC<PinnedTabProps> = ({
                             pinnedCards={pinnedCards} // All are pinned here
                             onPin={onTogglePin}
                             onSelect={onSelect}
+                            selectedId={selectedId}
                             compact={false}
                         />
                     )}

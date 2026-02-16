@@ -8,6 +8,7 @@ interface SearchTabProps {
     pinnedCards: Card[];
     onTogglePin: (card: Card) => void;
     onSelect: (card: Card) => void;
+    selectedId?: string;
 }
 
 export interface SearchTabHandle {
@@ -19,7 +20,8 @@ export const SearchTab = React.forwardRef<SearchTabHandle, SearchTabProps>(({
     filteredCards,
     pinnedCards,
     onTogglePin,
-    onSelect
+    onSelect,
+    selectedId
 }, ref) => {
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -47,6 +49,7 @@ export const SearchTab = React.forwardRef<SearchTabHandle, SearchTabProps>(({
                 pinnedCards={pinnedCards}
                 onPin={onTogglePin}
                 onSelect={onSelect}
+                selectedId={selectedId}
                 compact={false}
             />
         </div>
