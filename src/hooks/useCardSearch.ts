@@ -94,11 +94,6 @@ export const useCardSearch = () => {
             ...card,
             _joinedText: (
                 normalizeText(card.name) +
-                normalizeText(card.cardType) +
-                normalizeText(card.color) +
-                normalizeText(card.tags || '') +
-                normalizeText(card.expansion || '') +
-                normalizeText(card.bloomLevel || '') +
                 normalizeText((card as any).kana || '')
             ),
             _normName: normalizeText(card.name),
