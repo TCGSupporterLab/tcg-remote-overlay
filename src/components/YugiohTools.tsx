@@ -21,12 +21,14 @@ interface YugiohToolsProps {
     coinKey?: number;
     onDiceClick?: () => void;
     onCoinClick?: () => void;
+    obsMode?: 'normal' | 'transparent' | 'green';
 }
 
 export const YugiohTools: React.FC<YugiohToolsProps> = ({
     isOverlay = false,
     diceValue = 1, coinValue = '表', diceKey = 0, coinKey = 0,
-    onDiceClick, onCoinClick
+    onDiceClick, onCoinClick,
+    obsMode = 'normal'
 }) => {
     const [p1, setP1] = useState<PlayerState>({ life: INITIAL_LIFE, log: [INITIAL_LIFE], isRotated: false });
     const [p2, setP2] = useState<PlayerState>({ life: INITIAL_LIFE, log: [INITIAL_LIFE], isRotated: false });
@@ -45,13 +47,15 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             const data = event.data;
             if (data.p1) setP1(data.p1);
             if (data.p2) setP2(data.p2);
+            if (data.target !== undefined) setTargetPlayer(data.target);
+            if (data.input !== undefined) setInputValue(data.input);
         };
         return () => channel.close();
     }, []);
 
-    const broadcastUpdate = (newP1: PlayerState, newP2: PlayerState) => {
+    const broadcastSync = (data: { p1?: PlayerState, p2?: PlayerState, target?: 'p1' | 'p2' | null, input?: string }) => {
         const channel = new BroadcastChannel(CHANNEL_NAME);
-        channel.postMessage({ p1: newP1, p2: newP2 });
+        channel.postMessage(data);
         channel.close();
     };
 
@@ -65,7 +69,13 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         // Update State
         setP1(newP1);
         setP2(newP2);
-        broadcastUpdate(newP1, newP2);
+        broadcastSync({ p1: newP1, p2: newP2, target: targetPlayer });
+    };
+
+    const handleSetTarget = (player: 'p1' | 'p2' | null) => {
+        if (player === targetPlayer) return;
+        setTargetPlayer(player);
+        broadcastSync({ target: player });
     };
 
     const updateLife = (player: 'p1' | 'p2', newLife: number) => {
@@ -99,7 +109,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         // Update State without pushing to history
         setP1(newP1);
         setP2(newP2);
-        broadcastUpdate(newP1, newP2);
+        broadcastSync({ p1: newP1, p2: newP2, target: targetPlayer });
     };
 
     const handleUndo = () => {
@@ -114,7 +124,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             setP1(restoredP1);
             setP2(restoredP2);
             setCurrentStep(prevStep);
-            broadcastUpdate(restoredP1, restoredP2);
+            broadcastSync({ p1: restoredP1, p2: restoredP2, target: targetPlayer });
         }
     };
 
@@ -130,7 +140,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             setP1(restoredP1);
             setP2(restoredP2);
             setCurrentStep(nextStep);
-            broadcastUpdate(restoredP1, restoredP2);
+            broadcastSync({ p1: restoredP1, p2: restoredP2, target: targetPlayer });
         }
     };
 
@@ -142,14 +152,14 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             return;
         }
 
-        setInputValue(prev => {
-            if (prev === '0') return strVal;
-            return prev + strVal;
-        });
+        const next = inputValue === '0' ? strVal : inputValue + strVal;
+        setInputValue(next);
+        broadcastSync({ input: next });
     };
 
     const handleClear = () => {
         setInputValue('');
+        broadcastSync({ input: '' });
     };
 
     const handleOperation = (op: '+' | '-') => {
@@ -168,6 +178,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
 
         updateLife(targetPlayer, newLife);
         setInputValue('');
+        broadcastSync({ input: '' });
     };
 
     const handleHalf = () => {
@@ -179,7 +190,6 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
     // Keyboard Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (isOverlay) return; // Disable shortcuts in overlay mode
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return; // Ignore if typing in an input
 
             // Undo / Redo
@@ -226,29 +236,28 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             // Target Selection (Arrow Keys)
             if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
                 e.preventDefault();
-                setTargetPlayer('p1');
+                handleSetTarget('p1');
                 return;
             }
             if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
                 e.preventDefault();
-                setTargetPlayer('p2');
+                handleSetTarget('p2');
                 return;
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOverlay, handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo]);
+    }, [isOverlay, handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo, p1, p2, targetPlayer]);
 
     // Layout constants
-    const overlayWrapperClass = "fixed inset-0 z-50 flex flex-col items-center justify-center bg-transparent pointer-events-none";
+    const overlayWrapperClass = "fixed inset-0 z-50 flex flex-col items-center justify-center bg-transparent";
 
     // Inner row constants
     const overlayRowClass = "flex flex-row items-center justify-center gap-16 w-full animate-in fade-in duration-500 pointer-events-auto";
 
     // Card constants (overlay: relative to flex row, vertically centered)
-    // Card constants (overlay: relative to flex row, vertically centered)
-    const overlayCardClass = "flex flex-col items-center justify-center relative p-6 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-xl min-w-[300px] transition-transform duration-500 transform";
+    const overlayCardClass = "flex flex-col items-center justify-center relative p-6 rounded-2xl transition-all duration-500 transform";
     const normalCardClass = "card flex flex-col items-center justify-center transition-colors relative p-2 flex-1 min-w-0 max-w-md cursor-pointer hover:bg-white/5 active:scale-[0.98] transition-all";
 
     const getPlayerCardClass = (isOverlay: boolean) => {
@@ -256,18 +265,31 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         return normalCardClass;
     };
 
-    const getTargetStyle = (isTarget: boolean, player: 'p1' | 'p2') => {
+    const getTargetStyle = (isTarget: boolean, player: 'p1' | 'p2', activeOverlay: boolean) => {
+        // Keep a dark semi-transparent background for overlay to keep numbers readable
+        // even when the window background is Green or Transparent.
+        const overlayBg = 'rgba(15, 20, 30, 0.85)';
+
         if (!isTarget) return {
-            opacity: 0.6,
-            border: '4px solid rgba(255, 255, 255, 0.2)', // Match border width of active state (4px) to prevent layout shift
-            padding: '1.5rem' // Standard padding (p-6)
+            opacity: activeOverlay ? 1 : 0.6,
+            border: activeOverlay ? '4px solid rgba(255, 255, 255, 0.1)' : '4px solid rgba(255, 255, 255, 0.05)',
+            padding: '1.5rem',
+            backgroundColor: activeOverlay ? (obsMode === 'normal' ? '#111827' : overlayBg) : undefined,
+            boxShadow: 'none'
         };
+
+        // Focus State
         return {
-            border: `4px solid ${player === 'p1' ? 'rgba(239, 68, 68, 1)' : 'rgba(59, 130, 246, 1)'}`,
-            boxShadow: `0 0 15px ${player === 'p1' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(59, 130, 246, 0.5)'}`,
-            backgroundColor: player === 'p1' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+            border: `4px solid ${player === 'p1' ? '#ef4444' : '#3b82f6'}`,
+            boxShadow: `0 0 20px ${player === 'p1' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(59, 130, 246, 0.6)'}`,
+            backgroundColor: activeOverlay
+                ? (obsMode === 'normal'
+                    ? (player === 'p1' ? '#1b1414' : '#141b2d')
+                    : (player === 'p1' ? 'rgba(30, 10, 10, 0.9)' : 'rgba(10, 15, 30, 0.9)')
+                )
+                : (player === 'p1' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'),
             opacity: 1,
-            padding: '1.5rem' // Standard p-6 padding
+            padding: '1.5rem'
         };
     };
 
@@ -282,8 +304,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'transparent',
-                pointerEvents: 'none'
+                backgroundColor: 'transparent'
             } : undefined}
         >
             {/* Life Display Area (Fixed Header) */}
@@ -295,9 +316,9 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                         className={getPlayerCardClass(!!isOverlay)}
                         style={{
                             transform: isOverlay && p1.isRotated ? 'rotate(180deg)' : undefined,
-                            ...(!isOverlay ? getTargetStyle(targetPlayer === 'p1', 'p1') : {})
+                            ...getTargetStyle(targetPlayer === 'p1', 'p1', !!isOverlay)
                         }}
-                        onClick={() => !isOverlay && setTargetPlayer('p1')}
+                        onClick={() => handleSetTarget('p1')}
                     >
 
                         {/* Rotation Toggle Button (Absolute Top-Right) */}
@@ -325,6 +346,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                                 <DigitalDisplay
                                     value={p1.life}
                                     color="red"
+                                    obsMode={obsMode}
                                     className={`transition-all duration-300 ${p1.life === 0 ? 'grayscale opacity-50' : ''}`}
                                 />
                             ) : (
@@ -352,9 +374,9 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                         className={getPlayerCardClass(!!isOverlay)}
                         style={{
                             transform: isOverlay && p2.isRotated ? 'rotate(180deg)' : undefined,
-                            ...(!isOverlay ? getTargetStyle(targetPlayer === 'p2', 'p2') : {})
+                            ...getTargetStyle(targetPlayer === 'p2', 'p2', !!isOverlay)
                         }}
-                        onClick={() => !isOverlay && setTargetPlayer('p2')}
+                        onClick={() => handleSetTarget('p2')}
                     >
 
 
@@ -383,6 +405,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                                 <DigitalDisplay
                                     value={p2.life}
                                     color="blue"
+                                    obsMode={obsMode}
                                     className={`transition-all duration-300 ${p2.life === 0 ? 'grayscale opacity-50' : ''}`}
                                 />
                             ) : (
@@ -465,6 +488,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                                 P1: {p1.log.slice(0, 3).join(' ← ')}...
                             </div>
                             <div>
+                                <History size={10} className="inline mr-1" />
                                 P2: {p2.log.slice(0, 3).join(' ← ')}...
                             </div>
                         </div>

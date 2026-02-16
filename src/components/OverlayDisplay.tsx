@@ -11,11 +11,13 @@ interface OverlayDisplayProps {
     onCoinClick?: () => void;
     className?: string;
     compact?: boolean;
+    showCoin?: boolean;
 }
 
 export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
     diceValue, coinValue, diceKey, coinKey,
-    onDiceClick, onCoinClick, className, compact = false
+    onDiceClick, onCoinClick, className, compact = false,
+    showCoin = true
 }) => {
     const [isDiceRolling, setIsDiceRolling] = useState(false);
     const [isCoinFlipping, setIsCoinFlipping] = useState(false);
@@ -45,7 +47,7 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
     }, [coinKey]);
 
     const containerClass = compact
-        ? "flex items-center gap-4 pointer-events-none z-50 py-2" // Compact Gap
+        ? "flex items-center gap-2 pointer-events-none z-50 py-2" // Compact Gap (Tightened)
         : "flex items-center gap-32 pointer-events-none z-50"; // Overlay Gap
 
     const itemWrapperClass = compact
@@ -53,7 +55,7 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
         : "flex flex-col items-center gap-4 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-4 hover:scale-105 active:scale-95";
 
     const itemSizeClass = compact
-        ? "relative h-16 w-16 flex items-center justify-center scale-90" // Compact Size
+        ? "relative h-12 w-12 flex items-center justify-center scale-75" // Compact Size (Smaller)
         : "relative h-32 w-32 flex items-center justify-center scale-125"; // Overlay Size
 
     return (
@@ -74,18 +76,20 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
             </div>
 
             {/* Coin Section */}
-            <div
-                className={itemWrapperClass}
-                onClick={onCoinClick}
-                title="クリックしてコイントス"
-            >
-                <div className={itemSizeClass}>
-                    <ThreeDCoin
-                        value={coinValue === '表' || coinValue === 'Heads' ? '表' : '裏'}
-                        flipping={isCoinFlipping}
-                    />
+            {showCoin && (
+                <div
+                    className={itemWrapperClass}
+                    onClick={onCoinClick}
+                    title="クリックしてコイントス"
+                >
+                    <div className={itemSizeClass}>
+                        <ThreeDCoin
+                            value={coinValue === '表' || coinValue === 'Heads' ? '表' : '裏'}
+                            flipping={isCoinFlipping}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
 
         </div>
     );

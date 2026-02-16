@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCardSearch } from '../../hooks/useCardSearch';
 import { SearchTab } from './SearchTab';
 import { PinnedTab } from './PinnedTab';
@@ -10,10 +10,12 @@ import { Search, Pin } from 'lucide-react';
 export const CardSearchContainer: React.FC = () => {
     const {
         filters,
+        searchKey,
         filteredCards,
         pinnedCards,
+        pinnedIds,
         selectedCard,
-        isOverlayEnabled,
+        overlayMode,
         updateFilter,
         setKeyword,
         togglePin,
@@ -26,9 +28,38 @@ export const CardSearchContainer: React.FC = () => {
 
 
     const searchTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
+    const pinnedTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
 
-    const handleScrollTop = () => searchTabRef.current?.scrollToTop();
-    const handleScrollBottom = () => searchTabRef.current?.scrollToBottom();
+    const handleScrollTop = () => {
+        if (activeTab === 'search') searchTabRef.current?.scrollToTop();
+        else pinnedTabRef.current?.scrollToTop();
+    };
+    const handleScrollBottom = () => {
+        if (activeTab === 'search') searchTabRef.current?.scrollToBottom();
+        else pinnedTabRef.current?.scrollToBottom();
+    };
+
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input or textarea
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                if (e.key === 'Tab') {
+                    // Do not prevent default for Tab in input, let focus move normally
+                } else {
+                    return;
+                }
+            }
+
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                setActiveTab(prev => prev === 'search' ? 'pinned' : 'search');
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     return (
         <div className="flex h-full w-full bg-gray-900 text-gray-100 overflow-hidden relative">
@@ -42,20 +73,20 @@ export const CardSearchContainer: React.FC = () => {
                         {/* Enlarged Image Area */}
                         <div className="relative w-full flex-1 min-h-0 flex items-center justify-center card-hover-group">
                             <img
-                                src={selectedCard.imageUrl.startsWith('/') ? selectedCard.imageUrl.slice(1) : selectedCard.imageUrl}
+                                src={selectedCard.resolvedImageUrl || selectedCard.imageUrl}
                                 alt={selectedCard.name}
                                 className="max-w-full max-h-full object-contain drop-shadow-2xl"
                             />
 
                             {/* Detail View Pin Badge (Hover) */}
                             <PinBadge
-                                isPinned={pinnedCards.some(c => c.id === selectedCard?.id)}
+                                isPinned={pinnedIds.has(selectedCard.id)}
                                 onToggle={() => selectedCard && togglePin(selectedCard)}
                             />
 
                             {/* Detail View Overlay Badge (Hover) */}
                             <OverlayBadge
-                                isActive={isOverlayEnabled}
+                                mode={overlayMode}
                                 onToggle={() => toggleOverlayMode()}
                             />
                         </div>
@@ -121,18 +152,23 @@ export const CardSearchContainer: React.FC = () => {
                             <SearchTab
                                 ref={searchTabRef}
                                 filteredCards={filteredCards}
-                                pinnedCards={pinnedCards}
+                                pinnedIds={pinnedIds}
+                                searchKey={searchKey}
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
                                 selectedId={selectedCard?.id}
+                                selectedImageUrl={selectedCard?.imageUrl}
                             />
                         ) : (
                             <PinnedTab
+                                ref={pinnedTabRef}
                                 pinnedCards={pinnedCards}
+                                pinnedIds={pinnedIds}
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
                                 onResetPins={resetPins}
                                 selectedId={selectedCard?.id}
+                                selectedImageUrl={selectedCard?.imageUrl}
                             />
                         )}
                     </div>

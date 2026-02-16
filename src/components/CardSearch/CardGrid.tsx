@@ -1,69 +1,148 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { Card } from '../../hooks/useCardSearch';
 import { PinBadge } from './PinBadge';
 
 interface CardGridProps {
     cards: Card[];
-    pinnedCards: Card[];
+    pinnedIds: Set<string>;
     onPin: (card: Card) => void;
     onSelect: (card: Card) => void;
-    compact?: boolean;
     selectedId?: string;
+    selectedImageUrl?: string;
 }
 
-export const CardGrid: React.FC<CardGridProps> = ({ cards, onPin, pinnedCards, onSelect, compact = false, selectedId }) => {
+// Memory-efficient card item
+const CardItem = React.memo(({
+    card,
+    isPinned,
+    isSelected,
+    onPin,
+    onSelect
+}: {
+    card: Card,
+    isPinned: boolean,
+    isSelected: boolean,
+    onPin: (card: Card) => void,
+    onSelect: (card: Card) => void
+}) => {
+    return (
+        <div
+            className="group relative flex flex-col items-center"
+            onClick={() => onSelect(card)}
+        >
+            <div
+                className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-75 active:scale-95 border-2 w-full aspect-[7/10] bg-gray-800/30
+                    ${isSelected
+                        ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                        : 'border-transparent hover:border-gray-500'
+                    }
+                `}
+            >
+                <img
+                    src={card.resolvedImageUrl || card.imageUrl}
+                    alt={card.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover transition-opacity duration-300"
+                    onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                    style={{ opacity: 0 }}
+                />
+
+                <PinBadge
+                    isPinned={isPinned}
+                    onToggle={() => onPin(card)}
+                />
+            </div>
+        </div>
+    );
+});
+
+CardItem.displayName = 'CardItem';
+
+export const CardGrid: React.FC<CardGridProps> = ({
+    cards,
+    onPin,
+    pinnedIds,
+    onSelect,
+    selectedId,
+    selectedImageUrl
+}) => {
+    const gridRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (cards.length === 0) return;
+
+            // Ignore if typing in an input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            const currentIndex = cards.findIndex(c => c.id === selectedId);
+            let nextIndex = -1;
+
+            // Get number of columns by measuring grid layout
+            const gridEl = gridRef.current;
+            if (!gridEl) return;
+            const columns = window.getComputedStyle(gridEl).gridTemplateColumns.split(' ').length;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    nextIndex = currentIndex === -1 ? 0 : Math.max(0, currentIndex - 1);
+                    break;
+                case 'ArrowRight':
+                    nextIndex = currentIndex === -1 ? 0 : Math.min(cards.length - 1, currentIndex + 1);
+                    break;
+                case 'ArrowUp':
+                    nextIndex = currentIndex === -1 ? 0 : Math.max(0, currentIndex - columns);
+                    break;
+                case 'ArrowDown':
+                    nextIndex = currentIndex === -1 ? 0 : Math.min(cards.length - 1, currentIndex + columns);
+                    break;
+                default:
+                    return;
+            }
+
+            if (nextIndex !== -1 && nextIndex !== currentIndex) {
+                e.preventDefault();
+                onSelect(cards[nextIndex]);
+
+                // Ensure the selected card is in view
+                setTimeout(() => {
+                    const nextEl = gridEl.children[nextIndex] as HTMLElement;
+                    if (nextEl) {
+                        nextEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }, 0);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [cards, selectedId, onSelect]);
+
     if (cards.length === 0) {
         return (
-            <div className="p-8 text-center text-gray-500">
-                表示するカードがありません
+            <div className="p-10 text-center text-gray-500 flex flex-col items-center gap-2">
+                <div className="text-4xl opacity-20">📭</div>
+                <p>表示するカードがありません</p>
             </div>
         );
     }
 
-    const displayLimit = compact ? 300 : 200;
-    const visibleCards = cards.slice(0, displayLimit);
-
     return (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 pb-20 min-h-[50vh]">
-            {visibleCards.map((card, index) => {
-                const isPinned = pinnedCards.some(c => c.id === card.id);
-                const isSelected = selectedId === card.id;
-
-                return (
-                    <div
-                        key={`${card.id}-${index}`}
-                        className="relative card-hover-group flex flex-col items-center"
-                        onClick={() => onSelect(card)}
-                    >
-                        <div
-                            className={`relative rounded-lg overflow-hidden cursor-pointer transition-transform duration-75 active:scale-95 border-2 w-full
-                                ${isSelected
-                                    ? 'border-blue-500 ring-2 ring-blue-500/50'
-                                    : 'border-transparent hover:border-gray-500'
-                                }
-                            `}
-                        >
-                            <img
-                                src={card.imageUrl.startsWith('/') ? card.imageUrl.slice(1) : card.imageUrl}
-                                alt={card.name}
-                                className="w-full h-auto object-contain bg-gray-800/50 aspect-[7/10]"
-                            />
-
-                            {/* Hover Pin Badge */}
-                            <PinBadge
-                                isPinned={isPinned}
-                                onToggle={() => onPin(card)}
-                            />
-                        </div>
-                    </div>
-                );
-            })}
-
-            {cards.length > (compact ? 300 : 200) && (
-                <div className="col-span-full text-center text-gray-500 py-4 text-xs">
-                    他 {cards.length - (compact ? 300 : 200)} 件...
-                </div>
-            )}
+        <div
+            ref={gridRef}
+            className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 pb-24 min-h-[50vh]"
+        >
+            {cards.map((card) => (
+                <CardItem
+                    key={`${card.id}-${card.imageUrl}`}
+                    card={card}
+                    isPinned={pinnedIds.has(card.id)}
+                    isSelected={selectedId === card.id && (selectedImageUrl ? card.imageUrl === selectedImageUrl : true)}
+                    onPin={onPin}
+                    onSelect={onSelect}
+                />
+            ))}
         </div>
     );
 };

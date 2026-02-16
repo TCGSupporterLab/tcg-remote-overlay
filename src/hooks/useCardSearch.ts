@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import cardDataOriginal from '../data/hololive-cards.json';
 
 // Type Definitions
@@ -6,13 +6,17 @@ export interface Card {
     id: string;
     name: string;
     cardType: string;
-    rarity: string;
+    hp?: string;
     color: string;
-    hp: string;
-    bloomLevel: string;
+    bloomLevel?: string;
+    rarity: string;
     tags: string;
     expansion: string;
     imageUrl: string;
+    resolvedImageUrl?: string;
+    _normName?: string;
+    _hiraName?: string;
+    _joinedText?: string;
 }
 
 export type FilterCategory = 'color' | 'cardType' | 'bloomLevel';
@@ -24,47 +28,34 @@ export interface Filters {
     bloomLevel: string[];
 }
 
-const MAX_PINS = 100;
-
-// Helper: Normalize text for search (Hiragana/Katakana, ignore symbols)
-// This is a simplified version. For full Kanji-to-Kana, we need a dictionary, 
-// but the user requirement said "Ignore symbols" and "Kana search if possible".
-// Since we don't have a Kana field in the scraped data (we only have Name),
-// we can implement a basic normalizer that ignores special chars.
-// If the user searches in Hiragana for a Kanji name, it WON'T work without a reading data.
-// However, the user said "If possible". 
-// Since we scraped "Name" but not "Reading" (it wasn't in the list view),
-// we will implement symbol ignoring and Case insensitivity.
-// *Note*: The site sort option had "50音順", so maybe we could have scraped it?
-// But for now, let's stick to what we have.
+// Utility: Normalize text for search
 const normalizeText = (text: string) => {
-    // Normalization: 
-    // 1. Full-width numbers/alphabet to half-width
-    // 2. Remove symbols and spaces
-    // 3. Lowercase
-    let normalized = text
-        .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0)) // Full-width to half-width
-        .replace(/　/g, " "); // Ideographic space to normal space
-
-    return normalized
-        .replace(/[\u3000-\u303F\uFF00-\uFFEF]/g, "") // Remove common symbols
-        .replace(/[・=＝！!？?]/g, "") // Remove specific symbols mentioned
-        .replace(/\s+/g, "") // Remove spaces
-        .toLowerCase(); // Case insensitive
+    return text
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[ぁ-ん]/g, s => String.fromCharCode(s.charCodeAt(0) + 0x60)) // Hiragana to Katakana
+        .trim();
 };
 
-// Katakana to Hiragana converter (for partial kana support)
-const toHiragana = (str: string) => {
-    return str.replace(/[\u30a1-\u30f6]/g, function (match) {
-        var chr = match.charCodeAt(0) - 0x60;
-        return String.fromCharCode(chr);
-    });
+const toHiragana = (text: string) => {
+    return text.replace(/[ァ-ン]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60));
+};
+
+const removeSymbols = (text: string) => {
+    return text.replace(/[・ー\s\-\!\?\.\,]/g, '');
 };
 
 export const useCardSearch = () => {
     const [filters, setFilters] = useState<Filters>(() => {
         const saved = localStorage.getItem('hololive_search_filters');
-        return saved ? JSON.parse(saved) : {
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to parse filters', e);
+            }
+        }
+        return {
             keyword: '',
             color: ['all'],
             cardType: ['all'],
@@ -74,43 +65,62 @@ export const useCardSearch = () => {
 
     const [pinnedCards, setPinnedCards] = useState<Card[]>(() => {
         const saved = localStorage.getItem('hololive_pinned_cards');
-        return saved ? JSON.parse(saved) : [];
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to parse pins', e);
+            }
+        }
+        return [];
     });
 
-    // Persist Filters
+    const pinnedIds = useMemo(() => new Set(pinnedCards.map(c => c.id)), [pinnedCards]);
+
     useEffect(() => {
         localStorage.setItem('hololive_search_filters', JSON.stringify(filters));
     }, [filters]);
 
-    // Persist Pinned Cards
     useEffect(() => {
         localStorage.setItem('hololive_pinned_cards', JSON.stringify(pinnedCards));
     }, [pinnedCards]);
 
-    // Filter Logic
-    // Pre-calculate normalized strings once
     const normalizedData = useMemo(() => {
-        return (cardDataOriginal as Card[]).map(card => ({
-            ...card,
-            _joinedText: (
-                normalizeText(card.name) +
-                normalizeText((card as any).kana || '')
-            ),
-            _normName: normalizeText(card.name),
-            _hiraName: toHiragana(normalizeText(card.name))
-        }));
+        const base = import.meta.env.BASE_URL;
+        return (cardDataOriginal as Card[]).map(card => {
+            let resolvedImageUrl = card.imageUrl;
+            if (resolvedImageUrl && !resolvedImageUrl.startsWith('http')) {
+                let path = resolvedImageUrl;
+                if (path.startsWith(base)) path = path.slice(base.length);
+                if (path.startsWith('/')) path = path.slice(1);
+                resolvedImageUrl = base + path;
+            }
+
+            const normName = normalizeText(card.name);
+            return {
+                ...card,
+                resolvedImageUrl,
+                _normName: normName,
+                _hiraName: toHiragana(normName),
+                _pureName: removeSymbols(normName),
+                _pureHira: removeSymbols(toHiragana(normName))
+            };
+        });
     }, []);
 
-    // Filter Logic
+    const searchKey = useMemo(() => {
+        return `${filters.keyword}-${filters.color.join(',')}-${filters.cardType.join(',')}-${filters.bloomLevel.join(',')}`;
+    }, [filters]);
+
     const filteredCards = useMemo(() => {
-        // Pre-process filters to avoid repeated checks inside the loop
-        const keyword = filters.keyword;
-        const normKeyword = keyword ? normalizeText(keyword) : '';
-        const hiraKeyword = keyword ? toHiragana(normKeyword) : '';
+        const rawKeyword = filters.keyword;
+        const normKeyword = rawKeyword ? normalizeText(rawKeyword) : '';
+        const hiraKeyword = rawKeyword ? toHiragana(normKeyword || '') : '';
+        const pureKeyword = normKeyword ? removeSymbols(normKeyword) : '';
 
         const selectedColors = filters.color.filter(s => s !== 'all');
         const hasColorFilter = selectedColors.length > 0;
-        const colorSpecial = selectedColors.filter(s => s !== 'multi' && s !== 'not_multi');
+        const colorSpecial = selectedColors.filter(s => s !== 'multi' && s !== 'not_multi' && s !== 'colorless');
 
         const selectedTypes = filters.cardType.filter(s => s !== 'all');
         const hasTypeFilter = selectedTypes.length > 0;
@@ -119,199 +129,177 @@ export const useCardSearch = () => {
         const hasBloomFilter = selectedBlooms.length > 0;
 
         return normalizedData.filter(card => {
-            // 0. Global Exclusions
             if (card.cardType === 'エール') return false;
 
-            // 1. Keyword Search
-            if (keyword) {
-                if (!card._joinedText.includes(normKeyword) && !card._hiraName.includes(hiraKeyword)) {
+            if (normKeyword) {
+                const matchesNorm = card._normName?.includes(normKeyword);
+                const matchesHira = card._hiraName?.includes(hiraKeyword);
+                const matchesPure = pureKeyword && (
+                    (card as any)._pureName?.includes(pureKeyword) ||
+                    (card as any)._pureHira?.includes(pureKeyword)
+                );
+
+                if (!matchesNorm && !matchesHira && !matchesPure) {
                     return false;
                 }
             }
 
-            // 2. Color Filter
             if (hasColorFilter) {
-                const cardColor = card.color || '';
+                const colorLen = card.color.length;
+                const isMulti = colorLen >= 2;
+                const isMono = colorLen === 1;
+                const isColorless = card.color === '◇';
 
-                // First, check if basic color requirements are met if any are selected
-                if (colorSpecial.length > 0) {
-                    const match = colorSpecial.some(s => {
-                        if (s === 'colorless') {
-                            return cardColor.includes('無') || cardColor.includes('◇');
-                        }
-                        return cardColor.includes(s);
-                    });
-                    if (!match) return false;
-                }
+                let colorMatch = false;
+                if (selectedColors.includes('multi') && isMulti) colorMatch = true;
+                if (selectedColors.includes('not_multi') && isMono) colorMatch = true;
+                if (selectedColors.includes('colorless') && isColorless) colorMatch = true;
+                if (!colorMatch && colorSpecial.some(c => card.color.includes(c))) colorMatch = true;
 
-                // Then, apply special filters (multi / not_multi)
-                if (selectedColors.includes('multi')) {
-                    // Multi-color is defined as 2 or more characters (e.g., "白緑")
-                    if (cardColor.length < 2) return false;
-                }
-                if (selectedColors.includes('not_multi')) {
-                    // Single-color is now defined as exactly 1 character (e.g., "赤", "青")
-                    // This excludes multi-color (2+) and empty color/colorless.
-                    if (cardColor.length !== 1) return false;
-                }
+                if (!colorMatch) return false;
             }
 
-            // 3. Card Type Filter
             if (hasTypeFilter) {
-                const cardType = card.cardType || '';
-                const match = selectedTypes.some(s => {
-                    if (s === 'ホロメン') {
-                        return cardType.includes('ホロメン') && !cardType.includes('推し');
-                    }
-                    return cardType.includes(s);
-                });
-                if (!match) return false;
+                let typeMatch = false;
+                // 'サポート' matches anything starting with 'サポート' (Item, Event, Tool, Mascot, Fan, etc.)
+                if (selectedTypes.includes('サポート') && card.cardType.startsWith('サポート')) typeMatch = true;
+                // 'LIMITED' matches anything containing 'LIMITED'
+                if (selectedTypes.includes('LIMITED') && card.cardType.includes('LIMITED')) typeMatch = true;
+                // Others match exactly
+                if (!typeMatch && selectedTypes.includes(card.cardType)) typeMatch = true;
+
+                if (!typeMatch) return false;
             }
 
-            // 4. Bloom Level Filter
             if (hasBloomFilter) {
-                const cardBloom = card.bloomLevel || '';
-                const match = selectedBlooms.some(s => cardBloom.includes(s));
-                if (!match) return false;
+                if (card.bloomLevel === undefined || !selectedBlooms.includes(card.bloomLevel)) {
+                    return false;
+                }
             }
 
             return true;
-        }).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-    }, [filters, normalizedData]);
+        });
+    }, [normalizedData, filters]);
 
-    // Actions
     const updateFilter = (category: FilterCategory, value: string) => {
         setFilters(prev => {
             const current = prev[category];
-            let next: string[] = [];
+            if (value === 'all') return { ...prev, [category]: ['all'] };
 
-            if (value === 'all') {
-                // If selecting 'all', clear others
-                next = ['all'];
+            let next;
+            if (current.includes(value)) {
+                next = current.filter(v => v !== value);
+                if (next.length === 0) next = ['all'];
             } else {
-                // If selecting specific
-                if (current.includes('all')) {
-                    // If 'all' was valid, replace it with new value
-                    next = [value];
-                } else {
-                    // Toggle logic
-                    if (current.includes(value)) {
-                        next = current.filter(v => v !== value);
-                    } else {
-                        next = [...current, value];
-                    }
-                }
-
-                // If nothing left, revert to 'all'
-                if (next.length === 0) {
-                    next = ['all'];
-                }
+                next = [...current.filter(v => v !== 'all'), value];
             }
-
             return { ...prev, [category]: next };
         });
     };
 
-    const setKeyword = (text: string) => {
-        setFilters(prev => ({ ...prev, keyword: text }));
+    const setKeyword = (keyword: string) => {
+        setFilters(prev => ({ ...prev, keyword }));
     };
 
     const togglePin = (card: Card) => {
         setPinnedCards(prev => {
-            if (prev.find(c => c.id === card.id)) {
-                // Unpin
-                return prev.filter(c => c.id !== card.id);
-            } else {
-                // Pin (check limit)
-                if (prev.length >= MAX_PINS) {
-                    alert(`ピン留めできるのは最大${MAX_PINS}件までです。`);
-                    return prev;
-                }
-                return [...prev, card];
+            const exists = prev.some(c => c.id === card.id);
+            if (exists) return prev.filter(c => c.id !== card.id);
+            if (prev.length >= 100) {
+                alert('ピン留めできるのは100枚までです。');
+                return prev;
             }
+            return [...prev, card];
         });
     };
 
-    const resetPins = () => {
-        setPinnedCards([]);
-    };
+    const resetPins = () => setPinnedCards([]);
+
+    const isOverlayWindow = useMemo(() =>
+        typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'overlay'
+        , []);
 
     const [selectedCard, setSelectedCard] = useState<Card | null>(() => {
         const saved = localStorage.getItem('hololive_selected_card');
         return saved ? JSON.parse(saved) : null;
     });
-    const [isOverlayEnabled, setIsOverlayEnabled] = useState(() => {
-        return localStorage.getItem('hololive_overlay_enabled') === 'true';
+
+    const [overlayMode, setOverlayMode] = useState<'off' | 'on' | 'rotated'>(() => {
+        const saved = localStorage.getItem('hololive_overlay_mode');
+        if (saved === 'on' || saved === 'rotated' || saved === 'off') return saved;
+        return 'off';
     });
+
     const [remoteOverlayCard, setRemoteOverlayCard] = useState<Card | null>(null);
 
-    // Auto-select first card if nothing selected (only if no cache)
-    useEffect(() => {
-        if (filteredCards.length > 0) {
-            if (!selectedCard || !filteredCards.some(c => c.id === selectedCard.id)) {
-                // If nothing selected or selection is no longer in filtered list,
-                // we ONLY auto-select if we don't have a valid cached selection in current filter
-                // However, to keep it simple, we auto-select first if current selection is invalid.
-                setSelectedCard(filteredCards[0]);
-            }
-        } else {
-            setSelectedCard(null);
-        }
-    }, [filteredCards]); // Remove selectedCard from dependency to avoid loop with cache logic
+    const channelRef = useRef<BroadcastChannel | null>(null);
 
-    // Sync logic for Overlay
     useEffect(() => {
-        const channel = new BroadcastChannel('remote_duel_sync');
+        channelRef.current = new BroadcastChannel('remote_duel_sync');
 
+        const channel = channelRef.current;
         const handleMessage = (event: MessageEvent) => {
-            if (event.data.type === 'HOLOLIVE_OVERLAY_STATE_UPDATE') {
-                setIsOverlayEnabled(event.data.value);
+            const { type, value } = event.data;
+            if (type === 'HOLOLIVE_OVERLAY_STATE_UPDATE') {
+                setOverlayMode(prev => prev !== value ? value : prev);
             }
-            if (event.data.type === 'HOLOLIVE_OVERLAY_CARD_UPDATE') {
-                setRemoteOverlayCard(event.data.value);
+            if (type === 'HOLOLIVE_OVERLAY_CARD_UPDATE') {
+                setRemoteOverlayCard(prev => {
+                    if (!prev && !value) return null;
+                    if (prev && value && prev.id === value.id && prev.imageUrl === value.imageUrl) return prev;
+                    return value;
+                });
             }
-            if (event.data.type === 'REQUEST_STATE') {
-                // If a new window (like overlay) asks for state, send current status and card
-                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: isOverlayEnabled });
-                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: isOverlayEnabled ? selectedCard : null });
+            if (!isOverlayWindow && type === 'REQUEST_STATE') {
+                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: overlayMode });
+                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: (overlayMode !== 'off') ? selectedCard : null });
             }
         };
 
         channel.onmessage = handleMessage;
-        return () => channel.close();
-    }, [isOverlayEnabled, selectedCard]);
+        if (isOverlayWindow) {
+            channel.postMessage({ type: 'REQUEST_STATE' });
+        }
 
-    // When selectedCard or isOverlayEnabled changes, broadcast the update and save to localStorage
+        return () => {
+            channel.close();
+            channelRef.current = null;
+        };
+    }, [isOverlayWindow, overlayMode, selectedCard]);
+
     useEffect(() => {
-        localStorage.setItem('hololive_overlay_enabled', String(isOverlayEnabled));
+        if (isOverlayWindow || !channelRef.current) return;
+
+        localStorage.setItem('hololive_overlay_mode', overlayMode);
         if (selectedCard) {
             localStorage.setItem('hololive_selected_card', JSON.stringify(selectedCard));
         } else {
             localStorage.removeItem('hololive_selected_card');
         }
 
-        const channel = new BroadcastChannel('remote_duel_sync');
-        channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: isOverlayEnabled });
-        channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: isOverlayEnabled ? selectedCard : null });
-        channel.close();
-    }, [isOverlayEnabled, selectedCard]);
+        channelRef.current.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: overlayMode });
+        channelRef.current.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: (overlayMode !== 'off') ? selectedCard : null });
+    }, [overlayMode, selectedCard, isOverlayWindow]);
 
     const toggleOverlayMode = () => {
-        setIsOverlayEnabled(prev => !prev);
+        setOverlayMode(prev => {
+            if (prev === 'off') return 'on';
+            if (prev === 'on') return 'rotated';
+            return 'off';
+        });
     };
 
-    // The card to actually display on the overlay
-    // If we are in the overlay window, we use remoteOverlayCard
-    // If we are in the controller window, we use (enabled ? selected : null)
-    const overlayCard = remoteOverlayCard || (isOverlayEnabled ? selectedCard : null);
+    const overlayCard = isOverlayWindow ? remoteOverlayCard : (overlayMode !== 'off' ? selectedCard : null);
 
     return {
         filters,
+        searchKey,
         filteredCards,
         pinnedCards,
+        pinnedIds,
         selectedCard,
         overlayCard,
-        isOverlayEnabled,
+        overlayMode,
         updateFilter,
         setKeyword,
         togglePin,

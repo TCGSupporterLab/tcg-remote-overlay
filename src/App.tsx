@@ -17,15 +17,24 @@ function App() {
   });
   const [isOverlayMode, setIsOverlayMode] = useState(false);
 
-  // Apply initial OBS mode class
+  // Apply initial OBS mode class (Only for Overlay)
   useEffect(() => {
-    if (obsMode !== 'normal') {
-      document.body.classList.add(`obs-${obsMode}`);
+    const params = new URLSearchParams(window.location.search);
+    const isOverlay = params.get('mode') === 'overlay';
+
+    if (isOverlay) {
+      document.body.classList.remove('obs-transparent', 'obs-green');
+      if (obsMode !== 'normal') {
+        document.body.classList.add(`obs-${obsMode}`);
+      }
+    } else {
+      // FORCE CLEAN for controller
+      document.body.classList.remove('obs-transparent', 'obs-green');
     }
     return () => {
       document.body.classList.remove('obs-transparent', 'obs-green');
     };
-  }, []);
+  }, [isOverlayMode]); // Re-run when overlay mode is confirmed
 
   // Persist OBS mode
   useEffect(() => {
@@ -102,6 +111,20 @@ function App() {
         setCoinValue(data.value.coin);
       }
 
+      if (data.type === 'OBS_MODE') {
+        const nextMode = data.value as ObsMode;
+        setObsMode(nextMode);
+
+        // ALWAYS check URL directly inside handler to avoid stale closures
+        const isOverlay = new URLSearchParams(window.location.search).get('mode') === 'overlay';
+        if (isOverlay) {
+          document.body.classList.remove('obs-transparent', 'obs-green');
+          if (nextMode !== 'normal') {
+            document.body.classList.add(`obs-${nextMode}`);
+          }
+        }
+      }
+
       if (data.type === 'RESET') {
         setDiceValue(1);
         setCoinValue('表');
@@ -111,6 +134,7 @@ function App() {
       // If a new window asks for state, and I am the controller (not overlay), send it
       if (data.type === 'REQUEST_STATE' && !params.get('mode')) {
         channel.postMessage({ type: 'GAME_MODE', value: gameModeRef.current });
+        channel.postMessage({ type: 'OBS_MODE', value: localStorage.getItem('remote_duel_obs_mode') || 'normal' });
         channel.postMessage({ type: 'SYNC_STATE', value: { dice: diceValueRef.current, coin: coinValueRef.current } });
       }
     };
@@ -156,9 +180,7 @@ function App() {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable shortcuts in overlay mode (to avoid double triggering via sync if both windows are focused/active)
-      // Also disable if user is typing in an input field
-      if (isOverlayMode) return;
+      // Disable if user is typing in an input field
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.key === 'd' || e.key === 'D') {
@@ -174,7 +196,12 @@ function App() {
   }, [isOverlayMode, handleRollDice, handleFlipCoin]);
 
   const openOverlayWindow = () => {
-    window.open(window.location.pathname + '?mode=overlay', 'RemoteDuelOverlay', 'width=1280,height=720');
+    // Open as a popup with minimal browser UI (ideal for OBS capture)
+    window.open(
+      window.location.pathname + '?mode=overlay',
+      'RemoteDuelOverlay',
+      'width=1280,height=720,location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes'
+    );
   };
 
   const toggleObsMode = () => {
@@ -183,10 +210,8 @@ function App() {
     const nextMode = modes[nextIndex];
     setObsMode(nextMode);
 
-    document.body.className = '';
-    if (nextMode !== 'normal') {
-      document.body.classList.add(`obs-${nextMode}`);
-    }
+    // Controller body should NOT be affected
+    broadcast('OBS_MODE', nextMode);
   };
 
   return (
@@ -211,12 +236,14 @@ function App() {
               </button>
 
               <button
-                className="btn flex items-center gap-2 text-sm"
+                className="btn flex items-center justify-center gap-2 text-sm w-[120px] flex-none whitespace-nowrap"
                 onClick={toggleObsMode}
                 title="OBSモード切替"
               >
-                <Settings size={16} />
-                {obsMode === 'normal' ? '通常' : obsMode === 'transparent' ? '透過' : 'GB'}
+                <Settings size={16} className="flex-none" />
+                <span className="flex-1 text-center">
+                  {obsMode === 'normal' ? '通常' : obsMode === 'transparent' ? '透過' : 'GB'}
+                </span>
               </button>
             </div>
           </header>
@@ -266,8 +293,9 @@ function App() {
             coinValue={coinValue}
             diceKey={diceKey}
             coinKey={coinKey}
-            onDiceClick={!isOverlayMode ? handleRollDice : undefined}
-            onCoinClick={!isOverlayMode ? handleFlipCoin : undefined}
+            onDiceClick={handleRollDice}
+            onCoinClick={handleFlipCoin}
+            obsMode={obsMode}
           />
         ) : (
           <HololiveTools
@@ -277,8 +305,9 @@ function App() {
             coinValue={coinValue}
             diceKey={diceKey}
             coinKey={coinKey}
-            onDiceClick={!isOverlayMode ? handleRollDice : undefined}
-            onCoinClick={!isOverlayMode ? handleFlipCoin : undefined}
+            onDiceClick={handleRollDice}
+            onCoinClick={handleFlipCoin}
+            obsMode={obsMode}
           />
         )}
       </main>

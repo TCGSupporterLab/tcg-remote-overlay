@@ -1,0 +1,721 @@
+{
+  "timestamp": "2026-02-15T17:54:08.601Z",
+  "keywords": [
+    {
+      "word": "JP",
+      "count": 716
+    },
+    {
+      "word": "使用可能カード",
+      "count": 545
+    },
+    {
+      "word": "PRカード",
+      "count": 295
+    },
+    {
+      "word": "EN",
+      "count": 222
+    },
+    {
+      "word": "推しホロメン",
+      "count": 204
+    },
+    {
+      "word": "ID",
+      "count": 141
+    },
+    {
+      "word": "LIMITED",
+      "count": 127
+    },
+    {
+      "word": "秘密結社holoX",
+      "count": 115
+    },
+    {
+      "word": "3期生",
+      "count": 112
+    },
+    {
+      "word": "お酒",
+      "count": 108
+    },
+    {
+      "word": "DEV_IS",
+      "count": 106
+    },
+    {
+      "word": "0期生",
+      "count": 102
+    },
+    {
+      "word": "2期生",
+      "count": 101
+    },
+    {
+      "word": "Buzzホロメン",
+      "count": 93
+    },
+    {
+      "word": "4期生",
+      "count": 87
+    },
+    {
+      "word": "Advent",
+      "count": 85
+    },
+    {
+      "word": "1期生",
+      "count": 80
+    },
+    {
+      "word": "ReGLOSS",
+      "count": 73
+    },
+    {
+      "word": "推し",
+      "count": 72
+    },
+    {
+      "word": "5期生",
+      "count": 68
+    },
+    {
+      "word": "料理",
+      "count": 66
+    },
+    {
+      "word": "Justice",
+      "count": 61
+    },
+    {
+      "word": "語学",
+      "count": 59
+    },
+    {
+      "word": "ID1期生",
+      "count": 58
+    },
+    {
+      "word": "FLOW",
+      "count": 51
+    },
+    {
+      "word": "GLOW",
+      "count": 51
+    },
+    {
+      "word": "Myth",
+      "count": 51
+    },
+    {
+      "word": "風真いろは",
+      "count": 49
+    },
+    {
+      "word": "Promise",
+      "count": 49
+    },
+    {
+      "word": "ID2期生",
+      "count": 46
+    },
+    {
+      "word": "不知火フレア",
+      "count": 41
+    },
+    {
+      "word": "猫又おかゆ",
+      "count": 38
+    },
+    {
+      "word": "百鬼あやめ",
+      "count": 38
+    },
+    {
+      "word": "ID3期生",
+      "count": 37
+    },
+    {
+      "word": "癒月ちょこ",
+      "count": 36
+    },
+    {
+      "word": "AZKi",
+      "count": 36
+    },
+    {
+      "word": "宝鐘マリン",
+      "count": 36
+    },
+    {
+      "word": "白銀ノエル",
+      "count": 33
+    },
+    {
+      "word": "星街すいせい",
+      "count": 33
+    },
+    {
+      "word": "白上フブキ",
+      "count": 32
+    },
+    {
+      "word": "姫森ルーナ",
+      "count": 32
+    },
+    {
+      "word": "森カリオペ",
+      "count": 32
+    },
+    {
+      "word": "戌神ころね",
+      "count": 31
+    },
+    {
+      "word": "兎田ぺこら",
+      "count": 31
+    },
+    {
+      "word": "大空スバル",
+      "count": 31
+    },
+    {
+      "word": "尾丸ポルカ",
+      "count": 27
+    },
+    {
+      "word": "天音かなた",
+      "count": 27
+    },
+    {
+      "word": "雪花ラミィ",
+      "count": 25
+    },
+    {
+      "word": "博衣こより",
+      "count": 25
+    },
+    {
+      "word": "ロボ子さん",
+      "count": 25
+    },
+    {
+      "word": "夏色まつり",
+      "count": 25
+    },
+    {
+      "word": "一条莉々華",
+      "count": 23
+    },
+    {
+      "word": "常闇トワ",
+      "count": 22
+    },
+    {
+      "word": "儒烏風亭らでん",
+      "count": 22
+    },
+    {
+      "word": "轟はじめ",
+      "count": 21
+    },
+    {
+      "word": "沙花叉クロヱ",
+      "count": 21
+    },
+    {
+      "word": "角巻わため",
+      "count": 21
+    },
+    {
+      "word": "魔法",
+      "count": 19
+    },
+    {
+      "word": "獅白ぼたん",
+      "count": 19
+    },
+    {
+      "word": "紫咲シオン",
+      "count": 19
+    },
+    {
+      "word": "響咲リオナ",
+      "count": 18
+    },
+    {
+      "word": "小鳥遊キアラ",
+      "count": 17
+    },
+    {
+      "word": "鷹嶺ルイ",
+      "count": 17
+    },
+    {
+      "word": "古石ビジュー",
+      "count": 16
+    },
+    {
+      "word": "虎金妃笑虎",
+      "count": 16
+    },
+    {
+      "word": "白上'sキャラクター",
+      "count": 16
+    },
+    {
+      "word": "大神ミオ",
+      "count": 14
+    },
+    {
+      "word": "輪堂千速",
+      "count": 12
+    },
+    {
+      "word": "火威青",
+      "count": 12
+    },
+    {
+      "word": "IRyS",
+      "count": 12
+    },
+    {
+      "word": "七詩ムメイ",
+      "count": 12
+    },
+    {
+      "word": "赤エール",
+      "count": 12
+    },
+    {
+      "word": "一伊那尓栖",
+      "count": 10
+    },
+    {
+      "word": "赤井はあと",
+      "count": 10
+    },
+    {
+      "word": "桃鈴ねね",
+      "count": 10
+    },
+    {
+      "word": "音乃瀬奏",
+      "count": 10
+    },
+    {
+      "word": "production",
+      "count": 10
+    },
+    {
+      "word": "OFFICIAL",
+      "count": 10
+    },
+    {
+      "word": "輪堂千速スタートデッキ",
+      "count": 9
+    },
+    {
+      "word": "白エール",
+      "count": 9
+    },
+    {
+      "word": "青エール",
+      "count": 9
+    },
+    {
+      "word": "食べ物",
+      "count": 8
+    },
+    {
+      "word": "緑エール",
+      "count": 8
+    },
+    {
+      "word": "紫エール",
+      "count": 7
+    },
+    {
+      "word": "黄エール",
+      "count": 7
+    },
+    {
+      "word": "水宮枢",
+      "count": 6
+    },
+    {
+      "word": "百鬼あやめスタートデッキ",
+      "count": 6
+    },
+    {
+      "word": "綺々羅々ヴィヴィ",
+      "count": 5
+    },
+    {
+      "word": "癒月ちょこスタートデッキ",
+      "count": 5
+    },
+    {
+      "word": "轟はじめスタートデッキ",
+      "count": 5
+    },
+    {
+      "word": "虎金妃笑虎スタートデッキ",
+      "count": 5
+    },
+    {
+      "word": "猫又おかゆスタートデッキ",
+      "count": 5
+    },
+    {
+      "word": "凸待ち",
+      "count": 5
+    },
+    {
+      "word": "イベント物販／hololive",
+      "count": 5
+    },
+    {
+      "word": "SHOP限定商品",
+      "count": 5
+    },
+    {
+      "word": "オフィシャルホロカコレクション-PCセット-",
+      "count": 5
+    },
+    {
+      "word": "hololive",
+      "count": 5
+    },
+    {
+      "word": "SHOP限定",
+      "count": 5
+    },
+    {
+      "word": "CARD",
+      "count": 5
+    },
+    {
+      "word": "GAME",
+      "count": 5
+    },
+    {
+      "word": "1st",
+      "count": 5
+    },
+    {
+      "word": "Anniversary",
+      "count": 5
+    },
+    {
+      "word": "Celebration",
+      "count": 5
+    },
+    {
+      "word": "Set",
+      "count": 5
+    },
+    {
+      "word": "み俺恥",
+      "count": 4
+    },
+    {
+      "word": "SorAZセレブレーション",
+      "count": 4
+    },
+    {
+      "word": "ホロライブ4期生",
+      "count": 4
+    },
+    {
+      "word": "HOLOLIVE",
+      "count": 4
+    },
+    {
+      "word": "FANTASY",
+      "count": 4
+    },
+    {
+      "word": "風真いろはスタートデッキ",
+      "count": 4
+    },
+    {
+      "word": "天音かなたスタートデッキ",
+      "count": 4
+    },
+    {
+      "word": "FUWAMOCO",
+      "count": 4
+    },
+    {
+      "word": "春先のどか",
+      "count": 4
+    },
+    {
+      "word": "阿修羅",
+      "count": 3
+    },
+    {
+      "word": "牛丼",
+      "count": 3
+    },
+    {
+      "word": "ホロライブ0期生",
+      "count": 3
+    },
+    {
+      "word": "35P",
+      "count": 3
+    },
+    {
+      "word": "爆発の魔法",
+      "count": 3
+    },
+    {
+      "word": "不知火フレアスタートデッキ",
+      "count": 3
+    },
+    {
+      "word": "Adventスタートデッキ",
+      "count": 3
+    },
+    {
+      "word": "宝鐘マリンスタートデッキ",
+      "count": 3
+    },
+    {
+      "word": "AIこより",
+      "count": 2
+    },
+    {
+      "word": "愛情いっぱい召し上がれ♪",
+      "count": 2
+    },
+    {
+      "word": "ホロライブ1期生",
+      "count": 2
+    },
+    {
+      "word": "山田ルイ54世",
+      "count": 2
+    },
+    {
+      "word": "2人あわせてラムダック",
+      "count": 2
+    },
+    {
+      "word": "鬼神刀",
+      "count": 2
+    },
+    {
+      "word": "Chattino",
+      "count": 2
+    },
+    {
+      "word": "スバ友",
+      "count": 2
+    },
+    {
+      "word": "晩酌配信",
+      "count": 2
+    },
+    {
+      "word": "白銀ノエルのメイス",
+      "count": 2
+    },
+    {
+      "word": "ローゼンタールの斧",
+      "count": 2
+    },
+    {
+      "word": "レイヴンクロフトの杖",
+      "count": 2
+    },
+    {
+      "word": "角巻わためのハープ",
+      "count": 2
+    },
+    {
+      "word": "Cilus",
+      "count": 2
+    },
+    {
+      "word": "Jailbird",
+      "count": 2
+    },
+    {
+      "word": "作業用パソコン",
+      "count": 2
+    },
+    {
+      "word": "限界飯",
+      "count": 2
+    },
+    {
+      "word": "ホロライブ2期生",
+      "count": 2
+    },
+    {
+      "word": "緑の試験管",
+      "count": 2
+    },
+    {
+      "word": "鍛冶ハンマー",
+      "count": 2
+    },
+    {
+      "word": "カエラ'sアームズ",
+      "count": 2
+    },
+    {
+      "word": "古代武器",
+      "count": 2
+    },
+    {
+      "word": "こよりの助手くん",
+      "count": 2
+    },
+    {
+      "word": "雪民",
+      "count": 2
+    },
+    {
+      "word": "ホロライブ言えるかな",
+      "count": 2
+    },
+    {
+      "word": "ホロライブインドネシア1期生",
+      "count": 2
+    },
+    {
+      "word": "FPS配信",
+      "count": 2
+    },
+    {
+      "word": "金時",
+      "count": 2
+    },
+    {
+      "word": "Riscot",
+      "count": 2
+    },
+    {
+      "word": "SSRB",
+      "count": 2
+    },
+    {
+      "word": "Ruffians",
+      "count": 2
+    },
+    {
+      "word": "Risuners",
+      "count": 2
+    },
+    {
+      "word": "不知火建設",
+      "count": 2
+    },
+    {
+      "word": "ﾁｬｷ丸",
+      "count": 2
+    },
+    {
+      "word": "魔法少女みこ",
+      "count": 2
+    },
+    {
+      "word": "魔法少女かなた",
+      "count": 2
+    },
+    {
+      "word": "魔法少女ルーナ",
+      "count": 2
+    },
+    {
+      "word": "魔法少女シオン",
+      "count": 2
+    },
+    {
+      "word": "魔法少女マリン",
+      "count": 2
+    },
+    {
+      "word": "魔法少女クロヱ",
+      "count": 2
+    },
+    {
+      "word": "かなた建設",
+      "count": 2
+    },
+    {
+      "word": "インドネシア2期生",
+      "count": 2
+    },
+    {
+      "word": "魔法のタンス",
+      "count": 2
+    },
+    {
+      "word": "紫咲シオンの魔法のステッキ",
+      "count": 2
+    },
+    {
+      "word": "森カリオペの鎌",
+      "count": 2
+    },
+    {
+      "word": "Tatang",
+      "count": 2
+    },
+    {
+      "word": "UDIN",
+      "count": 2
+    },
+    {
+      "word": "Death-sensei",
+      "count": 2
+    },
+    {
+      "word": "すこん部",
+      "count": 2
+    },
+    {
+      "word": "白銀聖騎士団",
+      "count": 2
+    },
+    {
+      "word": "塩っ子",
+      "count": 2
+    },
+    {
+      "word": "星街すいせいのマイク",
+      "count": 2
+    },
+    {
+      "word": "じゃあ敵だね",
+      "count": 2
+    },
+    {
+      "word": "石の斧",
+      "count": 2
+    },
+    {
+      "word": "座員",
+      "count": 2
+    },
+    {
+      "word": "miComet",
+      "count": 2
+    },
+    {
+      "word": "SorAZ",
+      "count": 2
+    },
+    {
+      "word": "ぽよ余",
+      "count": 2
+    }
+  ]
+}

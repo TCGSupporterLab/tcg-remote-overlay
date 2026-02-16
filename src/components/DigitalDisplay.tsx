@@ -4,9 +4,10 @@ interface DigitalDisplayProps {
     value: number;
     color: 'red' | 'blue';
     className?: string;
+    obsMode?: 'normal' | 'transparent' | 'green';
 }
 
-export const DigitalDisplay: React.FC<DigitalDisplayProps> = ({ value, color, className }) => {
+export const DigitalDisplay: React.FC<DigitalDisplayProps> = ({ value, color, className, obsMode = 'normal' }) => {
     // Generate gradient IDs based on color
     const gradientId = `grad-${color}`;
     const glowId = `glow-${color}`;
