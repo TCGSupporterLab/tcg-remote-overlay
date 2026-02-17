@@ -195,12 +195,83 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOverlayMode, handleRollDice, handleFlipCoin]);
 
+  // Persistence for Overlay Window Size
+  useEffect(() => {
+    if (!isOverlayMode) {
+      // Receiver: Handle resize messages from overlay
+      const channel = new BroadcastChannel(CHANNEL_NAME);
+      const handler = (event: MessageEvent) => {
+        if (event.data.type === 'OVERLAY_RESIZE') {
+          const { mode, width, height } = event.data.value;
+          localStorage.setItem(`remote_duel_overlay_size_${mode}`, JSON.stringify({ width, height }));
+        }
+      };
+      channel.addEventListener('message', handler);
+      return () => {
+        channel.removeEventListener('message', handler);
+        channel.close();
+      };
+    } else {
+      // Sender: Detect resize in overlay window and notify controller
+      const lastSentSize = { width: window.innerWidth, height: window.innerHeight };
+
+      const handleResize = () => {
+        // Use innerWidth/Height as they are more reliable across browsers for content sizing
+        const currentWidth = window.innerWidth;
+        const currentHeight = window.innerHeight;
+
+        // Only broadcast if there's a meaningful change to avoid noise
+        if (Math.abs(lastSentSize.width - currentWidth) > 5 || Math.abs(lastSentSize.height - currentHeight) > 5) {
+          broadcast('OVERLAY_RESIZE', {
+            mode: gameMode,
+            width: currentWidth,
+            height: currentHeight
+          });
+          lastSentSize.width = currentWidth;
+          lastSentSize.height = currentHeight;
+        }
+      };
+
+      let timer: number;
+      const debouncedResize = () => {
+        clearTimeout(timer);
+        timer = window.setTimeout(handleResize, 500);
+      };
+
+      window.addEventListener('resize', debouncedResize);
+
+      // On mount in overlay: Send initial size to sync if it's the first time
+      handleResize();
+
+      return () => {
+        window.removeEventListener('resize', debouncedResize);
+        clearTimeout(timer);
+      };
+    }
+  }, [isOverlayMode, gameMode, broadcast]);
+
   const openOverlayWindow = () => {
-    // Open as a popup with minimal browser UI (ideal for OBS capture)
+    // Get saved size or use defaults
+    const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
+    let width = gameMode === 'yugioh' ? 350 : 400;
+    let height = gameMode === 'yugioh' ? 500 : 700;
+
+    if (savedSizeStr) {
+      try {
+        const saved = JSON.parse(savedSizeStr);
+        width = saved.width || width;
+        height = saved.height || height;
+      } catch (e) {
+        console.error("Failed to parse saved size", e);
+      }
+    }
+
+    // Open as a popup with minimal browser UI
+    // Note: 'width' and 'height' in window.open refer to the viewport (content) size in most modern browsers.
     window.open(
       window.location.pathname + '?mode=overlay',
       'RemoteDuelOverlay',
-      'width=1280,height=720,location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes'
+      `width=${width},height=${height},location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes`
     );
   };
 

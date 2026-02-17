@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, RotateCcw, Undo2, Redo2 } from 'lucide-react';
+import { History, Undo2, Redo2 } from 'lucide-react';
 
 import { OverlayDisplay } from './OverlayDisplay';
 import { DigitalDisplay } from './DigitalDisplay';
@@ -96,21 +96,6 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         updateState(newP1, newP2);
     };
 
-    const toggleRotation = (player: 'p1' | 'p2') => {
-        let newP1 = p1;
-        let newP2 = p2;
-
-        if (player === 'p1') {
-            newP1 = { ...p1, isRotated: !p1.isRotated };
-        } else {
-            newP2 = { ...p2, isRotated: !p2.isRotated };
-        }
-
-        // Update State without pushing to history
-        setP1(newP1);
-        setP2(newP2);
-        broadcastSync({ p1: newP1, p2: newP2, target: targetPlayer });
-    };
 
     const handleUndo = () => {
         if (currentStep > 0) {
@@ -234,12 +219,26 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             }
 
             // Target Selection (Arrow Keys)
-            if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            if (e.key === 'ArrowUp') {
+                if (!isOverlay) return; // Ignore Up in operation screen
+                e.preventDefault();
+                handleSetTarget('p2');
+                return;
+            }
+            if (e.key === 'ArrowDown') {
+                if (!isOverlay) return; // Ignore Down in operation screen
                 e.preventDefault();
                 handleSetTarget('p1');
                 return;
             }
-            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            if (e.key === 'ArrowLeft') {
+                if (isOverlay) return; // Ignore Left in overlay
+                e.preventDefault();
+                handleSetTarget('p1');
+                return;
+            }
+            if (e.key === 'ArrowRight') {
+                if (isOverlay) return; // Ignore Right in overlay
                 e.preventDefault();
                 handleSetTarget('p2');
                 return;
@@ -254,10 +253,9 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
     const overlayWrapperClass = "fixed inset-0 z-50 flex flex-col items-center justify-center bg-transparent";
 
     // Inner row constants
-    const overlayRowClass = "flex flex-row items-center justify-center gap-16 w-full animate-in fade-in duration-500 pointer-events-auto";
 
     // Card constants (overlay: relative to flex row, vertically centered)
-    const overlayCardClass = "flex flex-col items-center justify-center relative p-6 rounded-2xl transition-all duration-500 transform";
+    const overlayCardClass = "flex flex-col items-center justify-center relative p-3 rounded-2xl transition-all duration-500 transform";
     const normalCardClass = "card flex flex-col items-center justify-center transition-colors relative p-2 flex-1 min-w-0 max-w-md cursor-pointer hover:bg-white/5 active:scale-[0.98] transition-all";
 
     const getPlayerCardClass = (isOverlay: boolean) => {
@@ -273,7 +271,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         if (!isTarget) return {
             opacity: activeOverlay ? 1 : 0.6,
             border: activeOverlay ? '4px solid rgba(255, 255, 255, 0.1)' : '4px solid rgba(255, 255, 255, 0.05)',
-            padding: '1.5rem',
+            padding: activeOverlay ? '0.75rem 1.5rem' : '1.5rem',
             backgroundColor: activeOverlay ? (obsMode === 'normal' ? '#111827' : overlayBg) : undefined,
             boxShadow: 'none'
         };
@@ -289,9 +287,10 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                 )
                 : (player === 'p1' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'),
             opacity: 1,
-            padding: '1.5rem'
+            padding: activeOverlay ? '0.75rem 1.5rem' : '1.5rem'
         };
     };
+
 
     return (
         <div
@@ -304,117 +303,129 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'transparent'
+                backgroundColor: 'transparent',
+                padding: '10px' // Even smaller padding
             } : undefined}
         >
-            {/* Life Display Area (Fixed Header) */}
             <div className={`flex-none w-full ${isOverlay ? '' : 'max-w-5xl mx-auto px-4'} z-10`}>
-                <div className={isOverlay ? overlayRowClass : "flex flex-row items-center justify-center gap-4 w-full py-4"}>
+                <div className={isOverlay ? "flex flex-col items-center justify-center gap-1 w-full animate-in fade-in duration-500 pointer-events-auto" : "flex flex-row items-center justify-center gap-4 w-full py-4"}>
 
-                    {/* Player 1 (You) */}
-                    <div
-                        className={getPlayerCardClass(!!isOverlay)}
-                        style={{
-                            transform: isOverlay && p1.isRotated ? 'rotate(180deg)' : undefined,
-                            ...getTargetStyle(targetPlayer === 'p1', 'p1', !!isOverlay)
-                        }}
-                        onClick={() => handleSetTarget('p1')}
-                    >
-
-                        {/* Rotation Toggle Button (Absolute Top-Right) */}
-                        {!isOverlay && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); toggleRotation('p1'); }}
-                                // Using standard CSS for positioning since Tailwind might be unreliable
-                                className={`p-1 rounded-full hover:bg-white/10 transition-colors ${p1.isRotated ? 'text-red-400 bg-red-500/20' : 'text-gray-400'}`}
-                                style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 30 }}
-                                title="180度回転 (オーバーレイ用)"
+                    {isOverlay ? (
+                        <>
+                            {/* Player 2 (Opponent) - Always Rotated 180 in Overlay */}
+                            <div
+                                className={getPlayerCardClass(true)}
+                                style={{
+                                    transform: 'rotate(180deg)',
+                                    ...getTargetStyle(targetPlayer === 'p2', 'p2', true)
+                                }}
+                                onClick={() => handleSetTarget('p2')}
                             >
-                                <RotateCcw size={16} className={p1.isRotated ? 'rotate-180' : ''} />
-                            </button>
-                        )}
-
-                        <div className="w-full flex justify-center items-center mb-1">
-                            <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
-                                Player 1
-                            </div>
-                        </div>
-
-                        {/* Life Points Display */}
-                        <div className="relative w-full text-center">
-                            {isOverlay ? (
-                                <DigitalDisplay
-                                    value={p1.life}
-                                    color="red"
-                                    obsMode={obsMode}
-                                    className={`transition-all duration-300 ${p1.life === 0 ? 'grayscale opacity-50' : ''}`}
-                                />
-                            ) : (
-                                <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-red-400 ${p1.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p1' ? 'scale-110 drop-shadow-[0_0_10px_rgba(255,0,0,0.5)]' : ''} transition-all`}>
-                                    {p1.life}
+                                <div className="w-full flex justify-center items-center mb-1">
+                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                        Player 2
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Dice/Coin Center Display (Always visible) */}
-                    <OverlayDisplay
-                        diceValue={diceValue}
-                        coinValue={coinValue}
-                        diceKey={diceKey}
-                        coinKey={coinKey}
-                        onDiceClick={onDiceClick}
-                        onCoinClick={onCoinClick}
-                        compact={!isOverlay}
-                        className="pointer-events-auto shrink-0 flex-none"
-                    />
+                                <div className="relative w-full text-center">
+                                    <DigitalDisplay
+                                        value={p2.life}
+                                        color="blue"
+                                        obsMode={obsMode}
+                                        className={`transition-all duration-300 ${p2.life === 0 ? 'grayscale opacity-50' : ''}`}
+                                    />
+                                </div>
+                            </div>
 
-                    {/* Player 2 (Opponent) */}
-                    <div
-                        className={getPlayerCardClass(!!isOverlay)}
-                        style={{
-                            transform: isOverlay && p2.isRotated ? 'rotate(180deg)' : undefined,
-                            ...getTargetStyle(targetPlayer === 'p2', 'p2', !!isOverlay)
-                        }}
-                        onClick={() => handleSetTarget('p2')}
-                    >
+                            {/* Dice/Coin Center Display */}
+                            <OverlayDisplay
+                                diceValue={diceValue}
+                                coinValue={coinValue}
+                                diceKey={diceKey}
+                                coinKey={coinKey}
+                                onDiceClick={onDiceClick}
+                                onCoinClick={onCoinClick}
+                                compact={false}
+                                className="pointer-events-auto shrink-0 flex-none"
+                            />
 
-
-                        {/* Rotation Toggle Button (Absolute Top-Right) */}
-                        {!isOverlay && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); toggleRotation('p2'); }}
-                                // Using standard CSS for positioning since Tailwind might be unreliable
-                                className={`p-1 rounded-full hover:bg-white/10 transition-colors ${p2.isRotated ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400'}`}
-                                style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 30 }}
-                                title="180度回転 (オーバーレイ用)"
+                            {/* Player 1 (You) */}
+                            <div
+                                className={getPlayerCardClass(true)}
+                                style={{
+                                    ...getTargetStyle(targetPlayer === 'p1', 'p1', true)
+                                }}
+                                onClick={() => handleSetTarget('p1')}
                             >
-                                <RotateCcw size={16} className={p2.isRotated ? 'rotate-180' : ''} />
-                            </button>
-                        )}
-
-                        <div className="w-full flex justify-center items-center mb-1">
-                            <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
-                                Player 2
-                            </div>
-                        </div>
-
-                        {/* Life Points Display */}
-                        <div className="relative w-full text-center">
-                            {isOverlay ? (
-                                <DigitalDisplay
-                                    value={p2.life}
-                                    color="blue"
-                                    obsMode={obsMode}
-                                    className={`transition-all duration-300 ${p2.life === 0 ? 'grayscale opacity-50' : ''}`}
-                                />
-                            ) : (
-                                <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-blue-400 ${p2.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p2' ? 'scale-110 drop-shadow-[0_0_10px_rgba(0,0,255,0.5)]' : ''} transition-all`}>
-                                    {p2.life}
+                                <div className="w-full flex justify-center items-center mb-1">
+                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                        Player 1
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
+
+                                <div className="relative w-full text-center">
+                                    <DigitalDisplay
+                                        value={p1.life}
+                                        color="red"
+                                        obsMode={obsMode}
+                                        className={`transition-all duration-300 ${p1.life === 0 ? 'grayscale opacity-50' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* Player 1 (You) */}
+                            <div
+                                className={getPlayerCardClass(false)}
+                                style={getTargetStyle(targetPlayer === 'p1', 'p1', false)}
+                                onClick={() => handleSetTarget('p1')}
+                            >
+                                <div className="w-full flex justify-center items-center mb-1">
+                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                        Player 1
+                                    </div>
+                                </div>
+
+                                <div className="relative w-full text-center">
+                                    <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-red-400 ${p1.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p1' ? 'scale-110 drop-shadow-[0_0_10px_rgba(255,0,0,0.5)]' : ''} transition-all`}>
+                                        {p1.life}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dice/Coin Center Display */}
+                            <OverlayDisplay
+                                diceValue={diceValue}
+                                coinValue={coinValue}
+                                diceKey={diceKey}
+                                coinKey={coinKey}
+                                onDiceClick={onDiceClick}
+                                onCoinClick={onCoinClick}
+                                compact={true}
+                                className="pointer-events-auto shrink-0 flex-none"
+                            />
+
+                            {/* Player 2 (Opponent) */}
+                            <div
+                                className={getPlayerCardClass(false)}
+                                style={getTargetStyle(targetPlayer === 'p2', 'p2', false)}
+                                onClick={() => handleSetTarget('p2')}
+                            >
+                                <div className="w-full flex justify-center items-center mb-1">
+                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                        Player 2
+                                    </div>
+                                </div>
+
+                                <div className="relative w-full text-center">
+                                    <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-blue-400 ${p2.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p2' ? 'scale-110 drop-shadow-[0_0_10px_rgba(0,0,255,0.5)]' : ''} transition-all`}>
+                                        {p2.life}
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

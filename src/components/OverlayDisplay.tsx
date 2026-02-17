@@ -47,16 +47,16 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
     }, [coinKey]);
 
     const containerClass = compact
-        ? "flex items-center gap-2 pointer-events-none z-50 py-2" // Compact Gap (Tightened)
-        : "flex items-center gap-32 pointer-events-none z-50"; // Overlay Gap
+        ? "flex items-center gap-2 pointer-events-none z-50 py-1" // Compact Gap (Tightened)
+        : "flex items-center gap-4 pointer-events-none z-50"; // Overlay Gap (Even smaller)
 
     const itemWrapperClass = compact
-        ? "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-lg p-2 hover:scale-105 active:scale-95"
-        : "flex flex-col items-center gap-4 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-4 hover:scale-105 active:scale-95";
+        ? "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-lg p-1 hover:scale-105 active:scale-95"
+        : "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-1 hover:scale-105 active:scale-95";
 
     const itemSizeClass = compact
         ? "relative h-12 w-12 flex items-center justify-center scale-75" // Compact Size (Smaller)
-        : "relative h-32 w-32 flex items-center justify-center scale-125"; // Overlay Size
+        : "relative h-20 w-20 flex items-center justify-center scale-100"; // Overlay Size (Even smaller)
 
     return (
         <div className={`${containerClass} ${className || ''}`}>
@@ -78,7 +78,7 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
             {/* Coin Section */}
             {showCoin && (
                 <div
-                    className={itemWrapperClass}
+                    className={`${itemWrapperClass} ${!compact ? 'translate-x-8' : ''}`}
                     onClick={onCoinClick}
                     title="クリックしてコイントス"
                 >
