@@ -55,8 +55,8 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
         : "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-1 hover:scale-105 active:scale-95";
 
     const itemSizeClass = compact
-        ? "relative h-12 w-12 flex items-center justify-center scale-75" // Compact Size (Smaller)
-        : "relative h-20 w-20 flex items-center justify-center scale-100"; // Overlay Size (Even smaller)
+        ? "relative h-14 w-14 flex items-center justify-center scale-[0.6]" // ~60px equivalent
+        : "relative h-24 w-24 flex items-center justify-center scale-[0.85]"; // ~85px equivalent (fits 100px base better)
 
     return (
         <div className={`${containerClass} ${className || ''}`}>

@@ -65,9 +65,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                             }}>
 
                             {/* 1. Dice/Coin Overlay: Flexible Layer that stacks over the frame */}
-                            <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none p-1">
-                                <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end pb-1' : 'justify-start pt-1'}`}>
-                                    <div className="pointer-events-auto shadow-2xl rounded-xl">
+                            <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none p-4">
+                                <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end pb-2' : 'justify-start pt-2'}`}>
+                                    <div className="pointer-events-auto shadow-2xl rounded-xl bg-black/20 backdrop-blur-sm p-2">
                                         <OverlayDisplay
                                             diceValue={diceValue}
                                             coinValue={coinValue}
@@ -75,9 +75,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             coinKey={coinKey}
                                             onDiceClick={onDiceClick}
                                             onCoinClick={onCoinClick}
-                                            compact={true}
+                                            compact={false} // Use standard size for better visibility on card
                                             showCoin={false}
-                                            className="pointer-events-auto"
+                                            className="pointer-events-auto scale-90"
                                         />
                                     </div>
                                 </div>
