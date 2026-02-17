@@ -9,6 +9,7 @@ type ObsMode = 'normal' | 'transparent' | 'green';
 
 // Simple BroadcastChannel implementation for sync
 const CHANNEL_NAME = 'remote_duel_sync';
+const APP_VERSION = '2026.02.17.1200'; // Manual version string (YYYY.MM.DD.HHmm)
 
 function App() {
   const [obsMode, setObsMode] = useState<ObsMode>(() => {
@@ -267,12 +268,18 @@ function App() {
     }
 
     // Open as a popup with minimal browser UI
-    // Note: 'width' and 'height' in window.open refer to the viewport (content) size in most modern browsers.
+    // Add cache-busting timestamp 't' to URL
     window.open(
-      window.location.pathname + '?mode=overlay',
+      window.location.pathname + `?mode=overlay&t=${Date.now()}`,
       'RemoteDuelOverlay',
       `width=${width},height=${height},location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes`
     );
+  };
+
+  const handleManualRefresh = () => {
+    if (confirm('キャッシュをクリアして再読み込みしますか？')) {
+      window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+    }
   };
 
   const toggleObsMode = () => {
@@ -315,6 +322,15 @@ function App() {
                 <span className="flex-1 text-center">
                   {obsMode === 'normal' ? '通常' : obsMode === 'transparent' ? '透過' : 'GB'}
                 </span>
+              </button>
+
+              <button
+                className="btn flex items-center justify-center gap-2 text-sm text-white/40 hover:text-white"
+                onClick={handleManualRefresh}
+                title="キャッシュを無視して再読み込み"
+              >
+                <RefreshCw size={16} />
+                <span>Reload</span>
               </button>
             </div>
           </header>
@@ -384,7 +400,11 @@ function App() {
       </main>
 
       {/* Common Tools Footer - Hidden in Overlay Mode */}
-
+      {!isOverlayMode && (
+        <div className="p-2 text-center text-[10px] text-white/20 font-mono">
+          Build: {APP_VERSION} | Remote Duel Tool v1.0
+        </div>
+      )}
     </div>
   );
 }
