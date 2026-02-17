@@ -37,3 +37,8 @@
 - `yugioh_p1_state` / `yugioh_p2_state`: 遊戯王のライフ・ログ・回転状態
 - `remote_duel_overlay_size_yugioh`: 遊戯王オーバーレイの保存サイズ
 - `remote_duel_overlay_size_hololive`: ホロライブオーバーレイの保存サイズ
+
+## 4. キャッシュ制御
+アプリケーションの更新を確実に反映させるため、以下の仕組みを導入しています。
+- **配信最適化 (No-Cache)**: `index.html` の Meta タグに Cache-Control (`no-cache, no-store, must-revalidate`) を有効化。
+- **仕組み**: ブラウザがアクセスするたびにサーバーへ最新の `index.html`（指示書）を確認するようにし、JS や CSS ファイル名のハッシュ値が変更された際、確実に最新のコードを読み込ませる仕組みです。この設定はアプリケーションのデータ（設定値）の保存には影響しません。
