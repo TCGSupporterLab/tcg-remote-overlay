@@ -37,17 +37,24 @@ const processImage = async (input, outputPath) => {
         const image = sharp(input);
         const metadata = await image.metadata();
 
-        if (metadata.width !== TARGET_WIDTH || metadata.height !== TARGET_HEIGHT) {
+        const isCorrectSize = metadata.width === TARGET_WIDTH && metadata.height === TARGET_HEIGHT;
+
+        if (!isCorrectSize) {
             await image
                 .resize(TARGET_WIDTH, TARGET_HEIGHT, {
                     fit: 'fill'
                 })
                 .toFile(outputPath);
             return true; // Resized
-        } else if (input instanceof Buffer || !fs.existsSync(outputPath)) {
+        }
+
+        // サイズは正しいが、新規ダウンロード(Buffer)の場合のみ保存が必要
+        if (input instanceof Buffer) {
             await image.toFile(outputPath);
             return true;
         }
+
+        // サイズが正しく、既存ファイル(string)の場合は処理不要
     } catch (e) {
         throw new Error(`Sharp Error: ${e.message}`);
     }
