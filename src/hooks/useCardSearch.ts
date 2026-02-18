@@ -14,6 +14,12 @@ export interface Card {
     expansion: string;
     imageUrl: string;
     resolvedImageUrl?: string;
+    oshiSkills?: Array<{ label: string; name: string; cost: string; text: string }>;
+    arts?: Array<{ name: string; costs: string[]; damage: string; tokkou: string; text: string }>;
+    keywords?: Array<{ type: string; name: string; text: string }>;
+    abilityText?: string;
+    extra?: string;
+    limited?: boolean;
     _normName?: string;
     _hiraName?: string;
     _joinedText?: string;
@@ -230,6 +236,11 @@ export const useCardSearch = () => {
         return 'off';
     });
 
+    const [overlayDisplayMode, setOverlayDisplayMode] = useState<'image' | 'text'>(() => {
+        const saved = localStorage.getItem('hololive_overlay_display_mode');
+        return (saved === 'image' || saved === 'text') ? saved : 'image';
+    });
+
     const [remoteOverlayCard, setRemoteOverlayCard] = useState<Card | null>(null);
 
     const channelRef = useRef<BroadcastChannel | null>(null);
@@ -243,6 +254,9 @@ export const useCardSearch = () => {
             if (type === 'HOLOLIVE_OVERLAY_STATE_UPDATE') {
                 setOverlayMode(prev => prev !== value ? value : prev);
             }
+            if (type === 'HOLOLIVE_OVERLAY_DISPLAY_MODE_UPDATE') {
+                setOverlayDisplayMode(prev => prev !== value ? value : prev);
+            }
             if (type === 'HOLOLIVE_OVERLAY_CARD_UPDATE') {
                 setRemoteOverlayCard(prev => {
                     if (!prev && !value) return null;
@@ -252,6 +266,7 @@ export const useCardSearch = () => {
             }
             if (!isOverlayWindow && type === 'REQUEST_STATE') {
                 channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: overlayMode });
+                channel.postMessage({ type: 'HOLOLIVE_OVERLAY_DISPLAY_MODE_UPDATE', value: overlayDisplayMode });
                 channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: (overlayMode !== 'off') ? selectedCard : null });
             }
         };
@@ -271,6 +286,7 @@ export const useCardSearch = () => {
         if (isOverlayWindow || !channelRef.current) return;
 
         localStorage.setItem('hololive_overlay_mode', overlayMode);
+        localStorage.setItem('hololive_overlay_display_mode', overlayDisplayMode);
         if (selectedCard) {
             localStorage.setItem('hololive_selected_card', JSON.stringify(selectedCard));
         } else {
@@ -278,8 +294,9 @@ export const useCardSearch = () => {
         }
 
         channelRef.current.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: overlayMode });
+        channelRef.current.postMessage({ type: 'HOLOLIVE_OVERLAY_DISPLAY_MODE_UPDATE', value: overlayDisplayMode });
         channelRef.current.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: (overlayMode !== 'off') ? selectedCard : null });
-    }, [overlayMode, selectedCard, isOverlayWindow]);
+    }, [overlayMode, overlayDisplayMode, selectedCard, isOverlayWindow]);
 
     const toggleOverlayMode = () => {
         setOverlayMode(prev => {
@@ -287,6 +304,10 @@ export const useCardSearch = () => {
             if (prev === 'on') return 'rotated';
             return 'off';
         });
+    };
+
+    const toggleOverlayDisplayMode = () => {
+        setOverlayDisplayMode(prev => prev === 'image' ? 'text' : 'image');
     };
 
     const overlayCard = isOverlayWindow ? remoteOverlayCard : (overlayMode !== 'off' ? selectedCard : null);
@@ -300,11 +321,13 @@ export const useCardSearch = () => {
         selectedCard,
         overlayCard,
         overlayMode,
+        overlayDisplayMode,
         updateFilter,
         setKeyword,
         togglePin,
         resetPins,
         setSelectedCard,
-        toggleOverlayMode
+        toggleOverlayMode,
+        toggleOverlayDisplayMode
     };
 };

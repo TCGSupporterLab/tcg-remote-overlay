@@ -5,6 +5,7 @@ import { PinnedTab } from './PinnedTab';
 import { FilterPanel } from './FilterPanel';
 import { PinBadge } from './PinBadge';
 import { OverlayBadge } from './OverlayBadge';
+import { DisplayModeBadge } from './DisplayModeBadge';
 import { Search, Pin } from 'lucide-react';
 
 export const CardSearchContainer: React.FC = () => {
@@ -21,7 +22,9 @@ export const CardSearchContainer: React.FC = () => {
         togglePin,
         resetPins,
         setSelectedCard,
-        toggleOverlayMode
+        toggleOverlayMode,
+        overlayDisplayMode,
+        toggleOverlayDisplayMode
     } = useCardSearch();
 
     const [activeTab, setActiveTab] = useState<'search' | 'pinned'>('search');
@@ -88,6 +91,12 @@ export const CardSearchContainer: React.FC = () => {
                             <OverlayBadge
                                 mode={overlayMode}
                                 onToggle={() => toggleOverlayMode()}
+                            />
+
+                            {/* Detail View Display Mode Badge (Hover) */}
+                            <DisplayModeBadge
+                                mode={overlayDisplayMode}
+                                onToggle={() => toggleOverlayDisplayMode()}
                             />
                         </div>
                     </div>

@@ -25,7 +25,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     onCoinClick,
     obsMode = 'normal'
 }) => {
-    const { overlayCard, overlayMode } = useCardSearch();
+    const { overlayCard, overlayMode, overlayDisplayMode } = useCardSearch();
 
     // Overlay View: Only show result and image
     if (isOverlay) {
@@ -33,12 +33,11 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
         const isRotated = overlayMode === 'rotated';
 
         // Background should be transparent when in obs modes to let the body background show through
-        const cardFrameBg = obsMode === 'normal' ? '#111827' : 'transparent';
-        const cardFrameBorder = obsMode === 'normal' ? 'rgba(255, 255, 255, 0.1)' : 'transparent';
+        // Background should be solid for card frame to block the chroma key background
 
         return (
             <div
-                className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+                className="fixed inset-0 z-50 flex flex-col items-center justify-center p-0 m-0"
                 style={{
                     position: 'fixed',
                     inset: 0,
@@ -55,19 +54,19 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                     {/* Card Display Area: Fixed height frame */}
                     {isOverlayEnabled && (
-                        <div className="relative flex flex-col items-center justify-start rounded-2xl animate-in zoom-in duration-500 transform overflow-hidden"
+                        <div className="overlay-card-frame relative flex flex-col items-center justify-start rounded-3xl animate-in zoom-in duration-500 transform overflow-hidden"
                             style={{
                                 minWidth: '350px',
                                 minHeight: '520px',
-                                backgroundColor: cardFrameBg,
-                                border: `1px solid ${cardFrameBorder}`,
-                                boxShadow: obsMode === 'normal' ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : 'none'
+                                backgroundColor: '#111827',
+                                border: `1px solid rgba(203, 213, 225, 0.4)`,
+                                boxShadow: 'none'
                             }}>
 
                             {/* 1. Dice/Coin Overlay: Flexible Layer that stacks over the frame */}
                             <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none p-1">
                                 <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end pb-2' : 'justify-start pt-2'}`}>
-                                    <div className="pointer-events-auto shadow-2xl rounded-xl bg-black/20 backdrop-blur-sm p-1">
+                                    <div className="pointer-events-auto shadow-2xl rounded-xl bg-black/60 backdrop-blur-sm p-1">
                                         <OverlayDisplay
                                             diceValue={diceValue}
                                             coinValue={coinValue}
@@ -86,11 +85,96 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                             {/* 2. Card/Placeholder Area: Fills the remaining space and centers the content */}
                             <div className="flex-1 w-full flex items-center justify-center p-4">
                                 {overlayCard ? (
-                                    <img
-                                        src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
-                                        alt={overlayCard.name}
-                                        className={`h-[480px] w-auto object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
-                                    />
+                                    overlayDisplayMode === 'image' ? (
+                                        <img
+                                            src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
+                                            alt={overlayCard.name}
+                                            className={`h-[480px] w-auto object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                        />
+                                    ) : (
+                                        <div className={`overlay-text-container w-full h-[480px] bg-[#111827] rounded-lg border border-white/10 p-4 text-white overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                            style={{ backgroundColor: '#111827' }}>
+                                            {/* Header */}
+                                            <div className="border-b border-white/20 pb-2 mb-3">
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <h2 className="text-xl font-bold leading-tight">{overlayCard.name}</h2>
+                                                    {overlayCard.hp && (
+                                                        <span className="text-xl font-bold text-red-400 font-orbitron shrink-0">HP {overlayCard.hp}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 mt-1 text-xs opacity-70">
+                                                    <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.cardType}</span>
+                                                    {overlayCard.color && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.color}</span>}
+                                                    {overlayCard.bloomLevel && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.bloomLevel}</span>}
+                                                    <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.id}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Oshi Skills */}
+                                            {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
+                                                <div className="space-y-3 mb-4">
+                                                    {overlayCard.oshiSkills.map((skill, i) => (
+                                                        <div key={i} className="bg-blue-900/30 border-l-2 border-blue-500 p-2 rounded-r">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="text-xs font-bold text-blue-300 uppercase tracking-tighter">{skill.label}</span>
+                                                                <span className="text-xs bg-blue-500/20 px-1 rounded">コスト: {skill.cost}</span>
+                                                            </div>
+                                                            <div className="font-bold text-sm text-blue-100 mb-1">{skill.name}</div>
+                                                            <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{skill.text}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Arts */}
+                                            {overlayCard.arts && overlayCard.arts.length > 0 && (
+                                                <div className="space-y-3 mb-4">
+                                                    {overlayCard.arts.map((art, i) => (
+                                                        <div key={i} className="bg-red-900/20 border-l-2 border-red-500 p-2 rounded-r">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <div className="flex gap-1 items-center">
+                                                                    {art.costs.map((c, ci) => <span key={ci} className="w-3 h-3 rounded-full bg-white/20 border border-white/40 flex items-center justify-center text-[8px]" title={c}>{c[0]}</span>)}
+                                                                </div>
+                                                                <span className="text-sm font-bold text-red-400 font-orbitron">{art.damage}</span>
+                                                            </div>
+                                                            <div className="font-bold text-sm text-red-100 mb-1">
+                                                                {art.name}
+                                                                {art.tokkou && <span className="ml-2 text-[10px] bg-red-500/40 px-1 rounded text-white">{art.tokkou}</span>}
+                                                            </div>
+                                                            <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{art.text}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Keywords */}
+                                            {overlayCard.keywords && overlayCard.keywords.length > 0 && (
+                                                <div className="space-y-2 mb-4">
+                                                    {overlayCard.keywords.map((kw, i) => (
+                                                        <div key={i} className="text-xs">
+                                                            <span className="font-bold text-yellow-400">【{kw.type}：{kw.name}】</span>
+                                                            <span className="opacity-90 ml-1">{kw.text}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Ability Text (Support) */}
+                                            {overlayCard.abilityText && (
+                                                <div className="mb-4">
+                                                    {overlayCard.limited && <div className="text-[10px] font-bold text-yellow-500 mb-1">◆LIMITED</div>}
+                                                    <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{overlayCard.abilityText}</div>
+                                                </div>
+                                            )}
+
+                                            {/* Extra */}
+                                            {overlayCard.extra && (
+                                                <div className="mt-4 pt-2 border-t border-white/10 text-[10px] opacity-60 italic">
+                                                    {overlayCard.extra}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
                                 ) : (
                                     <div className={`flex flex-col items-center justify-center text-white/40 gap-4 animate-pulse transition-transform ${isRotated ? 'rotate-180' : ''}`}>
                                         <Search size={64} strokeWidth={1} />
