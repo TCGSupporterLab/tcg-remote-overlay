@@ -3,6 +3,7 @@ import { Settings, RefreshCw, ExternalLink, Camera, Monitor, FlipHorizontal } fr
 import { YugiohTools } from './components/YugiohTools';
 import { HololiveTools } from './components/HololiveTools';
 import { VideoBackground, type VideoSourceType } from './components/VideoBackground';
+import { OverlayWidget } from './components/OverlayWidget';
 import './App.css';
 
 type GameMode = 'yugioh' | 'hololive';
@@ -405,30 +406,60 @@ function App() {
       )}
 
       <main className={`flex-1 flex flex-col ${!isOverlayMode ? 'bg-panel border border-border rounded-lg p-4 mb-4' : ''} overflow-hidden relative`}>
-        {gameMode === 'yugioh' ? (
-          <YugiohTools
-            key={`yugioh-${resetKey}`}
-            isOverlay={isOverlayMode}
-            diceValue={diceValue}
-            coinValue={coinValue}
-            diceKey={diceKey}
-            coinKey={coinKey}
-            onDiceClick={handleRollDice}
-            onCoinClick={handleFlipCoin}
-            obsMode={obsMode}
-          />
+        {isOverlayMode ? (
+          <OverlayWidget gameMode={gameMode}>
+            {gameMode === 'yugioh' ? (
+              <YugiohTools
+                key={`yugioh-${resetKey}`}
+                isOverlay={true}
+                diceValue={diceValue}
+                coinValue={coinValue}
+                diceKey={diceKey}
+                coinKey={coinKey}
+                onDiceClick={handleRollDice}
+                onCoinClick={handleFlipCoin}
+                obsMode={obsMode}
+              />
+            ) : (
+              <HololiveTools
+                key={`hololive-${resetKey}`}
+                isOverlay={true}
+                diceValue={diceValue}
+                coinValue={coinValue}
+                diceKey={diceKey}
+                coinKey={coinKey}
+                onDiceClick={handleRollDice}
+                onCoinClick={handleFlipCoin}
+                obsMode={obsMode}
+              />
+            )}
+          </OverlayWidget>
         ) : (
-          <HololiveTools
-            key={`hololive-${resetKey}`}
-            isOverlay={isOverlayMode}
-            diceValue={diceValue}
-            coinValue={coinValue}
-            diceKey={diceKey}
-            coinKey={coinKey}
-            onDiceClick={handleRollDice}
-            onCoinClick={handleFlipCoin}
-            obsMode={obsMode}
-          />
+          gameMode === 'yugioh' ? (
+            <YugiohTools
+              key={`yugioh-${resetKey}`}
+              isOverlay={false}
+              diceValue={diceValue}
+              coinValue={coinValue}
+              diceKey={diceKey}
+              coinKey={coinKey}
+              onDiceClick={handleRollDice}
+              onCoinClick={handleFlipCoin}
+              obsMode={obsMode}
+            />
+          ) : (
+            <HololiveTools
+              key={`hololive-${resetKey}`}
+              isOverlay={false}
+              diceValue={diceValue}
+              coinValue={coinValue}
+              diceKey={diceKey}
+              coinKey={coinKey}
+              onDiceClick={handleRollDice}
+              onCoinClick={handleFlipCoin}
+              obsMode={obsMode}
+            />
+          )
         )}
       </main>
     </div>

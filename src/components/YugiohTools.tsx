@@ -254,30 +254,22 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOverlay, handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo, p1, p2, targetPlayer]);
 
-    // Layout constants
-    const overlayWrapperClass = "fixed inset-0 z-50 flex flex-col items-center justify-center bg-transparent";
-
-    // Inner row constants
-
-    // Card constants (overlay: relative to flex row, vertically centered)
-    const overlayCardClass = "flex flex-col items-center justify-center relative p-3 rounded-2xl transition-all duration-500 transform";
-    const normalCardClass = "card flex flex-col items-center justify-center transition-colors relative p-2 flex-1 min-w-0 max-w-md cursor-pointer hover:bg-white/5 active:scale-[0.98] transition-all";
-
     const getPlayerCardClass = (isOverlay: boolean) => {
-        if (isOverlay) return overlayCardClass;
-        return normalCardClass;
+        if (isOverlay) return "flex flex-col items-center justify-center relative p-3 rounded-2xl transition-all duration-500 transform";
+        return "card flex flex-col items-center justify-center transition-colors relative p-2 flex-1 min-w-0 max-w-md cursor-pointer hover:bg-white/5 active:scale-[0.98] transition-all";
     };
 
     const getTargetStyle = (isTarget: boolean, player: 'p1' | 'p2', activeOverlay: boolean) => {
-        // Keep a dark semi-transparent background for overlay to keep numbers readable
-        // even when the window background is Green or Transparent.
-        const overlayBg = 'rgba(15, 20, 30, 0.85)';
+        // Use solid backgrounds for labels to ensure they are visible over video feed
+        const solidBg = '#111827';
+        const targetBgP1 = '#1b1414';
+        const targetBgP2 = '#141b2d';
 
         if (!isTarget) return {
             opacity: activeOverlay ? 1 : 0.6,
             border: activeOverlay ? '4px solid rgba(255, 255, 255, 0.1)' : '4px solid rgba(255, 255, 255, 0.05)',
             padding: activeOverlay ? '0.75rem 1.5rem' : '1.5rem',
-            backgroundColor: activeOverlay ? (obsMode === 'normal' ? '#111827' : overlayBg) : undefined,
+            backgroundColor: activeOverlay ? solidBg : undefined,
             boxShadow: 'none'
         };
 
@@ -286,10 +278,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             border: `4px solid ${player === 'p1' ? '#ef4444' : '#3b82f6'}`,
             boxShadow: `0 0 20px ${player === 'p1' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(59, 130, 246, 0.6)'}`,
             backgroundColor: activeOverlay
-                ? (obsMode === 'normal'
-                    ? (player === 'p1' ? '#1b1414' : '#141b2d')
-                    : (player === 'p1' ? 'rgba(30, 10, 10, 0.9)' : 'rgba(10, 15, 30, 0.9)')
-                )
+                ? (player === 'p1' ? targetBgP1 : targetBgP2)
                 : (player === 'p1' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'),
             opacity: 1,
             padding: activeOverlay ? '0.75rem 1.5rem' : '1.5rem'
@@ -299,21 +288,10 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
 
     return (
         <div
-            className={isOverlay ? overlayWrapperClass : "flex flex-col h-full w-full overflow-hidden"}
-            style={isOverlay ? {
-                position: 'fixed',
-                inset: 0,
-                zIndex: 50,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'transparent',
-                padding: '10px' // Even smaller padding
-            } : undefined}
+            className={isOverlay ? "relative w-fit h-fit pointer-events-auto" : "flex flex-col h-full w-full overflow-hidden"}
         >
-            <div className={`flex-none w-full ${isOverlay ? '' : 'max-w-5xl mx-auto px-4'} z-10`}>
-                <div className={isOverlay ? "flex flex-col items-center justify-center gap-1 w-full animate-in fade-in duration-500 pointer-events-auto" : "flex flex-row items-center justify-center gap-4 w-full py-4"}>
+            <div className={`flex-none ${isOverlay ? 'w-fit' : 'w-full max-w-5xl mx-auto px-4'} z-10`}>
+                <div className={isOverlay ? "flex flex-col items-center justify-center gap-1 w-fit animate-in fade-in duration-500 pointer-events-auto" : "flex flex-row items-center justify-center gap-4 w-full py-4"}>
 
                     {isOverlay ? (
                         <>

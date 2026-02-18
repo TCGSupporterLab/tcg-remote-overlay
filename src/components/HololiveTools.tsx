@@ -109,21 +109,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
         // Background should be solid for card frame to block the chroma key background
 
         return (
-            <div
-                className="fixed inset-0 z-50 flex flex-col items-center justify-center p-0 m-0"
-                style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 50,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'transparent'
-                }}
-            >
-                {/* Main Content Row: Overlaying components for OBS efficiency */}
-                <div className="relative flex flex-col items-center justify-center w-fit mx-auto pointer-events-auto">
+            <div className="relative w-fit h-fit pointer-events-auto">
+                <div className="relative w-fit h-fit">
 
                     {/* 1. Dice/Coin Overlay: Moved outside the frame to prevent clipping by overflow-hidden */}
                     {isOverlayEnabled && (
