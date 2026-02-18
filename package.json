@@ -9,8 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "download-images": "node scripts/download-images.js",
+    "download-type-icons": "node scripts/download-type-icons.js",
     "fetch-data": "node scripts/fetch-hololive-data.js",
-    "update-data": "npm run fetch-data && npm run download-images"
+    "update-data": "npm run fetch-data && npm run download-images && npm run download-type-icons"
   },
   "dependencies": {
     "clsx": "^2.1.1",

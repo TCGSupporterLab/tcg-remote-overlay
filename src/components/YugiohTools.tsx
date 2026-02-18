@@ -188,6 +188,11 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                 handleRedo();
                 return;
             }
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault();
+                handleRedo();
+                return;
+            }
 
             // Numbers
             if (/^[0-9]$/.test(e.key)) {

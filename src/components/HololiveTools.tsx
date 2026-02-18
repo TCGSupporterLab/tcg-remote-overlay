@@ -14,6 +14,80 @@ interface HololiveToolsProps {
     onCoinClick?: () => void;
     obsMode?: 'normal' | 'transparent' | 'green';
 }
+const EnergyIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 20 }) => {
+    const base = import.meta.env.BASE_URL;
+    const colorMap: Record<string, string> = {
+        '赤': 'red',
+        '青': 'blue',
+        '緑': 'green',
+        '白': 'white',
+        '黄': 'yellow',
+        '紫': 'purple',
+        '◇': 'null'
+    };
+
+    const iconName = colorMap[color] || 'null';
+    const rawPath = `/images/icons/arts_${iconName}.png`;
+
+    // Resolve path using base URL logic
+    let path = rawPath;
+    if (path.startsWith(base)) path = path.slice(base.length);
+    if (path.startsWith('/')) path = path.slice(1);
+    const resolvedPath = base + path;
+
+    return (
+        <img
+            src={resolvedPath}
+            alt={color}
+            style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                display: 'inline-block',
+                verticalAlign: 'middle',
+                objectFit: 'contain'
+            }}
+        />
+    );
+};
+
+const TypeIcon: React.FC<{ color: string; height?: number }> = ({ color, height = 32 }) => {
+    const base = import.meta.env.BASE_URL;
+    const colorMap: Record<string, string> = {
+        '赤': 'red',
+        '青': 'blue',
+        '緑': 'green',
+        '白': 'white',
+        '黄': 'yellow',
+        '紫': 'purple',
+        '◇': 'null'
+    };
+
+    const colorKey = Array.from(color)
+        .map(c => colorMap[c])
+        .filter(Boolean)
+        .join('_') || 'null';
+
+    const iconName = `type_${colorKey}.png`;
+    const rawPath = `/images/icons/${iconName}`;
+
+    let path = rawPath;
+    if (path.startsWith(base)) path = path.slice(base.length);
+    if (path.startsWith('/')) path = path.slice(1);
+    const resolvedPath = base + path;
+
+    return (
+        <img
+            src={resolvedPath}
+            alt={color}
+            style={{
+                height: `${height}px`,
+                width: 'auto',
+                display: 'block',
+                objectFit: 'contain'
+            }}
+        />
+    );
+};
 
 export const HololiveTools: React.FC<HololiveToolsProps> = ({
     isOverlay = false,
@@ -103,43 +177,41 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             {/* Scrollable Main Content */}
                                             <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ paddingRight: '10px' }}>
                                                 {/* Header */}
-                                                <div style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '12px', marginBottom: '20px' }}>
-                                                    <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: '4px', opacity: 0.8 }}>
-                                                        {(() => {
-                                                            const type = overlayCard.cardType || '';
-                                                            const bloom = overlayCard.bloomLevel || '';
-                                                            if (type.includes('ホロメン') && type !== '推しホロメン') {
-                                                                return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
-                                                            }
-                                                            if (type.includes('サポート')) {
-                                                                return type
-                                                                    .replace(/サポート・/g, '')
-                                                                    .replace(/・?LIMITED/g, '')
-                                                                    .replace(/^・+|・+$/g, '')
-                                                                    .trim();
-                                                            }
-                                                            return type;
-                                                        })()}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '12px', marginBottom: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        {(overlayCard.cardType?.includes('ホロメン') || overlayCard.cardType === '推しホロメン') && (
+                                                            <TypeIcon color={overlayCard.color} height={45} />
+                                                        )}
+                                                        <div style={{ fontSize: '25px', fontWeight: 'bold', letterSpacing: '0.05em', opacity: 0.9 }}>
+                                                            {(() => {
+                                                                const type = overlayCard.cardType || '';
+                                                                const bloom = overlayCard.bloomLevel || '';
+                                                                if (type.includes('ホロメン') && type !== '推しホロメン') {
+                                                                    return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
+                                                                }
+                                                                if (type.includes('サポート')) {
+                                                                    return type
+                                                                        .replace(/サポート・/g, '')
+                                                                        .replace(/・?LIMITED/g, '')
+                                                                        .replace(/^・+|・+$/g, '')
+                                                                        .trim();
+                                                                }
+                                                                return type;
+                                                            })()}
+                                                        </div>
                                                     </div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
-                                                        {(() => {
-                                                            const isRed = overlayCard.color === '赤';
-                                                            const isBlue = overlayCard.color === '青';
-                                                            const isPurple = overlayCard.color === '紫';
-                                                            const isWhite = overlayCard.color === '白';
-                                                            const textColor = isRed ? '#f87171' : isBlue ? '#60a5fa' : isPurple ? '#c084fc' : isWhite ? '#e2e8f0' : '#fbbf24';
-                                                            return (
-                                                                <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, lineHeight: 1.2, color: textColor }}>
-                                                                    {overlayCard.name}
-                                                                </h2>
-                                                            );
-                                                        })()}
-                                                        {overlayCard.hp && (
-                                                            <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444', whiteSpace: 'nowrap' }}>
+                                                    {overlayCard.hp && (
+                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444', whiteSpace: 'nowrap', lineHeight: 1 }}>
                                                                 {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
                                                             </span>
-                                                        )}
-                                                    </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 12px 0', lineHeight: 1.2, color: '#ffffff' }}>
+                                                        {overlayCard.name}
+                                                    </h2>
                                                 </div>
 
                                                 {/* Skills/Arts/Keywords/Ability (Summary) */}
@@ -166,7 +238,11 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                                                                         <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>{art.name}</div>
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                            <span style={{ fontSize: '14px', fontWeight: 'bold', opacity: 0.7 }}>{art.costs.join('')}</span>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                                                {art.costs.map((cost, ci) => (
+                                                                                    <EnergyIcon key={ci} color={cost} size={18} />
+                                                                                ))}
+                                                                            </div>
                                                                             <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>{art.damage}</span>
                                                                         </div>
                                                                     </div>
@@ -217,31 +293,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '12px', marginLeft: '4px' }}>
                                                                     <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)' }}>バトンタッチ</span>
                                                                     {overlayCard.batonTouch && (
-                                                                        <div style={{
-                                                                            width: '18px',
-                                                                            height: '18px',
-                                                                            borderRadius: '50%',
-                                                                            backgroundColor: overlayCard.batonTouch === '赤' ? '#ef4444' :
-                                                                                overlayCard.batonTouch === '青' ? '#3b82f6' :
-                                                                                    overlayCard.batonTouch === '緑' ? '#10b981' :
-                                                                                        overlayCard.batonTouch === '黄' ? '#eab308' :
-                                                                                            overlayCard.batonTouch === '紫' ? '#a855f7' :
-                                                                                                overlayCard.batonTouch === '白' ? '#ffffff' : '#4b5563',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            fontSize: '11px',
-                                                                            color: overlayCard.batonTouch === '白' ? '#000' : '#fff',
-                                                                            fontWeight: 'bold',
-                                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                                                                        }}>
-                                                                            {overlayCard.batonTouch === '赤' ? '赤' :
-                                                                                overlayCard.batonTouch === '青' ? '青' :
-                                                                                    overlayCard.batonTouch === '緑' ? '緑' :
-                                                                                        overlayCard.batonTouch === '黄' ? '黄' :
-                                                                                            overlayCard.batonTouch === '紫' ? '紫' :
-                                                                                                overlayCard.batonTouch === '白' ? '白' : '◇'}
-                                                                        </div>
+                                                                        <EnergyIcon color={overlayCard.batonTouch} size={20} />
                                                                     )}
                                                                 </div>
                                                             )}

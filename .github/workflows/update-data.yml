@@ -47,11 +47,14 @@ jobs:
       - name: Run Download Images
         run: npm run download-images
 
+      - name: Run Download Type Icons
+        run: npm run download-type-icons
+
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/data/hololive-cards.json public/images/cards/
+          git add src/data/hololive-cards.json public/images/cards/ public/images/icons/
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
