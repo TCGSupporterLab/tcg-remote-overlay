@@ -190,14 +190,17 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             {/* Ability Text (Support) */}
                                             {overlayCard.abilityText && (
                                                 <div className="mb-4 text-xs leading-relaxed opacity-90 whitespace-pre-wrap">
-                                                    {overlayCard.abilityText.replace(/^[◆・]?(LIMITED|imited)\s*/i, '').trim()}
+                                                    {overlayCard.abilityText
+                                                        .replace(/^[◆・]?(LIMITED|imited)\s*/i, '')
+                                                        .replace(/LIMITED：?ターンに[1１]枚しか使えない。?\s*/g, '')
+                                                        .trim()}
                                                 </div>
                                             )}
 
                                             {/* Extra / LIMITED */}
                                             {(overlayCard.extra || overlayCard.limited) && (
                                                 <div className="mt-4 pt-2 border-t border-white/10 text-xs opacity-80">
-                                                    {overlayCard.limited && <div className="text-yellow-500 font-bold mb-1">LIMITED: ターンに1枚しかつかえない</div>}
+                                                    {overlayCard.limited && <div className="text-yellow-500 font-bold mb-1">LIMITED: ターンに１枚しかつかえない</div>}
                                                     <div className="italic opacity-70">{overlayCard.extra}</div>
                                                 </div>
                                             )}
