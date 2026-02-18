@@ -41,4 +41,17 @@
 
 ### メンテナンス
 - 編集は `scripts/merge-dicts.js` 内の `MANUAL_ADDITIONS` に対して行います。
-- 実行後、`scripts/enrich-cards.js` を通じて `hololive-cards.json` に反映されます。
+## 3. 静的リソース (Static Resources)
+ 
+ ### 3.1. カラータイプ・エネルギーアイコン
+ UIで使用される各種属性アイコンは `/public/images/icons/` に配置されます。
+ 
+ | 種類 | ファイル名形式 | 説明 |
+ | :--- | :--- | :--- |
+ | **カードタイプ** | `type_{color}.png` | レベルや種別とともに表示。多色は `type_blue_red.png` 等。 |
+ | **エネルギー** | `arts_{color}.png` | アーツコストやバトンタッチコストとして表示。 |
+ 
+ ### 3.2. アイコンの自動収集
+ - `scripts/download-type-icons.js` を使用して、`hololive-cards.json` に含まれる色の組み合わせ（多色含む）を走査。
+ - ローカルに存在しないアイコンがある場合、公式サイトから自動的にダウンロードして保存します。
+ - **GitHub Actions**: 毎日のデータ更新ワークフロー (`update-data.yml`) 内でこのスクリプトが実行され、新カード登場時に必要なアイコンも自動的にリポジトリに追加されます。

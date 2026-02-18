@@ -8,6 +8,7 @@
 - `scripts/fetch-hololive-data.js`
 - `scripts/download-images.js`
 - `scripts/enrich-cards.js`
+- `scripts/download-type-icons.js`
 - `src/data/hololive-cards.json` (直接編集または構造変更時)
 
 ## 開発モードの使用手順
