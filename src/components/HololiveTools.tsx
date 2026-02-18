@@ -140,7 +140,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                         <div key={i} className="bg-blue-900/30 border-l-2 border-blue-500 p-2 rounded-r">
                                                             <div className="flex justify-between items-center mb-1">
                                                                 <span className="text-xs font-bold text-blue-300 uppercase tracking-tighter">{skill.label}</span>
-                                                                <span className="text-xs bg-blue-500/20 px-1 rounded">コスト: {skill.cost}</span>
+                                                                <span className="text-xs bg-blue-500/20 px-1 rounded">ホロパワー: {skill.cost}</span>
                                                             </div>
                                                             <div className="font-bold text-sm text-blue-100 mb-1">{skill.name}</div>
                                                             <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{skill.text}</div>
