@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, RefreshCw, ExternalLink } from 'lucide-react';
+import { Settings, RefreshCw, ExternalLink, Camera, Monitor, FlipHorizontal } from 'lucide-react';
 import { YugiohTools } from './components/YugiohTools';
 import { HololiveTools } from './components/HololiveTools';
+import { VideoBackground, type VideoSourceType } from './components/VideoBackground';
 import './App.css';
 
 type GameMode = 'yugioh' | 'hololive';
@@ -16,6 +17,8 @@ function App() {
     return saved || 'normal';
   });
   const [isOverlayMode, setIsOverlayMode] = useState(false);
+  const [videoSource, setVideoSource] = useState<VideoSourceType>('none');
+  const [isVideoMirrored, setIsVideoMirrored] = useState(false);
 
   // Apply initial OBS mode class (Only for Overlay)
   useEffect(() => {
@@ -55,16 +58,16 @@ function App() {
   // Persistent Tool State
   const [diceValue, setDiceValue] = useState<number>(1);
   const [coinValue, setCoinValue] = useState<string>('表');
-  // Triggers for animation (increment to replay)
   const [diceKey, setDiceKey] = useState<number>(0);
   const [coinKey, setCoinKey] = useState<number>(0);
-  // Trigger for full game reset (remount components)
   const [resetKey, setResetKey] = useState<number>(0);
 
   // Ref to access latest state in callback (for sync)
   const gameModeRef = useRef<GameMode>(gameMode);
   const diceValueRef = useRef<number>(diceValue);
   const coinValueRef = useRef<string>(coinValue);
+  const videoSourceRef = useRef<VideoSourceType>(videoSource);
+  const isVideoMirroredRef = useRef<boolean>(isVideoMirrored);
 
   // Update ref when state changes
   useEffect(() => {
@@ -75,6 +78,11 @@ function App() {
     diceValueRef.current = diceValue;
     coinValueRef.current = coinValue;
   }, [diceValue, coinValue]);
+
+  useEffect(() => {
+    videoSourceRef.current = videoSource;
+    isVideoMirroredRef.current = isVideoMirrored;
+  }, [videoSource, isVideoMirrored]);
 
   // Check URL for overlay mode
   useEffect(() => {
@@ -113,13 +121,14 @@ function App() {
       if (data.type === 'SYNC_STATE') {
         setDiceValue(data.value.dice);
         setCoinValue(data.value.coin);
+        if (data.value.videoSource) setVideoSource(data.value.videoSource);
+        if (data.value.isVideoMirrored !== undefined) setIsVideoMirrored(data.value.isVideoMirrored);
       }
 
       if (data.type === 'OBS_MODE') {
         const nextMode = data.value as ObsMode;
         setObsMode(nextMode);
 
-        // ALWAYS check URL directly inside handler to avoid stale closures
         const isOverlay = new URLSearchParams(window.location.search).get('mode') === 'overlay';
         if (isOverlay) {
           document.body.classList.remove('obs-transparent', 'obs-green');
@@ -129,9 +138,19 @@ function App() {
         }
       }
 
+      if (data.type === 'VIDEO_SOURCE') {
+        setVideoSource(data.value);
+      }
+
+      if (data.type === 'VIDEO_MIRROR') {
+        setIsVideoMirrored(data.value);
+      }
+
       if (data.type === 'RESET') {
         setDiceValue(1);
         setCoinValue('表');
+        setVideoSource('none');
+        setIsVideoMirrored(false);
         setResetKey(prev => prev + 1);
       }
 
@@ -139,7 +158,14 @@ function App() {
       if (data.type === 'REQUEST_STATE' && !params.get('mode')) {
         channel.postMessage({ type: 'GAME_MODE', value: gameModeRef.current });
         channel.postMessage({ type: 'OBS_MODE', value: localStorage.getItem('remote_duel_obs_mode') || 'normal' });
-        channel.postMessage({ type: 'SYNC_STATE', value: { dice: diceValueRef.current, coin: coinValueRef.current } });
+        channel.postMessage({
+          type: 'SYNC_STATE', value: {
+            dice: diceValueRef.current,
+            coin: coinValueRef.current,
+            videoSource: videoSourceRef.current,
+            isVideoMirrored: isVideoMirroredRef.current
+          }
+        });
       }
     };
 
@@ -173,18 +199,33 @@ function App() {
   }, [broadcast]);
 
   const handleReset = useCallback(() => {
-    if (confirm('全ての値をリセットしますか？\n(ライフポイント、ログ、履歴、フォーカスも初期化されます)')) {
+    if (confirm('全ての値をリセットしますか？\n(ライフポイント、ログ、履歴、フォーカス、ビデオソースも初期化されます)')) {
       setDiceValue(1);
       setCoinValue('表');
+      setVideoSource('none');
+      setIsVideoMirrored(false);
       setResetKey(prev => prev + 1);
       broadcast('RESET', null);
     }
   }, [broadcast]);
 
+  const toggleVideoSource = () => {
+    const sources: VideoSourceType[] = ['none', 'camera', 'screen'];
+    const nextIndex = (sources.indexOf(videoSource) + 1) % sources.length;
+    const nextSource = sources[nextIndex];
+    setVideoSource(nextSource);
+    broadcast('VIDEO_SOURCE', nextSource);
+  };
+
+  const toggleVideoMirror = () => {
+    const nextMirror = !isVideoMirrored;
+    setIsVideoMirrored(nextMirror);
+    broadcast('VIDEO_MIRROR', nextMirror);
+  };
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable if user is typing in an input field
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.key === 'd' || e.key === 'D') {
@@ -193,16 +234,21 @@ function App() {
       if (e.key === 'c' || e.key === 'C') {
         handleFlipCoin();
       }
+      if (e.key === 'v' || e.key === 'V') {
+        toggleVideoSource();
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        toggleVideoMirror();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayMode, handleRollDice, handleFlipCoin]);
+  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, isVideoMirrored]);
 
   // Persistence for Overlay Window Size
   useEffect(() => {
     if (!isOverlayMode) {
-      // Receiver: Handle resize messages from overlay
       const channel = new BroadcastChannel(CHANNEL_NAME);
       const handler = (event: MessageEvent) => {
         if (event.data.type === 'OVERLAY_RESIZE') {
@@ -216,15 +262,10 @@ function App() {
         channel.close();
       };
     } else {
-      // Sender: Detect resize in overlay window and notify controller
       const lastSentSize = { width: window.innerWidth, height: window.innerHeight };
-
       const handleResize = () => {
-        // Use innerWidth/Height as they are more reliable across browsers for content sizing
         const currentWidth = window.innerWidth;
         const currentHeight = window.innerHeight;
-
-        // Only broadcast if there's a meaningful change to avoid noise
         if (Math.abs(lastSentSize.width - currentWidth) > 5 || Math.abs(lastSentSize.height - currentHeight) > 5) {
           broadcast('OVERLAY_RESIZE', {
             mode: gameMode,
@@ -235,18 +276,13 @@ function App() {
           lastSentSize.height = currentHeight;
         }
       };
-
       let timer: number;
       const debouncedResize = () => {
         clearTimeout(timer);
         timer = window.setTimeout(handleResize, 500);
       };
-
       window.addEventListener('resize', debouncedResize);
-
-      // On mount in overlay: Send initial size to sync if it's the first time
       handleResize();
-
       return () => {
         window.removeEventListener('resize', debouncedResize);
         clearTimeout(timer);
@@ -255,23 +291,16 @@ function App() {
   }, [isOverlayMode, gameMode, broadcast]);
 
   const openOverlayWindow = () => {
-    // Get saved size or use defaults
     const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
     let width = gameMode === 'yugioh' ? 350 : 400;
     let height = gameMode === 'yugioh' ? 500 : 700;
-
     if (savedSizeStr) {
       try {
         const saved = JSON.parse(savedSizeStr);
         width = saved.width || width;
         height = saved.height || height;
-      } catch (e) {
-        console.error("Failed to parse saved size", e);
-      }
+      } catch (e) { console.error(e); }
     }
-
-    // Open as a popup with minimal browser UI
-    // Note: 'width' and 'height' in window.open refer to the viewport (content) size in most modern browsers.
     window.open(
       window.location.pathname + '?mode=overlay',
       'RemoteDuelOverlay',
@@ -284,23 +313,40 @@ function App() {
     const nextIndex = (modes.indexOf(obsMode) + 1) % modes.length;
     const nextMode = modes[nextIndex];
     setObsMode(nextMode);
-
-    // Controller body should NOT be affected
     broadcast('OBS_MODE', nextMode);
   };
 
   return (
     <div className={`app-container w-full h-full flex flex-col box-border ${isOverlayMode ? 'overlay-mode p-0' : 'p-4'}`}>
-      {/* Header - Hidden in Overlay Mode */}
+      <VideoBackground sourceType={videoSource} isMirrored={isVideoMirrored} />
+
       {!isOverlayMode && (
         <>
           <header className="flex justify-between items-center mb-4 p-2 bg-panel rounded-lg">
             <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
               Remote Duel Tool
-              <span className="text-xs font-normal opacity-50">v0.2.0</span>
+              <span className="text-xs font-normal opacity-50">v0.3.0</span>
             </h1>
 
             <div className="flex gap-2">
+              <button
+                className="btn flex items-center justify-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3"
+                onClick={toggleVideoSource}
+                title="ビデオソース切替 (V)"
+              >
+                {videoSource === 'none' ? <Camera size={16} /> : videoSource === 'camera' ? <Camera size={16} className="text-blue-400" /> : <Monitor size={16} className="text-green-400" />}
+                <span className="text-xs">{videoSource === 'none' ? 'OFF' : videoSource === 'camera' ? 'Camera' : 'Screen'}</span>
+              </button>
+
+              <button
+                className={`btn flex items-center justify-center p-2 ${isVideoMirrored ? 'bg-blue-600' : 'bg-slate-700'}`}
+                onClick={toggleVideoMirror}
+                title="左右反転 (M)"
+                disabled={videoSource === 'none'}
+              >
+                <FlipHorizontal size={16} />
+              </button>
+
               <button
                 className="btn flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500"
                 onClick={openOverlayWindow}
@@ -315,7 +361,7 @@ function App() {
                 onClick={toggleObsMode}
                 title="OBSモード切替"
               >
-                <Settings size={16} className="flex-none" />
+                <Settings size={16} />
                 <span className="flex-1 text-center">
                   {obsMode === 'normal' ? '通常' : obsMode === 'transparent' ? '透過' : 'GB'}
                 </span>
@@ -323,7 +369,6 @@ function App() {
             </div>
           </header>
 
-          {/* Game Mode Tabs */}
           <div className="header-row">
             <div className="game-mode-tabs">
               <button
@@ -342,24 +387,14 @@ function App() {
               </button>
             </div>
 
-            <button
-              className="btn-reset"
-              onClick={handleReset}
-              title="リセット"
-            >
+            <button className="btn-reset" onClick={handleReset} title="リセット">
               <RefreshCw size={18} />
             </button>
           </div>
         </>
       )}
 
-      {/* Main Content Area */}
       <main className={`flex-1 flex flex-col ${!isOverlayMode ? 'bg-panel border border-border rounded-lg p-4 mb-4' : ''} overflow-hidden relative`}>
-
-        {/* Standalone OverlayDisplay (For Controller Mode or Non-Yugioh Overlay) */}
-        {/* In Yugioh Overlay mode, the overlay is embedded inside YugiohLife for layout control */}
-        {/* Standalone OverlayDisplay Removed - now handled internally by each component */}
-
         {gameMode === 'yugioh' ? (
           <YugiohTools
             key={`yugioh-${resetKey}`}
@@ -386,9 +421,6 @@ function App() {
           />
         )}
       </main>
-
-      {/* Common Tools Footer - Hidden in Overlay Mode */}
-
     </div>
   );
 }

@@ -215,6 +215,21 @@ body.obs-green {
   flex: none;
 }
 
+.z-negative {
+  z-index: -1;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.fixed {
+  position: fixed;
+}
+
 .btn {
   border-radius: 0.5rem;
   border: 1px solid transparent;
@@ -225,7 +240,8 @@ body.obs-green {
   background-color: var(--secondary-color);
   color: #1a1b26;
   cursor: pointer;
-  transition: border-color 0.25s, filter 0.25s;
+  transition: border-color 0.25s,
+    filter 0.25s;
 }
 
 .btn:hover {
