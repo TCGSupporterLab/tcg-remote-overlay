@@ -99,7 +99,16 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     {overlayCard.cardType}
                                                 </div>
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <h2 className="text-xl font-bold leading-tight">{overlayCard.name}</h2>
+                                                    <h2 className={`text-xl font-bold leading-tight border-l-4 pl-2 ${overlayCard.color === '赤' ? 'border-red-500 text-red-400' :
+                                                            overlayCard.color === '青' ? 'border-blue-500 text-blue-400' :
+                                                                overlayCard.color === '黄' ? 'border-yellow-500 text-yellow-400' :
+                                                                    overlayCard.color === '緑' ? 'border-emerald-500 text-emerald-400' :
+                                                                        overlayCard.color === '紫' ? 'border-purple-500 text-purple-400' :
+                                                                            overlayCard.color === '白' ? 'border-slate-300 text-slate-200' :
+                                                                                'border-gray-500 text-gray-400'
+                                                        }`}>
+                                                        {overlayCard.name}
+                                                    </h2>
                                                     {overlayCard.hp && (
                                                         <span className="text-xl font-bold text-red-400 font-orbitron shrink-0">
                                                             {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
@@ -107,7 +116,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 mt-1 text-xs opacity-70">
-                                                    {overlayCard.color && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.color}</span>}
                                                     {overlayCard.bloomLevel && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.bloomLevel}</span>}
                                                 </div>
                                             </div>
