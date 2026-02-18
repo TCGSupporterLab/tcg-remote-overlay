@@ -84,9 +84,9 @@ function App() {
       setIsOverlayMode(true);
       setObsMode('transparent');
       document.body.classList.add('obs-transparent');
-      document.title = '【表示】Remote Duel Overlay';
+      document.title = 'RemoteDuelOverlay';
     } else {
-      document.title = '【操作】リモート対戦ツール';
+      document.title = 'RemoteDuelTool';
     }
 
     // Setup Sync
