@@ -22,8 +22,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     diceKey = 0,
     coinKey = 0,
     onDiceClick,
-    onCoinClick,
-    obsMode = 'normal'
+    onCoinClick
 }) => {
     const { overlayCard, overlayMode, overlayDisplayMode } = useCardSearch();
 
