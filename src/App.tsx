@@ -84,9 +84,9 @@ function App() {
       setIsOverlayMode(true);
       setObsMode('transparent');
       document.body.classList.add('obs-transparent');
-      document.title = 'RemoteDuelOverlay';
+      document.title = 'Remote Duel Overlay';
     } else {
-      document.title = 'RemoteDuelTool';
+      document.title = 'Remote Duel Tool';
     }
 
     // Setup Sync
@@ -295,8 +295,8 @@ function App() {
       {!isOverlayMode && (
         <>
           <header className="flex justify-between items-center mb-4 p-2 bg-panel rounded-lg">
-            <h1 className="text-xl font-bold flex items-center gap-2 uppercase tracking-tight">
-              RemoteDuelTool
+            <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
+              Remote Duel Tool
               <span className="text-xs font-normal opacity-50">v0.2.0</span>
             </h1>
 
