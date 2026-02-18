@@ -203,12 +203,12 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
                                                 <div className="bg-[#111827] shrink-0">
                                                     {overlayCard.extra && (
-                                                        <div className="px-6 py-1 text-xs italic opacity-70">
+                                                        <div className="px-8 py-1 text-xs italic opacity-70">
                                                             {overlayCard.extra}
                                                         </div>
                                                     )}
-                                                    <div className="px-4 pb-4 pt-2 border-t border-white/10 flex justify-between items-end gap-4 text-xs">
-                                                        <div className="flex flex-nowrap gap-2 pl-3 opacity-80 overflow-hidden whitespace-nowrap">
+                                                    <div className="px-8 pb-6 pt-2 border-t border-white/10 flex justify-between items-end gap-4 text-xs">
+                                                        <div className="flex flex-nowrap gap-2 opacity-80 overflow-hidden whitespace-nowrap">
                                                             {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
                                                                 <span key={ti} className="text-[#94a3b8] font-medium shrink-0">{tag}</span>
                                                             ))}
