@@ -95,6 +95,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             style={{ backgroundColor: '#111827' }}>
                                             {/* Header */}
                                             <div className="border-b border-white/20 pb-2 mb-3">
+                                                <div className="text-[10px] uppercase tracking-wider opacity-60 mb-0.5 font-bold">
+                                                    {overlayCard.cardType}
+                                                </div>
                                                 <div className="flex justify-between items-start gap-2">
                                                     <h2 className="text-xl font-bold leading-tight">{overlayCard.name}</h2>
                                                     {overlayCard.hp && (
@@ -104,10 +107,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 mt-1 text-xs opacity-70">
-                                                    <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.cardType}</span>
                                                     {overlayCard.color && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.color}</span>}
                                                     {overlayCard.bloomLevel && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.bloomLevel}</span>}
-                                                    <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.id}</span>
                                                 </div>
                                             </div>
 
