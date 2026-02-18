@@ -136,9 +136,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 mt-1 text-xs opacity-70">
-                                                    {overlayCard.bloomLevel && <span className="bg-white/10 px-1.5 py-0.5 rounded">{overlayCard.bloomLevel}</span>}
-                                                </div>
                                             </div>
 
                                             {/* Oshi Skills */}
