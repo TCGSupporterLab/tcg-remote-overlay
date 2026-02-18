@@ -98,7 +98,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                 <div className="flex justify-between items-start gap-2">
                                                     <h2 className="text-xl font-bold leading-tight">{overlayCard.name}</h2>
                                                     {overlayCard.hp && (
-                                                        <span className="text-xl font-bold text-red-400 font-orbitron shrink-0">HP {overlayCard.hp}</span>
+                                                        <span className="text-xl font-bold text-red-400 font-orbitron shrink-0">
+                                                            {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
+                                                        </span>
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 mt-1 text-xs opacity-70">
