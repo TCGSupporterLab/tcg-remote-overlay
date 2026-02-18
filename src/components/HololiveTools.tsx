@@ -102,6 +102,10 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                         if (type.includes('ホロメン') && type !== '推しホロメン') {
                                                             return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
                                                         }
+                                                        // Support cards: remove "サポート・" and "LIMITED"
+                                                        if (type.includes('サポート')) {
+                                                            return type.replace(/サポート・/, '').replace(/LIMITED/, '').trim();
+                                                        }
                                                         return type;
                                                     })()}
                                                 </div>
@@ -184,15 +188,15 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                                             {/* Ability Text (Support) */}
                                             {overlayCard.abilityText && (
-                                                <div className="mb-4">
-                                                    {overlayCard.limited && <div className="text-[10px] font-bold text-yellow-500 mb-1">◆LIMITED</div>}
-                                                    <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{overlayCard.abilityText}</div>
+                                                <div className="mb-4 text-xs leading-relaxed opacity-90 whitespace-pre-wrap">
+                                                    {overlayCard.abilityText}
                                                 </div>
                                             )}
 
-                                            {/* Extra */}
-                                            {overlayCard.extra && (
+                                            {/* Extra / LIMITED */}
+                                            {(overlayCard.extra || overlayCard.limited) && (
                                                 <div className="mt-4 pt-2 border-t border-white/10 text-[10px] opacity-60 italic">
+                                                    {overlayCard.limited && <div className="text-yellow-500 font-bold not-italic mb-0.5">LIMITED: ターンに1枚しかつかえない</div>}
                                                     {overlayCard.extra}
                                                 </div>
                                             )}
