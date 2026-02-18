@@ -91,9 +91,11 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             className={`h-[480px] w-auto object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
                                         />
                                     ) : (
-                                        <div className={`overlay-text-container w-full h-[480px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                        <div className={`overlay-text-container w-full h-[480px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col p-10 overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
                                             style={{ backgroundColor: '#111827' }}>
-                                            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 pb-2">
+
+                                            {/* Scrollable Main Content */}
+                                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                                                 {/* Header */}
                                                 <div className="border-b border-white/20 pb-2 mb-3">
                                                     <div className="text-xl tracking-wider mb-1 font-bold text-white">
@@ -103,7 +105,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                             if (type.includes('ホロメン') && type !== '推しホロメン') {
                                                                 return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
                                                             }
-                                                            // Support cards: remove "サポート・", "LIMITED" and any leftover dots
                                                             if (type.includes('サポート')) {
                                                                 return type
                                                                     .replace(/サポート・/g, '')
@@ -114,17 +115,13 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                             return type;
                                                         })()}
                                                     </div>
-                                                    <div className="flex justify-between items-start gap-2">
+                                                    <div className="flex justify-between items-center gap-4">
                                                         {(() => {
-                                                            const color = overlayCard.color || '';
-                                                            let textColor = '#9ca3af'; // gray-400
-                                                            if (color.includes('赤')) textColor = '#f87171'; // red-400
-                                                            else if (color.includes('青')) textColor = '#60a5fa'; // blue-400
-                                                            else if (color.includes('黄')) textColor = '#facc15'; // yellow-400
-                                                            else if (color.includes('緑')) textColor = '#34d399'; // emerald-400
-                                                            else if (color.includes('紫')) textColor = '#c084fc'; // purple-400
-                                                            else if (color.includes('白')) textColor = '#e2e8f0'; // slate-200
-
+                                                            const isRed = overlayCard.color === '赤';
+                                                            const isBlue = overlayCard.color === '青';
+                                                            const isPurple = overlayCard.color === '紫';
+                                                            const isWhite = overlayCard.color === '白';
+                                                            const textColor = isRed ? '#f87171' : isBlue ? '#60a5fa' : isPurple ? '#c084fc' : isWhite ? '#e2e8f0' : '#fbbf24';
                                                             return (
                                                                 <h2 className="text-xl font-bold leading-tight" style={{ color: textColor }}>
                                                                     {overlayCard.name}
@@ -139,82 +136,78 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {/* Oshi Skills */}
-                                                {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
-                                                    <div className="space-y-3 mb-4">
-                                                        {overlayCard.oshiSkills.map((skill, i) => (
-                                                            <div key={i} className="bg-blue-900/30 border-l-2 border-blue-500 p-2 rounded-r">
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <span className="text-xs font-bold text-blue-300 uppercase tracking-tighter">{skill.label}</span>
-                                                                    <span className="text-xs bg-blue-500/20 px-1 rounded">ホロパワー: {skill.cost}</span>
-                                                                </div>
-                                                                <div className="font-bold text-sm text-blue-100 mb-1">{skill.name}</div>
-                                                                <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{skill.text}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {/* Arts */}
-                                                {overlayCard.arts && overlayCard.arts.length > 0 && (
-                                                    <div className="space-y-3 mb-4">
-                                                        {overlayCard.arts.map((art, i) => (
-                                                            <div key={i} className="bg-red-900/20 border-l-2 border-red-500 p-2 rounded-r">
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <div className="flex gap-1 items-center">
-                                                                        {art.costs.map((c, ci) => <span key={ci} className="w-3 h-3 rounded-full bg-white/20 border border-white/40 flex items-center justify-center text-[8px]" title={c}>{c[0]}</span>)}
+                                                {/* Skills/Arts/Keywords/Ability (Summary) */}
+                                                <div className="space-y-4">
+                                                    {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
+                                                        <div className="space-y-3">
+                                                            {overlayCard.oshiSkills.map((skill, i) => (
+                                                                <div key={i} className="bg-blue-900/30 border-l-2 border-blue-500 p-2 rounded-r">
+                                                                    <div className="flex justify-between items-center mb-1">
+                                                                        <span className="text-xs font-bold text-blue-300 uppercase tracking-tighter">{skill.label}</span>
+                                                                        <span className="text-xs bg-blue-500/20 px-1 rounded">ホロパワー: {skill.cost}</span>
                                                                     </div>
-                                                                    <span className="text-sm font-bold text-red-400 font-orbitron">{art.damage}</span>
+                                                                    <div className="font-bold text-sm text-blue-100 mb-1">{skill.name}</div>
+                                                                    <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{skill.text}</div>
                                                                 </div>
-                                                                <div className="font-bold text-sm text-red-100 mb-1">
-                                                                    {art.name}
-                                                                    {art.tokkou && <span className="ml-2 text-[10px] bg-red-500/40 px-1 rounded text-white">{art.tokkou}</span>}
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {overlayCard.arts && overlayCard.arts.length > 0 && (
+                                                        <div className="space-y-4">
+                                                            {overlayCard.arts.map((art, i) => (
+                                                                <div key={i} className="border-b border-white/5 pb-3">
+                                                                    <div className="flex justify-between items-start mb-1">
+                                                                        <div className="font-bold text-lg text-white">{art.name}</div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-sm font-bold opacity-80">{art.costs.join('')}</span>
+                                                                            <span className="text-xl font-bold text-red-400 font-orbitron">{art.damage}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    {art.text && <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{art.text}</div>}
                                                                 </div>
-                                                                <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{art.text}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                            ))}
+                                                        </div>
+                                                    )}
 
-                                                {/* Keywords */}
-                                                {overlayCard.keywords && overlayCard.keywords.length > 0 && (
-                                                    <div className="space-y-2 mb-4">
-                                                        {overlayCard.keywords.map((kw, i) => (
-                                                            <div key={i} className="text-xs">
-                                                                <span className="font-bold text-yellow-400">【{kw.type}：{kw.name}】</span>
-                                                                <span className="opacity-90 ml-1">{kw.text}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                    {overlayCard.keywords && overlayCard.keywords.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            {overlayCard.keywords.map((kw, i) => (
+                                                                <div key={i} className="text-xs">
+                                                                    <span className="font-bold text-yellow-400">【{kw.type}：{kw.name}】</span>
+                                                                    <span className="opacity-90 ml-1">{kw.text}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
 
-                                                {/* Ability Text (Support) */}
-                                                {overlayCard.abilityText && (
-                                                    <div className="mb-4 text-xs leading-relaxed opacity-90 whitespace-pre-wrap">
-                                                        {overlayCard.abilityText
-                                                            .replace(/^[◆・]?(LIMITED|imited)\s*/i, '')
-                                                            .replace(/LIMITED：?ターンに[1１]枚しか使えない。?\s*/g, '')
-                                                            .trim()}
-                                                    </div>
-                                                )}
+                                                    {overlayCard.abilityText && (
+                                                        <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">
+                                                            {overlayCard.abilityText
+                                                                .replace(/^[◆・]?(LIMITED|imited)\s*/i, '')
+                                                                .replace(/LIMITED：?ターンに[1１]枚しか使えない。?\s*/g, '')
+                                                                .trim()}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {/* Bottom Section: Fixed at the bottom */}
+                                            {/* Footer Area: Fixed at the bottom */}
                                             {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
-                                                <div className="bg-[#111827] shrink-0">
+                                                <div className="mt-4 shrink-0">
                                                     {overlayCard.extra && (
-                                                        <div className="px-8 py-1 text-xs italic opacity-70">
+                                                        <div className="text-[10px] italic opacity-60 mb-2 leading-tight">
                                                             {overlayCard.extra}
                                                         </div>
                                                     )}
-                                                    <div className="px-8 pb-6 pt-2 border-t border-white/10 flex justify-between items-end gap-4 text-xs">
-                                                        <div className="flex flex-nowrap gap-2 opacity-80 overflow-hidden whitespace-nowrap">
+                                                    <div className="pt-3 border-t border-white/10 flex justify-between items-center gap-4 text-xs font-orbitron">
+                                                        <div className="flex flex-nowrap gap-2 opacity-70 overflow-hidden whitespace-nowrap">
                                                             {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
-                                                                <span key={ti} className="text-[#94a3b8] font-medium shrink-0">{tag}</span>
+                                                                <span key={ti} className="text-blue-400 shrink-0">{tag}</span>
                                                             ))}
                                                         </div>
-                                                        <div className="text-right opacity-80 shrink-0">
-                                                            {overlayCard.limited && <div className="text-yellow-500 font-bold">LIMITED: ターンに１枚しかつかえない</div>}
+                                                        <div className="text-right shrink-0">
+                                                            {overlayCard.limited && <div className="text-yellow-500 font-bold scale-90 origin-right">LIMITED</div>}
                                                         </div>
                                                     </div>
                                                 </div>
