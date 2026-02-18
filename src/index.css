@@ -42,24 +42,6 @@ body {
   flex-direction: column;
 }
 
-/* OBS Transparent Mode */
-body.obs-transparent {
-  background-color: transparent !important;
-}
-
-body.obs-transparent #root {
-  background-color: transparent !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 100% !important;
-  height: 100vh !important;
-}
-
-body.obs-transparent .bg-panel {
-  background-color: rgba(26, 27, 38, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
 /* Green Screen Mode */
 body.obs-green {
   background-color: #00ff00 !important;

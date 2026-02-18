@@ -21,7 +21,7 @@ interface YugiohToolsProps {
     coinKey?: number;
     onDiceClick?: () => void;
     onCoinClick?: () => void;
-    obsMode?: 'normal' | 'transparent' | 'green';
+    obsMode?: 'normal' | 'green';
 }
 
 export const YugiohTools: React.FC<YugiohToolsProps> = ({

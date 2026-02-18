@@ -7,7 +7,7 @@ import { OverlayWidget } from './components/OverlayWidget';
 import './App.css';
 
 type GameMode = 'yugioh' | 'hololive';
-type ObsMode = 'normal' | 'transparent' | 'green';
+type ObsMode = 'normal' | 'green';
 
 // Simple BroadcastChannel implementation for sync
 const CHANNEL_NAME = 'remote_duel_sync';
@@ -27,16 +27,15 @@ function App() {
     const isOverlay = params.get('mode') === 'overlay';
 
     if (isOverlay) {
-      document.body.classList.remove('obs-transparent', 'obs-green');
-      if (obsMode !== 'normal') {
-        document.body.classList.add(`obs-${obsMode}`);
+      document.body.classList.remove('obs-green');
+      if (obsMode === 'green') {
+        document.body.classList.add('obs-green');
       }
     } else {
-      // FORCE CLEAN for controller
-      document.body.classList.remove('obs-transparent', 'obs-green');
+      document.body.classList.remove('obs-green');
     }
     return () => {
-      document.body.classList.remove('obs-transparent', 'obs-green');
+      document.body.classList.remove('obs-green');
     };
   }, [isOverlayMode]); // Re-run when overlay mode is confirmed
 
@@ -91,8 +90,6 @@ function App() {
     const isOverlay = params.get('mode') === 'overlay';
     if (isOverlay) {
       setIsOverlayMode(true);
-      setObsMode('transparent');
-      document.body.classList.add('obs-transparent');
       document.title = 'Remote Duel Overlay';
     } else {
       document.title = 'Remote Duel Tool';
@@ -133,9 +130,9 @@ function App() {
 
         const isOverlay = new URLSearchParams(window.location.search).get('mode') === 'overlay';
         if (isOverlay) {
-          document.body.classList.remove('obs-transparent', 'obs-green');
-          if (nextMode !== 'normal') {
-            document.body.classList.add(`obs-${nextMode}`);
+          document.body.classList.remove('obs-green');
+          if (nextMode === 'green') {
+            document.body.classList.add('obs-green');
           }
         }
       }
@@ -313,9 +310,7 @@ function App() {
   };
 
   const toggleObsMode = () => {
-    const modes: ObsMode[] = ['normal', 'transparent', 'green'];
-    const nextIndex = (modes.indexOf(obsMode) + 1) % modes.length;
-    const nextMode = modes[nextIndex];
+    const nextMode = obsMode === 'normal' ? 'green' : 'normal';
     setObsMode(nextMode);
     broadcast('OBS_MODE', nextMode);
   };
@@ -374,7 +369,7 @@ function App() {
               >
                 <Settings size={16} />
                 <span className="flex-1 text-center">
-                  {obsMode === 'normal' ? '通常' : obsMode === 'transparent' ? '透過' : 'GB'}
+                  {obsMode === 'normal' ? '通常' : 'GB'}
                 </span>
               </button>
             </div>

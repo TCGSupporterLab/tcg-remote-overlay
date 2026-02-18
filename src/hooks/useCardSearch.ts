@@ -231,9 +231,9 @@ export const useCardSearch = () => {
         return saved ? JSON.parse(saved) : null;
     });
 
-    const [overlayMode, setOverlayMode] = useState<'off' | 'on' | 'rotated'>(() => {
+    const [overlayMode, setOverlayMode] = useState<'off' | 'on'>(() => {
         const saved = localStorage.getItem('hololive_overlay_mode');
-        if (saved === 'on' || saved === 'rotated' || saved === 'off') return saved;
+        if (saved === 'on' || saved === 'off') return saved;
         return 'off';
     });
 
@@ -300,11 +300,7 @@ export const useCardSearch = () => {
     }, [overlayMode, overlayDisplayMode, selectedCard, isOverlayWindow]);
 
     const toggleOverlayMode = () => {
-        setOverlayMode(prev => {
-            if (prev === 'off') return 'on';
-            if (prev === 'on') return 'rotated';
-            return 'off';
-        });
+        setOverlayMode(prev => prev === 'off' ? 'on' : 'off');
     };
 
     const toggleOverlayDisplayMode = () => {

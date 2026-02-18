@@ -12,7 +12,7 @@ interface HololiveToolsProps {
     coinKey?: number;
     onDiceClick?: () => void;
     onCoinClick?: () => void;
-    obsMode?: 'normal' | 'transparent' | 'green';
+    obsMode?: 'normal' | 'green';
 }
 const EnergyIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 20 }) => {
     const base = import.meta.env.BASE_URL;
@@ -103,7 +103,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     // Overlay View: Only show result and image
     if (isOverlay) {
         const isOverlayEnabled = overlayMode !== 'off';
-        const isRotated = overlayMode === 'rotated';
 
         // Background should be transparent when in obs modes to let the body background show through
         // Background should be solid for card frame to block the chroma key background
@@ -115,8 +114,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                     {/* 1. Dice/Coin Overlay: Moved outside the frame to prevent clipping by overflow-hidden */}
                     {isOverlayEnabled && (
                         <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none">
-                            <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end mb-[-25px]' : 'justify-start mt-[-25px]'}`}>
-                                <div className={`pointer-events-auto shadow-2xl bg-black/60 backdrop-blur-sm px-2 ${isRotated ? 'pt-1 pb-0 rounded-t-xl' : 'pt-0 pb-1 rounded-b-xl'}`}>
+                            <div className="flex flex-col items-center w-full h-full transition-all duration-500 justify-start mt-[-25px]">
+                                <div className="pointer-events-auto shadow-2xl bg-black/60 backdrop-blur-sm px-2 pt-0 pb-1 rounded-b-xl">
                                     <OverlayDisplay
                                         diceValue={diceValue}
                                         coinValue={coinValue}
@@ -151,10 +150,10 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                         <img
                                             src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
                                             alt={overlayCard.name}
-                                            className={`h-full w-full object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                            className="h-full w-full object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform"
                                         />
                                     ) : (
-                                        <div className={`overlay-text-container w-full h-[520px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                        <div className="overlay-text-container w-full h-[520px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform"
                                             style={{
                                                 backgroundColor: '#111827',
                                                 padding: '24px',
@@ -296,7 +295,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                         </div>
                                     )
                                 ) : (
-                                    <div className={`flex flex-col items-center justify-center text-white/40 gap-4 animate-pulse transition-transform ${isRotated ? 'rotate-180' : ''}`}>
+                                    <div className="flex flex-col items-center justify-center text-white/40 gap-4 animate-pulse transition-transform">
                                         <Search size={64} strokeWidth={1} />
                                         <p className="text-xl font-bold tracking-widest font-orbitron">CARD SELECTING...</p>
                                     </div>
