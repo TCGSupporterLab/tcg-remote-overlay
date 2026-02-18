@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Move, Maximize2, RotateCw } from 'lucide-react';
+import { Move, Maximize2, RotateCw, Maximize, Minimize } from 'lucide-react';
 
 interface WidgetState {
     px: number; // Position X as fraction of window (-0.5 to 0.5)
@@ -24,6 +24,25 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
     const [isResizing, setIsResizing] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
     const [isWindowResizing, setIsWindowResizing] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+    // Toggle Fullscreen
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    // Fullscreen event listener
+    useEffect(() => {
+        const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
 
     // Store window size for mouse event calculations
     const [winSize, setWinSize] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -200,12 +219,21 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
                     className="absolute flex items-center gap-2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity z-50"
                     style={{
                         bottom: `${-45 / finalScale}px`,
-                        right: '0px',
-                        transform: `scale(${1 / finalScale})`,
-                        transformOrigin: 'bottom right',
+                        left: '50%',
+                        transform: `translateX(-50%) scale(${1 / finalScale})`,
+                        transformOrigin: 'top center',
                         transition: shouldDisableTransition ? 'none' : 'all 0.2s cubic-bezier(0.2, 0, 0, 1)'
                     }}
                 >
+                    {/* Fullscreen Toggle */}
+                    <div
+                        onClick={toggleFullscreen}
+                        className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110"
+                        title={isFullscreen ? "全画面解除" : "全画面表示"}
+                    >
+                        {isFullscreen ? <Minimize size={17} /> : <Maximize size={17} />}
+                    </div>
+
                     {/* Move Handle */}
                     <div
                         onMouseDown={handleDragStart}

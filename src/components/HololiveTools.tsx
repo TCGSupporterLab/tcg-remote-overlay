@@ -108,7 +108,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
         // Background should be solid for card frame to block the chroma key background
 
         return (
-            <div className="relative w-fit h-fit pointer-events-auto">
+            <div className="relative w-fit h-fit min-w-[400px] pointer-events-auto flex flex-col items-center">
                 <div className="relative w-fit h-fit">
 
                     {/* 1. Dice/Coin Overlay: Moved outside the frame to prevent clipping by overflow-hidden */}
