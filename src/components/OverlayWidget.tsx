@@ -121,26 +121,32 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
                     {children}
                 </div>
 
-                {/* Bottom Controls Area (Move and Resize) */}
-                <div className="absolute -bottom-12 left-0 right-0 flex justify-center items-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="flex items-center gap-4 pointer-events-auto">
-                        {/* Move Handle (Center) */}
-                        <div
-                            onMouseDown={handleDragStart}
-                            className="bg-blue-600 hover:bg-blue-500 p-2 rounded-full shadow-lg cursor-grab active:cursor-grabbing text-white transition-transform hover:scale-110"
-                            title="ドラッグで移動"
-                        >
-                            <Move size={20} />
-                        </div>
+                {/* Floating Handles (Bottom-Right) */}
+                <div
+                    className="absolute flex items-center gap-2 pointer-events-auto opacity-0 group-hover:opacity-80 transition-opacity z-50"
+                    style={{
+                        bottom: `${-45 / state.scale}px`,
+                        right: '0px',
+                        transform: `scale(${1 / state.scale})`,
+                        transformOrigin: 'bottom right'
+                    }}
+                >
+                    {/* Move Handle */}
+                    <div
+                        onMouseDown={handleDragStart}
+                        className="bg-blue-600/60 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-grab active:cursor-grabbing text-white transition-transform hover:scale-110"
+                        title="ドラッグで移動"
+                    >
+                        <Move size={17} />
+                    </div>
 
-                        {/* Resize Handle (Right) */}
-                        <div
-                            onMouseDown={handleResizeStart}
-                            className="bg-blue-600 hover:bg-blue-500 p-2 rounded-full shadow-lg cursor-nwse-resize text-white transition-transform hover:scale-110"
-                            title="ドラッグで拡大縮小"
-                        >
-                            <Maximize2 size={20} className="rotate-90" />
-                        </div>
+                    {/* Resize Handle */}
+                    <div
+                        onMouseDown={handleResizeStart}
+                        className="bg-blue-600/60 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-nwse-resize text-white transition-transform hover:scale-110"
+                        title="ドラッグで拡大縮小"
+                    >
+                        <Maximize2 size={17} className="rotate-90" />
                     </div>
                 </div>
             </div>
