@@ -295,8 +295,8 @@ function App() {
       {!isOverlayMode && (
         <>
           <header className="flex justify-between items-center mb-4 p-2 bg-panel rounded-lg">
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              リモート対戦ツール
+            <h1 className="text-xl font-bold flex items-center gap-2 uppercase tracking-tight">
+              RemoteDuelTool
               <span className="text-xs font-normal opacity-50">v0.2.0</span>
             </h1>
 
