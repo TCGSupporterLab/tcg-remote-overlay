@@ -94,7 +94,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                         <div className={`overlay-text-container w-full h-[480px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
                                             style={{
                                                 backgroundColor: '#111827',
-                                                padding: '36px',
+                                                padding: '24px',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 boxSizing: 'border-box'
