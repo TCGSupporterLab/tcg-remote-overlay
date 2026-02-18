@@ -102,9 +102,13 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                         if (type.includes('ホロメン') && type !== '推しホロメン') {
                                                             return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
                                                         }
-                                                        // Support cards: remove "サポート・" and "LIMITED"
+                                                        // Support cards: remove "サポート・", "LIMITED" and any leftover dots
                                                         if (type.includes('サポート')) {
-                                                            return type.replace(/サポート・/, '').replace(/LIMITED/, '').trim();
+                                                            return type
+                                                                .replace(/サポート・/g, '')
+                                                                .replace(/・?LIMITED/g, '')
+                                                                .replace(/^・+|・+$/g, '')
+                                                                .trim();
                                                         }
                                                         return type;
                                                     })()}
