@@ -96,7 +96,14 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             {/* Header */}
                                             <div className="border-b border-white/20 pb-2 mb-3">
                                                 <div className="text-[10px] uppercase tracking-wider opacity-60 mb-0.5 font-bold">
-                                                    {overlayCard.cardType}
+                                                    {(() => {
+                                                        const type = overlayCard.cardType || '';
+                                                        const bloom = overlayCard.bloomLevel || '';
+                                                        if (type.includes('ホロメン') && type !== '推しホロメン') {
+                                                            return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
+                                                        }
+                                                        return type;
+                                                    })()}
                                                 </div>
                                                 <div className="flex justify-between items-start gap-2">
                                                     {(() => {
