@@ -200,9 +200,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             {/* Bottom Section: Tags (Left) and Extra/LIMITED (Right) */}
                                             {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
                                                 <div className="mt-4 pt-2 border-t border-white/10 flex justify-between items-end gap-4 text-xs">
-                                                    <div className="flex flex-wrap gap-1.5 opacity-60">
+                                                    <div className="flex flex-wrap gap-1.5 opacity-80">
                                                         {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
-                                                            <span key={ti} className="text-[#60a5fa]">{tag}</span>
+                                                            <span key={ti} className="text-[#94a3b8] font-medium">{tag}</span>
                                                         ))}
                                                     </div>
                                                     <div className="text-right opacity-80 shrink-0">
