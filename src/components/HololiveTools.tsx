@@ -95,7 +95,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             style={{ backgroundColor: '#111827' }}>
                                             {/* Header */}
                                             <div className="border-b border-white/20 pb-2 mb-3">
-                                                <div className="text-[10px] uppercase tracking-wider opacity-60 mb-0.5 font-bold">
+                                                <div className="text-[10px] tracking-wider opacity-60 mb-0.5 font-bold">
                                                     {(() => {
                                                         const type = overlayCard.cardType || '';
                                                         const bloom = overlayCard.bloomLevel || '';
