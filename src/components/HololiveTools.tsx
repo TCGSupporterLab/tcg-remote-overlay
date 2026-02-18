@@ -197,11 +197,18 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                 </div>
                                             )}
 
-                                            {/* Extra / LIMITED */}
-                                            {(overlayCard.extra || overlayCard.limited) && (
-                                                <div className="mt-4 pt-2 border-t border-white/10 text-xs opacity-80">
-                                                    {overlayCard.limited && <div className="text-yellow-500 font-bold mb-1">LIMITED: ターンに１枚しかつかえない</div>}
-                                                    <div className="italic opacity-70">{overlayCard.extra}</div>
+                                            {/* Bottom Section: Tags (Left) and Extra/LIMITED (Right) */}
+                                            {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
+                                                <div className="mt-4 pt-2 border-t border-white/10 flex justify-between items-end gap-4 text-xs">
+                                                    <div className="flex flex-wrap gap-1.5 opacity-60">
+                                                        {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
+                                                            <span key={ti} className="text-[#60a5fa]">{tag}</span>
+                                                        ))}
+                                                    </div>
+                                                    <div className="text-right opacity-80 shrink-0">
+                                                        {overlayCard.limited && <div className="text-yellow-500 font-bold mb-1">LIMITED: ターンに１枚しかつかえない</div>}
+                                                        <div className="italic opacity-70">{overlayCard.extra}</div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
