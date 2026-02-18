@@ -20,6 +20,7 @@ export interface Card {
     abilityText?: string;
     extra?: string;
     limited?: boolean;
+    batonTouch?: string;
     _normName?: string;
     _hiraName?: string;
     _joinedText?: string;

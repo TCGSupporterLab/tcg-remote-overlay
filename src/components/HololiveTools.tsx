@@ -63,9 +63,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                             }}>
 
                             {/* 1. Dice/Coin Overlay: Flexible Layer that stacks over the frame */}
-                            <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none p-1">
-                                <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end pb-2' : 'justify-start pt-2'}`}>
-                                    <div className="pointer-events-auto shadow-2xl rounded-xl bg-black/60 backdrop-blur-sm p-1">
+                            <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none">
+                                <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end mb-[-20px]' : 'justify-start mt-[-20px]'}`}>
+                                    <div className={`pointer-events-auto shadow-2xl bg-black/60 backdrop-blur-sm px-2 ${isRotated ? 'pt-1 pb-0 rounded-t-xl' : 'pt-0 pb-1 rounded-b-xl'}`}>
                                         <OverlayDisplay
                                             diceValue={diceValue}
                                             coinValue={coinValue}
@@ -75,7 +75,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             onCoinClick={onCoinClick}
                                             compact={false} // Use standard size for better visibility on card
                                             showCoin={false}
-                                            className="pointer-events-auto scale-80"
+                                            className="pointer-events-auto scale-75 origin-center"
                                         />
                                     </div>
                                 </div>
@@ -207,10 +207,44 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                         </div>
                                                     )}
                                                     <div style={{ paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div style={{ display: 'flex', gap: '12px', opacity: 0.8, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                            {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
-                                                                <span key={ti} style={{ color: '#60a5fa', fontWeight: '500', fontSize: '12px' }}>{tag}</span>
-                                                            ))}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', opacity: 0.8, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                                            <div style={{ display: 'flex', gap: '12px' }}>
+                                                                {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
+                                                                    <span key={ti} style={{ color: '#60a5fa', fontWeight: '500', fontSize: '12px' }}>{tag}</span>
+                                                                ))}
+                                                            </div>
+                                                            {(overlayCard.batonTouch || overlayCard.cardType?.includes('ホロメン')) && (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '12px', marginLeft: '4px' }}>
+                                                                    <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)' }}>バトンタッチ</span>
+                                                                    {overlayCard.batonTouch && (
+                                                                        <div style={{
+                                                                            width: '18px',
+                                                                            height: '18px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: overlayCard.batonTouch === '赤' ? '#ef4444' :
+                                                                                overlayCard.batonTouch === '青' ? '#3b82f6' :
+                                                                                    overlayCard.batonTouch === '緑' ? '#10b981' :
+                                                                                        overlayCard.batonTouch === '黄' ? '#eab308' :
+                                                                                            overlayCard.batonTouch === '紫' ? '#a855f7' :
+                                                                                                overlayCard.batonTouch === '白' ? '#ffffff' : '#4b5563',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            fontSize: '11px',
+                                                                            color: overlayCard.batonTouch === '白' ? '#000' : '#fff',
+                                                                            fontWeight: 'bold',
+                                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                                                                        }}>
+                                                                            {overlayCard.batonTouch === '赤' ? '赤' :
+                                                                                overlayCard.batonTouch === '青' ? '青' :
+                                                                                    overlayCard.batonTouch === '緑' ? '緑' :
+                                                                                        overlayCard.batonTouch === '黄' ? '黄' :
+                                                                                            overlayCard.batonTouch === '紫' ? '紫' :
+                                                                                                overlayCard.batonTouch === '白' ? '白' : '◇'}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                                             {overlayCard.limited && <div style={{ color: '#eab308', fontWeight: 'bold', fontSize: '12px', letterSpacing: '0.05em' }}>LIMITED</div>}

@@ -41,6 +41,7 @@ jobs:
       - name: Run Fetch Data
         run: npm run fetch-data
         env:
+          DEV: false
           PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'false'
 
       - name: Run Download Images

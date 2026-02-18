@@ -203,7 +203,7 @@ function generateKana(card) {
 
                         const cardData = {
                             id, name, cardType, rarity, color, hp, bloomLevel, tags, expansion, imageUrl, originalImageUrl,
-                            oshiSkills: [], arts: [], keywords: [], abilityText: '', extra: '', limited: false
+                            oshiSkills: [], arts: [], keywords: [], abilityText: '', extra: '', limited: false, batonTouch: ''
                         };
 
                         // 1. Oshi Skills
@@ -275,6 +275,9 @@ function generateKana(card) {
                         if (extraEls.length > 0) {
                             cardData.extra = cleanText(Array.from(extraEls).map(el => el.innerText.trim()).join('\n'));
                         }
+
+                        // 6. Baton Touch
+                        cardData.batonTouch = getDdAlt('バトンタッチ');
 
                         results.push(cardData);
                     } catch (e) {
@@ -415,7 +418,8 @@ function generateKana(card) {
                                 keywords: [],
                                 abilityText: '',
                                 extra: '',
-                                limited: false
+                                limited: false,
+                                batonTouch: ''
                             };
 
                             // 1. Oshi Skills
@@ -520,6 +524,9 @@ function generateKana(card) {
                             if (extraEls.length > 0) {
                                 cardData.extra = cleanText(Array.from(extraEls).map(el => el.innerText.trim()).join('\n'));
                             }
+
+                            // 6. Baton Touch
+                            cardData.batonTouch = getDdAlt('バトンタッチ');
 
                             results.push(cardData);
                         } catch (e) {

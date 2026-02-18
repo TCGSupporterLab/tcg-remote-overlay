@@ -24,6 +24,7 @@
 | `keywords` | `array` | キーワード能力の配列。各要素に `type`, `name`, `text` を含む |
 | `abilityText` | `string` | サポートカード等の能力テキスト |
 | `extra` | `string` | デッキ制限やBuzzペナルティ等の注釈テキスト |
+| `batonTouch` | `string` | バトンタッチ（交代）コスト (赤, 青, 黄, 緑, 紫, 白, ◇, または空) |
 | `limited` | `boolean` | LIMITEDカードかどうかの判定フラグ |
 | `kana` | `string` | 検索用のひらがな読み (自動生成・辞書ベース) |
 
