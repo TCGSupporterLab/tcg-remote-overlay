@@ -55,8 +55,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                     {isOverlayEnabled && (
                         <div className="overlay-card-frame relative flex flex-col items-center justify-start rounded-3xl animate-in zoom-in duration-500 transform overflow-hidden"
                             style={{
-                                minWidth: '350px',
-                                minHeight: '520px',
+                                width: '350px',
+                                height: '520px',
                                 backgroundColor: '#111827',
                                 border: `1px solid rgba(203, 213, 225, 0.4)`,
                                 boxShadow: 'none'
