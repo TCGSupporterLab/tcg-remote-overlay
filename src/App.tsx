@@ -360,22 +360,23 @@ function App() {
                 )}
               </button>
 
-              <div className="flex bg-slate-700 rounded-lg overflow-hidden shadow-lg border border-slate-600 h-[38px]">
+              <div className="flex bg-slate-700 rounded-lg border border-slate-600/50 p-0.5 shadow-inner">
                 <button
-                  className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 px-3 border-r border-blue-700 text-white transition-all active:translate-y-[1px]"
-                  onClick={() => openOverlay('window')}
-                  title="別ウィンドウで開く (OBS向け: サイズ固定可)"
-                >
-                  <ExternalLink size={14} />
-                  窓で起動
-                </button>
-                <button
-                  className="flex items-center gap-1.5 text-xs font-bold bg-blue-600/80 hover:bg-blue-500 px-3 text-white transition-all active:translate-y-[1px]"
+                  className="flex items-center gap-2 text-[11px] font-bold px-3 py-1.5 rounded-md hover:bg-slate-600 text-slate-200 transition-all active:scale-95"
                   onClick={() => openOverlay('tab')}
                   title="別タブで開く (直接利用向け: 全画面推奨)"
                 >
-                  <Monitor size={14} />
-                  タブで起動
+                  <Monitor size={14} className="text-blue-400" />
+                  起動
+                </button>
+                <div className="w-px bg-slate-600/50 my-1" />
+                <button
+                  className="flex items-center gap-2 text-[11px] font-bold px-3 py-1.5 rounded-md hover:bg-slate-600 text-slate-200 transition-all active:scale-95"
+                  onClick={() => openOverlay('window')}
+                  title="別ウィンドウで開く (OBS向け: サイズ固定可)"
+                >
+                  <ExternalLink size={14} className="text-blue-400" />
+                  別窓で起動
                 </button>
               </div>
 
