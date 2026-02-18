@@ -125,47 +125,49 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                 {/* Main Content Row: Overlaying components for OBS efficiency */}
                 <div className="relative flex flex-col items-center justify-center w-fit mx-auto pointer-events-auto">
 
+                    {/* 1. Dice/Coin Overlay: Moved outside the frame to prevent clipping by overflow-hidden */}
+                    {isOverlayEnabled && (
+                        <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none">
+                            <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end mb-[-25px]' : 'justify-start mt-[-25px]'}`}>
+                                <div className={`pointer-events-auto shadow-2xl bg-black/60 backdrop-blur-sm px-2 ${isRotated ? 'pt-1 pb-0 rounded-t-xl' : 'pt-0 pb-1 rounded-b-xl'}`}>
+                                    <OverlayDisplay
+                                        diceValue={diceValue}
+                                        coinValue={coinValue}
+                                        diceKey={diceKey}
+                                        coinKey={coinKey}
+                                        onDiceClick={onDiceClick}
+                                        onCoinClick={onCoinClick}
+                                        compact={false}
+                                        showCoin={false}
+                                        className="pointer-events-auto scale-75 origin-center"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Card Display Area: Fixed height frame */}
                     {isOverlayEnabled && (
                         <div className="overlay-card-frame relative flex flex-col items-center justify-start rounded-3xl animate-in zoom-in duration-500 transform overflow-hidden"
                             style={{
-                                width: '350px',
-                                height: '520px',
-                                backgroundColor: '#111827',
-                                border: `1px solid rgba(203, 213, 225, 0.4)`,
+                                width: '400px',
+                                height: '560px',
+                                backgroundColor: overlayDisplayMode === 'image' ? 'transparent' : '#111827',
+                                border: overlayDisplayMode === 'image' ? 'none' : `1px solid rgba(203, 213, 225, 0.4)`,
                                 boxShadow: 'none'
                             }}>
 
-                            {/* 1. Dice/Coin Overlay: Flexible Layer that stacks over the frame */}
-                            <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none">
-                                <div className={`flex flex-col items-center w-full h-full transition-all duration-500 ${isRotated ? 'justify-end mb-[-20px]' : 'justify-start mt-[-20px]'}`}>
-                                    <div className={`pointer-events-auto shadow-2xl bg-black/60 backdrop-blur-sm px-2 ${isRotated ? 'pt-1 pb-0 rounded-t-xl' : 'pt-0 pb-1 rounded-b-xl'}`}>
-                                        <OverlayDisplay
-                                            diceValue={diceValue}
-                                            coinValue={coinValue}
-                                            diceKey={diceKey}
-                                            coinKey={coinKey}
-                                            onDiceClick={onDiceClick}
-                                            onCoinClick={onCoinClick}
-                                            compact={false} // Use standard size for better visibility on card
-                                            showCoin={false}
-                                            className="pointer-events-auto scale-75 origin-center"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* 2. Card/Placeholder Area: Fills the remaining space and centers the content */}
-                            <div className="flex-1 w-full flex items-center justify-center p-4">
+                            <div className={`flex-1 w-full flex items-center justify-center ${overlayDisplayMode === 'image' ? 'p-0' : 'p-4'}`}>
                                 {overlayCard ? (
                                     overlayDisplayMode === 'image' ? (
                                         <img
                                             src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
                                             alt={overlayCard.name}
-                                            className={`h-[480px] w-auto object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                            className={`h-full w-full object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
                                         />
                                     ) : (
-                                        <div className={`overlay-text-container w-full h-[480px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
+                                        <div className={`overlay-text-container w-full h-[520px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
                                             style={{
                                                 backgroundColor: '#111827',
                                                 padding: '24px',

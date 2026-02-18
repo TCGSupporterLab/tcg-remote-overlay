@@ -110,6 +110,20 @@ body.obs-green {
   padding: 1rem;
 }
 
+.p-6 {
+  padding: 1.5rem;
+}
+
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 .mb-1 {
   margin-bottom: 0.25rem;
 }
@@ -161,6 +175,10 @@ body.obs-green {
   border-radius: 0.5rem;
 }
 
+.rounded-full {
+  border-radius: 9999px;
+}
+
 .border {
   border-width: 1px;
   border-style: solid;
@@ -185,6 +203,22 @@ body.obs-green {
 
 .bg-panel {
   background-color: var(--panel-bg);
+}
+
+.bg-black {
+  background-color: #000000;
+}
+
+.bg-black\/80 {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.bg-blue-600 {
+  background-color: #2563eb;
+}
+
+.bg-blue-500:hover {
+  background-color: #3b82f6;
 }
 
 /* Scroll & Position Utilities - Restored/Enforced */
@@ -265,6 +299,18 @@ body.obs-green {
 .font-orbitron {
   font-family: 'Orbitron', sans-serif;
   letter-spacing: 0.1em;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.text-white {
+  color: #ffffff;
+}
+
+.text-center {
+  text-align: center;
 }
 
 .shadow-up {

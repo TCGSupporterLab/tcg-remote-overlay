@@ -18,7 +18,7 @@ function App() {
   });
   const [isOverlayMode, setIsOverlayMode] = useState(false);
   const [videoSource, setVideoSource] = useState<VideoSourceType>('none');
-  const [isVideoMirrored, setIsVideoMirrored] = useState(false);
+  const [videoFlip, setVideoFlip] = useState<'none' | 'horizontal' | 'vertical' | 'both'>('none');
 
   // Apply initial OBS mode class (Only for Overlay)
   useEffect(() => {
@@ -67,7 +67,7 @@ function App() {
   const diceValueRef = useRef<number>(diceValue);
   const coinValueRef = useRef<string>(coinValue);
   const videoSourceRef = useRef<VideoSourceType>(videoSource);
-  const isVideoMirroredRef = useRef<boolean>(isVideoMirrored);
+  const videoFlipRef = useRef<'none' | 'horizontal' | 'vertical' | 'both'>(videoFlip);
 
   // Update ref when state changes
   useEffect(() => {
@@ -81,8 +81,8 @@ function App() {
 
   useEffect(() => {
     videoSourceRef.current = videoSource;
-    isVideoMirroredRef.current = isVideoMirrored;
-  }, [videoSource, isVideoMirrored]);
+    videoFlipRef.current = videoFlip;
+  }, [videoSource, videoFlip]);
 
   // Check URL for overlay mode
   useEffect(() => {
@@ -122,7 +122,8 @@ function App() {
         setDiceValue(data.value.dice);
         setCoinValue(data.value.coin);
         if (data.value.videoSource) setVideoSource(data.value.videoSource);
-        if (data.value.isVideoMirrored !== undefined) setIsVideoMirrored(data.value.isVideoMirrored);
+        if (data.value.videoFlip) setVideoFlip(data.value.videoFlip);
+        else if (data.value.isVideoMirrored !== undefined) setVideoFlip(data.value.isVideoMirrored ? 'horizontal' : 'none');
       }
 
       if (data.type === 'OBS_MODE') {
@@ -142,15 +143,15 @@ function App() {
         setVideoSource(data.value);
       }
 
-      if (data.type === 'VIDEO_MIRROR') {
-        setIsVideoMirrored(data.value);
+      if (data.type === 'VIDEO_MIRROR' || data.type === 'VIDEO_FLIP') {
+        setVideoFlip(data.value);
       }
 
       if (data.type === 'RESET') {
         setDiceValue(1);
         setCoinValue('表');
         setVideoSource('none');
-        setIsVideoMirrored(false);
+        setVideoFlip('none');
         setResetKey(prev => prev + 1);
       }
 
@@ -163,7 +164,7 @@ function App() {
             dice: diceValueRef.current,
             coin: coinValueRef.current,
             videoSource: videoSourceRef.current,
-            isVideoMirrored: isVideoMirroredRef.current
+            videoFlip: videoFlipRef.current
           }
         });
       }
@@ -203,7 +204,7 @@ function App() {
       setDiceValue(1);
       setCoinValue('表');
       setVideoSource('none');
-      setIsVideoMirrored(false);
+      setVideoFlip('none');
       setResetKey(prev => prev + 1);
       broadcast('RESET', null);
     }
@@ -217,10 +218,12 @@ function App() {
     broadcast('VIDEO_SOURCE', nextSource);
   };
 
-  const toggleVideoMirror = () => {
-    const nextMirror = !isVideoMirrored;
-    setIsVideoMirrored(nextMirror);
-    broadcast('VIDEO_MIRROR', nextMirror);
+  const toggleVideoFlip = () => {
+    const modes: ('none' | 'horizontal' | 'vertical' | 'both')[] = ['none', 'horizontal', 'vertical', 'both'];
+    const nextIndex = (modes.indexOf(videoFlip) + 1) % modes.length;
+    const nextFlip = modes[nextIndex];
+    setVideoFlip(nextFlip);
+    broadcast('VIDEO_FLIP', nextFlip);
   };
 
   // Keyboard Shortcuts
@@ -238,13 +241,13 @@ function App() {
         toggleVideoSource();
       }
       if (e.key === 'm' || e.key === 'M') {
-        toggleVideoMirror();
+        toggleVideoFlip();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, isVideoMirrored]);
+  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, videoFlip]);
 
   // Persistence for Overlay Window Size
   useEffect(() => {
@@ -292,8 +295,8 @@ function App() {
 
   const openOverlayWindow = () => {
     const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
-    let width = gameMode === 'yugioh' ? 350 : 400;
-    let height = gameMode === 'yugioh' ? 500 : 700;
+    let width = gameMode === 'yugioh' ? 350 : 450;
+    let height = gameMode === 'yugioh' ? 500 : 750;
     if (savedSizeStr) {
       try {
         const saved = JSON.parse(savedSizeStr);
@@ -318,7 +321,7 @@ function App() {
 
   return (
     <div className={`app-container w-full h-full flex flex-col box-border ${isOverlayMode ? 'overlay-mode p-0' : 'p-4'}`}>
-      <VideoBackground sourceType={videoSource} isMirrored={isVideoMirrored} />
+      {isOverlayMode && <VideoBackground sourceType={videoSource} flipMode={videoFlip} />}
 
       {!isOverlayMode && (
         <>
@@ -339,12 +342,19 @@ function App() {
               </button>
 
               <button
-                className={`btn flex items-center justify-center p-2 ${isVideoMirrored ? 'bg-blue-600' : 'bg-slate-700'}`}
-                onClick={toggleVideoMirror}
-                title="左右反転 (M)"
+                className={`btn flex items-center justify-center p-2 ${videoFlip !== 'none' ? 'bg-blue-600' : 'bg-slate-700'}`}
+                onClick={toggleVideoFlip}
+                title="反転モード切替 (M: 無し/左右/上下/180度)"
                 disabled={videoSource === 'none'}
               >
-                <FlipHorizontal size={16} />
+                <FlipHorizontal size={16} style={{
+                  transform: videoFlip === 'vertical' ? 'rotate(90deg)' : videoFlip === 'both' ? 'rotate(180deg)' : 'none'
+                }} />
+                {videoFlip !== 'none' && (
+                  <span className="text-[10px] ml-1 font-bold">
+                    {videoFlip === 'horizontal' ? 'H' : videoFlip === 'vertical' ? 'V' : '180'}
+                  </span>
+                )}
               </button>
 
               <button
