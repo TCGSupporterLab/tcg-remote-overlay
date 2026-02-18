@@ -99,16 +99,22 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     {overlayCard.cardType}
                                                 </div>
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <h2 className={`text-xl font-bold leading-tight ${overlayCard.color === '赤' ? 'text-red-400' :
-                                                            overlayCard.color === '青' ? 'text-blue-400' :
-                                                                overlayCard.color === '黄' ? 'text-yellow-400' :
-                                                                    overlayCard.color === '緑' ? 'text-emerald-400' :
-                                                                        overlayCard.color === '紫' ? 'text-purple-400' :
-                                                                            overlayCard.color === '白' ? 'text-slate-200' :
-                                                                                'text-gray-400'
-                                                        }`}>
-                                                        {overlayCard.name}
-                                                    </h2>
+                                                    {(() => {
+                                                        const color = overlayCard.color || '';
+                                                        let textColor = '#9ca3af'; // gray-400
+                                                        if (color.includes('赤')) textColor = '#f87171'; // red-400
+                                                        else if (color.includes('青')) textColor = '#60a5fa'; // blue-400
+                                                        else if (color.includes('黄')) textColor = '#facc15'; // yellow-400
+                                                        else if (color.includes('緑')) textColor = '#34d399'; // emerald-400
+                                                        else if (color.includes('紫')) textColor = '#c084fc'; // purple-400
+                                                        else if (color.includes('白')) textColor = '#e2e8f0'; // slate-200
+
+                                                        return (
+                                                            <h2 className="text-xl font-bold leading-tight" style={{ color: textColor }}>
+                                                                {overlayCard.name}
+                                                            </h2>
+                                                        );
+                                                    })()}
                                                     {overlayCard.hp && (
                                                         <span className="text-xl font-bold text-red-400 font-orbitron shrink-0">
                                                             {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
