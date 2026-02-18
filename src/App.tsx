@@ -291,7 +291,14 @@ function App() {
     }
   }, [isOverlayMode, gameMode, broadcast]);
 
-  const openOverlayWindow = () => {
+  const openOverlay = (target: 'window' | 'tab') => {
+    const url = window.location.pathname + '?mode=overlay';
+
+    if (target === 'tab') {
+      window.open(url, '_blank');
+      return;
+    }
+
     const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
     let width = gameMode === 'yugioh' ? 350 : 450;
     let height = gameMode === 'yugioh' ? 500 : 750;
@@ -303,7 +310,7 @@ function App() {
       } catch (e) { console.error(e); }
     }
     window.open(
-      window.location.pathname + '?mode=overlay',
+      url,
       'RemoteDuelOverlay',
       `width=${width},height=${height},location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes`
     );
@@ -353,14 +360,24 @@ function App() {
                 )}
               </button>
 
-              <button
-                className="btn flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500"
-                onClick={openOverlayWindow}
-                title="OBS用の表示画面を別ウィンドウで開く"
-              >
-                <ExternalLink size={16} />
-                オーバーレイ起動
-              </button>
+              <div className="flex bg-slate-700 rounded-lg overflow-hidden shadow-lg border border-slate-600 h-[38px]">
+                <button
+                  className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 px-3 border-r border-blue-700 text-white transition-all active:translate-y-[1px]"
+                  onClick={() => openOverlay('window')}
+                  title="別ウィンドウで開く (OBS向け: サイズ固定可)"
+                >
+                  <ExternalLink size={14} />
+                  窓で起動
+                </button>
+                <button
+                  className="flex items-center gap-1.5 text-xs font-bold bg-blue-600/80 hover:bg-blue-500 px-3 text-white transition-all active:translate-y-[1px]"
+                  onClick={() => openOverlay('tab')}
+                  title="別タブで開く (直接利用向け: 全画面推奨)"
+                >
+                  <Monitor size={14} />
+                  タブで起動
+                </button>
+              </div>
 
               <button
                 className="btn flex items-center justify-center gap-2 text-sm w-[120px] flex-none whitespace-nowrap"
