@@ -11,6 +11,14 @@ const OUTPUT_FILE = path.join(__dirname, '../src/data/hololive-cards.json');
 const KANA_DICT_FILE = path.join(__dirname, '../src/data/kana-dictionary.json');
 const EXPECTED_COUNT_MIN = 1700; // Expected ~1725
 
+const IS_DEV = process.env.DEV === 'true';
+const CACHED_PAGE_DIR = path.join(__dirname, 'cache/hololive');
+
+// Ensure cache dir exists
+if (!fs.existsSync(CACHED_PAGE_DIR)) {
+    fs.mkdirSync(CACHED_PAGE_DIR, { recursive: true });
+}
+
 // Load kana dictionary
 let kanaDict = {};
 if (fs.existsSync(KANA_DICT_FILE)) {
@@ -37,20 +45,34 @@ function generateKana(card) {
 }
 
 (async () => {
-    console.log('🚀 Starting Hololive Card Data Fetcher (Text Mode)...');
-    console.log(`📡 Connecting to: ${TARGET_URL}`);
+    console.log(`🚀 Starting Hololive Card Data Fetcher (Text Mode)... ${IS_DEV ? '[DEV MODE]' : ''}`);
+    console.log(`📡 Target URL: ${TARGET_URL}`);
 
     const browser = await puppeteer.launch({
         headless: "new",
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
     // Set a reasonable viewport
     await page.setViewport({ width: 1280, height: 800 });
 
     try {
-        await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+        const cacheFile1 = path.join(CACHED_PAGE_DIR, 'page_1.html');
+        if (IS_DEV && fs.existsSync(cacheFile1)) {
+            console.log('📦 Loading Page 1 from cache...');
+            const cachedHtml = fs.readFileSync(cacheFile1, 'utf-8');
+            await page.setContent(cachedHtml, { waitUntil: 'networkidle2' });
+        } else {
+            console.log('🌐 Fetching Page 1 from official site...');
+            await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+            if (IS_DEV) {
+                const html = await page.content();
+                fs.writeFileSync(cacheFile1, html);
+                console.log('💾 Page 1 cached.');
+            }
+        }
 
         // --- ENHANCEMENT: Pre-check Count ---
         console.log('🔍 Checking total card count for updates...');
@@ -97,7 +119,7 @@ function generateKana(card) {
             const localCount = Array.isArray(localData) ? localData.length : 0;
             console.log(`🏠 Local data total: ${localCount} cards`);
 
-            if (stats.total > 0 && stats.total === localCount) {
+            if (!IS_DEV && stats.total > 0 && stats.total === localCount) {
                 console.log('✅ Card counts match. No new cards detected. Skipping remaining process.');
                 await browser.close();
                 process.exit(0);
@@ -105,7 +127,7 @@ function generateKana(card) {
             if (stats.total > 0 && stats.total < localCount) {
                 console.log('⚠️ Official count is lower than local (rare/deletion?). Proceeding to re-fetch just in case.');
             } else {
-                console.log('🆕 New cards detected! Proceeding to fetch...');
+                console.log(IS_DEV ? '🛠️ Dev mode: ignoring match check. Proceeding to fetch...' : '🆕 New cards detected! Proceeding to fetch...');
             }
         }
         // ------------------------------------
@@ -113,8 +135,8 @@ function generateKana(card) {
         console.log('📜 Scrolling or navigating to load all cards...');
 
         // Helper function to parsing visible cards on current page (for Page 1)
-        async function parseCardsFromPage(page) {
-            return await page.evaluate(() => {
+        async function parseCardsFromPage(page, baseUrl) {
+            return await page.evaluate((baseUrl) => {
                 const results = [];
                 const listItems = document.querySelectorAll('ul.cardlist-Result_List_Txt li');
 
@@ -128,9 +150,22 @@ function generateKana(card) {
 
                         const id = numberEl.innerText.trim();
                         const name = nameEl.innerText.trim();
-                        const imageUrl = imgEl ? imgEl.src : '';
 
-                        // Helper to finding values in DL lists
+                        // Get absolute URL for original image
+                        let originalImageUrl = imgEl ? imgEl.src : '';
+                        if (originalImageUrl && !originalImageUrl.startsWith('http') && baseUrl) {
+                            const cleanBase = baseUrl.replace(/\/$/, '');
+                            const cleanPath = originalImageUrl.replace(/^\//, '');
+                            originalImageUrl = `${cleanBase}/${cleanPath}`;
+                        }
+
+                        // Determine local image path
+                        let imageUrl = originalImageUrl;
+                        if (originalImageUrl) {
+                            const filename = originalImageUrl.split('/').pop();
+                            imageUrl = `/images/cards/${filename}`;
+                        }
+
                         // Helper to finding values in DL lists
                         const getDdValue = (dtText) => {
                             const dts = Array.from(li.querySelectorAll('dt'));
@@ -152,6 +187,11 @@ function generateKana(card) {
                             return img ? img.alt.trim() : '';
                         };
 
+                        const cleanText = (text) => {
+                            if (!text) return '';
+                            return text.replace(/\n\s*\n/g, '\n').trim();
+                        };
+
                         const cardType = getDdText('カードタイプ');
                         const rarity = getDdText('レアリティ');
                         const color = getDdAlt('色');
@@ -161,18 +201,82 @@ function generateKana(card) {
                         const tags = getDdText('タグ');
                         const expansion = getDdText('収録商品');
 
-                        results.push({
-                            id,
-                            name,
-                            cardType,
-                            rarity,
-                            color,
-                            hp,
-                            bloomLevel,
-                            tags,
-                            expansion,
-                            imageUrl
+                        const cardData = {
+                            id, name, cardType, rarity, color, hp, bloomLevel, tags, expansion, imageUrl, originalImageUrl,
+                            oshiSkills: [], arts: [], keywords: [], abilityText: '', extra: '', limited: false
+                        };
+
+                        // 1. Oshi Skills
+                        li.querySelectorAll('.skill').forEach(skillEl => {
+                            const label = skillEl.querySelector('p:first-child')?.innerText.trim() || '';
+                            const contentPara = skillEl.querySelector('p:nth-child(2)');
+                            if (!contentPara) return;
+                            const fullText = contentPara.innerText.trim();
+                            const skillName = contentPara.querySelector('span')?.innerText.trim() || '';
+                            const costMatch = fullText.match(/\[ホロパワー：([^\]]+)\]/);
+                            const cost = costMatch ? costMatch[1] : '';
+                            let text = fullText;
+                            if (skillName) {
+                                const parts = fullText.split(skillName);
+                                text = parts.length > 1 ? parts[1].trim() : fullText;
+                            }
+                            if (cost) text = text.replace(`[ホロパワー：${cost}]`, '').trim();
+                            cardData.oshiSkills.push({ label, name: skillName, cost, text: cleanText(text) });
                         });
+
+                        // 2. Arts
+                        li.querySelectorAll('.arts').forEach(artsEl => {
+                            const contentPara = artsEl.querySelector('p:nth-child(2)');
+                            if (!contentPara) return;
+                            const span = contentPara.querySelector('span');
+                            if (!span) return;
+                            const costs = Array.from(span.querySelectorAll('img:not(.tokkou img)'))
+                                .filter(img => !img.closest('.tokkou'))
+                                .map(img => img.alt.trim());
+                            const tokkouEl = span.querySelector('.tokkou');
+                            let tokkou = '';
+                            if (tokkouEl) {
+                                const tokkouIcon = tokkouEl.querySelector('img')?.alt.trim() || '';
+                                const tokkouText = tokkouEl.innerText.trim();
+                                tokkou = tokkouIcon || tokkouText;
+                            }
+                            const fullSpanText = span.innerText.trim();
+                            const damageMatch = fullSpanText.match(/(\d+[\+＋]?)$/);
+                            const damage = damageMatch ? damageMatch[1] : '';
+                            const effectText = contentPara.innerText.replace(fullSpanText, '').trim();
+                            cardData.arts.push({ name: fullSpanText.replace(damage || '', '').replace(tokkouEl?.innerText.trim() || '', '').trim(), costs, damage, tokkou, text: cleanText(effectText) });
+                        });
+
+                        // 3. Keywords
+                        li.querySelectorAll('.keyword').forEach(kwEl => {
+                            const contentPara = kwEl.querySelector('p:nth-child(2)');
+                            if (!contentPara) return;
+                            const span = contentPara.querySelector('span');
+                            const typeIcon = span?.querySelector('img')?.alt.trim() || '';
+                            const kwName = span?.innerText.trim() || '';
+                            const text = contentPara.innerText.replace(kwName, '').trim();
+                            cardData.keywords.push({ type: typeIcon, name: kwName, text: cleanText(text) });
+                        });
+
+                        // 4. Ability Text
+                        const abilityDt = Array.from(li.querySelectorAll('dt')).find(dt => dt.innerText.includes('能力テキスト'));
+                        if (abilityDt && abilityDt.nextElementSibling) {
+                            let text = abilityDt.nextElementSibling.innerText.trim();
+                            const limitedStr = 'LIMITED：ターンに1枚しか使えない。';
+                            if (text.includes(limitedStr) || cardType.includes('LIMITED')) {
+                                cardData.limited = true;
+                                text = text.replace(limitedStr, '').trim();
+                            }
+                            cardData.abilityText = cleanText(text);
+                        }
+
+                        // 5. Extra
+                        const extraEls = li.querySelectorAll('.extra p:nth-child(2)');
+                        if (extraEls.length > 0) {
+                            cardData.extra = cleanText(Array.from(extraEls).map(el => el.innerText.trim()).join('\n'));
+                        }
+
+                        results.push(cardData);
                     } catch (e) {
                         console.error(e);
                     }
@@ -182,7 +286,8 @@ function generateKana(card) {
         }
 
         console.log('⛏️ Scraping Page 1...');
-        let allCards = await parseCardsFromPage(page);
+        const targetOrigin = new URL(TARGET_URL).origin;
+        let allCards = await parseCardsFromPage(page, targetOrigin);
         console.log(`Phase 1: Found ${allCards.length} cards on main page.`);
 
         // Get max_page
@@ -193,21 +298,42 @@ function generateKana(card) {
 
         // Loop for remaining pages
         let failedPages = 0;
-        for (let i = 2; i <= maxPage; i++) {
-            process.stdout.write(`\rCreating fetch for page ${i}/${maxPage}...`);
+        for (let i = 2; i <= stats.maxPage; i++) {
+            process.stdout.write(`\rCreating fetch for page ${i}/${stats.maxPage}...`);
             const pageUrl = `https://hololive-official-cardgame.com/cardlist/cardsearch_ex?keyword=&attribute%5B0%5D=all&expansion_name=&card_kind%5B0%5D=all&rare%5B0%5D=all&bloom_level%5B0%5D=all&parallel%5B0%5D=all&view=text&page=${i}`;
 
-            // We can retrieve the content by navigating or better, using fetch in the page context
-            // Using page.evaluate to fetch avoids CORS if we do it from the page
-            const newCards = await page.evaluate(async (url) => {
-                try {
-                    const response = await fetch(url);
-                    const html = await response.text();
+            let html = '';
+            const cacheFile = path.join(CACHED_PAGE_DIR, `page_${i}.html`);
 
+            if (IS_DEV && fs.existsSync(cacheFile)) {
+                html = fs.readFileSync(cacheFile, 'utf-8');
+            } else {
+                html = await page.evaluate(async (url) => {
+                    try {
+                        const response = await fetch(url);
+                        return await response.text();
+                    } catch (e) {
+                        return '';
+                    }
+                }, pageUrl);
+
+                if (IS_DEV && html && html.trim()) {
+                    fs.writeFileSync(cacheFile, html);
+                }
+            }
+
+            if (!html || !html.trim()) {
+                failedPages++;
+                console.log(`\n❌ Failed to fetch page ${i}. (Total failures: ${failedPages})`);
+                if (failedPages >= 3) break;
+                continue;
+            }
+
+            const newCards = await page.evaluate((htmlSnippet) => {
+                try {
                     // Parse this HTML snippet
-                    // We need to create a temporary container
                     const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = html;
+                    tempDiv.innerHTML = htmlSnippet;
 
                     const results = [];
                     const listItems = tempDiv.querySelectorAll('li');
@@ -222,7 +348,20 @@ function generateKana(card) {
 
                             const id = numberEl.innerText.trim();
                             const name = nameEl.innerText.trim();
-                            const imageUrl = imgEl ? imgEl.src : '';
+
+                            // Get absolute URL for original image
+                            let originalImageUrl = imgEl ? imgEl.src : '';
+                            if (originalImageUrl && !originalImageUrl.startsWith('http')) {
+                                // Since this is inside AJAX response evaluation, target domain is same
+                                originalImageUrl = new URL(originalImageUrl, "https://hololive-official-cardgame.com").href;
+                            }
+
+                            // Determine local image path
+                            let imageUrl = originalImageUrl;
+                            if (originalImageUrl) {
+                                const filename = originalImageUrl.split('/').pop();
+                                imageUrl = `/images/cards/${filename}`;
+                            }
 
                             // Helper functions (duplicated here because eval context is isolated)
                             const getDdValue = (dtText) => {
@@ -245,6 +384,11 @@ function generateKana(card) {
                                 return img ? img.alt.trim() : '';
                             };
 
+                            const cleanText = (text) => {
+                                if (!text) return '';
+                                return text.replace(/\n\s*\n/g, '\n').trim();
+                            };
+
                             const cardType = getDdText('カードタイプ');
                             const rarity = getDdText('レアリティ');
                             const color = getDdAlt('色');
@@ -254,7 +398,7 @@ function generateKana(card) {
                             const tags = getDdText('タグ');
                             const expansion = getDdText('収録商品');
 
-                            results.push({
+                            const cardData = {
                                 id,
                                 name,
                                 cardType,
@@ -264,8 +408,120 @@ function generateKana(card) {
                                 bloomLevel,
                                 tags,
                                 expansion,
-                                imageUrl
+                                imageUrl,
+                                originalImageUrl,
+                                oshiSkills: [],
+                                arts: [],
+                                keywords: [],
+                                abilityText: '',
+                                extra: '',
+                                limited: false
+                            };
+
+                            // 1. Oshi Skills
+                            li.querySelectorAll('.skill').forEach(skillEl => {
+                                const label = skillEl.querySelector('p:first-child')?.innerText.trim() || '';
+                                const contentPara = skillEl.querySelector('p:nth-child(2)');
+                                if (!contentPara) return;
+
+                                const fullText = contentPara.innerText.trim();
+                                const skillName = contentPara.querySelector('span')?.innerText.trim() || '';
+
+                                const costMatch = fullText.match(/\[ホロパワー：([^\]]+)\]/);
+                                const cost = costMatch ? costMatch[1] : '';
+
+                                let text = fullText;
+                                if (skillName) {
+                                    const parts = fullText.split(skillName);
+                                    text = parts.length > 1 ? parts[1].trim() : fullText;
+                                }
+                                if (cost) {
+                                    text = text.replace(`[ホロパワー：${cost}]`, '').trim();
+                                }
+
+                                cardData.oshiSkills.push({ label, name: skillName, cost, text: cleanText(text) });
                             });
+
+                            // 2. Arts
+                            li.querySelectorAll('.arts').forEach(artsEl => {
+                                const contentPara = artsEl.querySelector('p:nth-child(2)');
+                                if (!contentPara) return;
+
+                                const span = contentPara.querySelector('span');
+                                if (!span) return;
+
+                                const costs = Array.from(span.querySelectorAll('img:not(.tokkou img)'))
+                                    .filter(img => !img.closest('.tokkou'))
+                                    .map(img => img.alt.trim());
+
+                                const tokkouEl = span.querySelector('.tokkou');
+                                let tokkou = '';
+                                if (tokkouEl) {
+                                    const tokkouIcon = tokkouEl.querySelector('img')?.alt.trim() || '';
+                                    const tokkouText = tokkouEl.innerText.trim();
+                                    tokkou = tokkouIcon || tokkouText;
+                                }
+
+                                const fullSpanText = span.innerText.trim();
+                                const damageMatch = fullSpanText.match(/(\d+[\+＋]?)$/);
+                                const damage = damageMatch ? damageMatch[1] : '';
+
+                                let artName = fullSpanText;
+                                if (damage) {
+                                    artName = artName.replace(damage, '').trim();
+                                }
+                                if (tokkouEl) {
+                                    artName = artName.replace(tokkouEl.innerText.trim(), '').trim();
+                                }
+
+                                const effectText = contentPara.innerText.replace(fullSpanText, '').trim();
+
+                                cardData.arts.push({
+                                    name: artName,
+                                    costs,
+                                    damage,
+                                    tokkou,
+                                    text: cleanText(effectText)
+                                });
+                            });
+
+                            // 3. Keywords (Gift, Bloom Effect, etc.)
+                            li.querySelectorAll('.keyword').forEach(kwEl => {
+                                const contentPara = kwEl.querySelector('p:nth-child(2)');
+                                if (!contentPara) return;
+
+                                const span = contentPara.querySelector('span');
+                                const typeIcon = span?.querySelector('img')?.alt.trim() || '';
+                                const kwName = span?.innerText.trim() || '';
+                                const text = contentPara.innerText.replace(kwName, '').trim();
+
+                                cardData.keywords.push({
+                                    type: typeIcon,
+                                    name: kwName,
+                                    text: cleanText(text)
+                                });
+                            });
+
+                            // 4. Ability Text (Support) & LIMITED check
+                            const abilityDt = Array.from(li.querySelectorAll('dt'))
+                                .find(dt => dt.innerText.includes('能力テキスト'));
+                            if (abilityDt && abilityDt.nextElementSibling) {
+                                let text = abilityDt.nextElementSibling.innerText.trim();
+                                const limitedStr = 'LIMITED：ターンに1枚しか使えない。';
+                                if (text.includes(limitedStr) || cardType.includes('LIMITED')) {
+                                    cardData.limited = true;
+                                    text = text.replace(limitedStr, '').trim();
+                                }
+                                cardData.abilityText = cleanText(text);
+                            }
+
+                            // 5. Extra
+                            const extraEls = li.querySelectorAll('.extra p:nth-child(2)');
+                            if (extraEls.length > 0) {
+                                cardData.extra = cleanText(Array.from(extraEls).map(el => el.innerText.trim()).join('\n'));
+                            }
+
+                            results.push(cardData);
                         } catch (e) {
                             // ignore errors for single cards
                         }
@@ -274,7 +530,7 @@ function generateKana(card) {
                 } catch (e) {
                     return [];
                 }
-            }, pageUrl);
+            }, html);
 
             allCards = allCards.concat(newCards);
 
@@ -315,11 +571,7 @@ function generateKana(card) {
                 console.warn('This might indicate an issue with scraping or the website structure has changed.');
             }
 
-            const filteredCards = cards.filter(c => !c.name.includes('(エール)')); // Provisional filter
-
-            // Add Kana Readings
-            console.log('📖 Generating kana readings...');
-            const enrichedCards = filteredCards.map(c => ({
+            const enrichedCards = cards.map(c => ({
                 ...c,
                 kana: generateKana(c)
             }));

@@ -1,0 +1,27 @@
+# ホロライブカードデータ取得・更新ルール (Hololive Data Development Rule)
+
+## 概要
+`hololive-cards.json` に影響を与えるスクリプトやロジックの修正を行う際は、公式サイトへの負荷を最小限に抑え、安全かつ高速に開発・検証を行うため、必ず「開発モード」を使用してください。
+
+## 対象ファイル
+以下のファイル、およびこれに関連するデータパース・保存ロジックを変更する場合が対象となります。
+- `scripts/fetch-hololive-data.js`
+- `scripts/download-images.js`
+- `scripts/enrich-cards.js`
+- `src/data/hololive-cards.json` (直接編集または構造変更時)
+
+## 開発モードの使用手順
+`fetch-hololive-data.js` を実行する際は、環境変数 `DEV=true` を付与して実行し、ローカルキャッシュ（`scripts/cache/hololive/`）を利用してください。
+
+### 実行コマンド例
+- **PowerShell**: `$env:DEV="true"; node scripts/fetch-hololive-data.js`
+- **Cmd**: `set DEV=true&& node scripts/fetch-hololive-data.js`
+
+## ルール適用基準
+1. **ロジック修正後の初回テスト**: 解析ロジック（セレクタの変更、新フィールドの追加等）を変更した後の動作確認は、必ずキャッシュを用いて行います。
+2. **データの整合性確認**: 取得件数の不一致や順序の変更など、意図しないデータ破壊を防ぐための検証にも開発モードを用います。
+3. **不要なアクセス禁止**: データの加工（かな変換や画像パス修正など）のみが目的で、公式サイトから最新情報を取得する必要がない場合は開発モードを維持します。
+
+---
+
+※このルールは、公式サイトへのスパム的なアクセスを防止し、かつ開発効率を最大化することを目的としています。

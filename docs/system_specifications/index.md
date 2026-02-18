@@ -10,6 +10,8 @@ RemoteDuelToolは、リモート環境でのカードゲーム対戦をサポー
 - オーバーレイ同期（BroadcastChannel）
 - 背景モード（Normal / Transparent / Green）
 - データの永続化とリセット、ウィンドウ管理
+- [ホロライブデータ開発ルール (Data Development Rule)](./core/hololive_data_development_rule.md)
+- [カードデータ形式仕様 (Card Data Format)](./core/data_format.md)
 
 ### 2. [ホロライブOCGツール仕様 (Hololive Toolset)](./features/hololive_toolset.md)
 - カード検索エンジン（正規化、ひらがな対応、複数条件フィルタ）
