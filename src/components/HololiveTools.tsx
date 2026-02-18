@@ -92,13 +92,19 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                         />
                                     ) : (
                                         <div className={`overlay-text-container w-full h-[480px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform ${isRotated ? 'rotate-180' : ''}`}
-                                            style={{ backgroundColor: '#111827' }}>
+                                            style={{
+                                                backgroundColor: '#111827',
+                                                padding: '36px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                boxSizing: 'border-box'
+                                            }}>
 
                                             {/* Scrollable Main Content */}
-                                            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                                            <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ paddingRight: '10px' }}>
                                                 {/* Header */}
-                                                <div className="border-b border-white/20 pb-2 mb-4">
-                                                    <div className="text-xl tracking-wider mb-1 font-bold text-white opacity-80">
+                                                <div style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '12px', marginBottom: '20px' }}>
+                                                    <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: '4px', opacity: 0.8 }}>
                                                         {(() => {
                                                             const type = overlayCard.cardType || '';
                                                             const bloom = overlayCard.bloomLevel || '';
@@ -115,7 +121,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                             return type;
                                                         })()}
                                                     </div>
-                                                    <div className="flex justify-between items-center gap-4">
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
                                                         {(() => {
                                                             const isRed = overlayCard.color === '赤';
                                                             const isBlue = overlayCard.color === '青';
@@ -123,13 +129,13 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                             const isWhite = overlayCard.color === '白';
                                                             const textColor = isRed ? '#f87171' : isBlue ? '#60a5fa' : isPurple ? '#c084fc' : isWhite ? '#e2e8f0' : '#fbbf24';
                                                             return (
-                                                                <h2 className="text-2xl font-bold leading-tight" style={{ color: textColor }}>
+                                                                <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, lineHeight: 1.2, color: textColor }}>
                                                                     {overlayCard.name}
                                                                 </h2>
                                                             );
                                                         })()}
                                                         {overlayCard.hp && (
-                                                            <span className="text-2xl font-bold text-red-500 font-orbitron shrink-0">
+                                                            <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444', whiteSpace: 'nowrap' }}>
                                                                 {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
                                                             </span>
                                                         )}
@@ -137,52 +143,52 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                 </div>
 
                                                 {/* Skills/Arts/Keywords/Ability (Summary) */}
-                                                <div className="space-y-6">
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                                     {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
-                                                        <div className="space-y-4">
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                                             {overlayCard.oshiSkills.map((skill, i) => (
-                                                                <div key={i} className="bg-blue-900/40 border-l-4 border-blue-500 p-3 rounded-r">
-                                                                    <div className="flex justify-between items-center mb-1">
-                                                                        <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">{skill.label}</span>
-                                                                        <span className="text-xs bg-blue-500/30 px-2 py-0.5 rounded font-bold">ホロパワー: {skill.cost}</span>
+                                                                <div key={i} style={{ backgroundColor: 'rgba(30, 58, 138, 0.4)', borderLeft: '4px solid #3b82f6', padding: '12px', borderRadius: '0 4px 4px 0' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{skill.label}</span>
+                                                                        <span style={{ fontSize: '11px', backgroundColor: 'rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>ホロパワー: {skill.cost}</span>
                                                                     </div>
-                                                                    <div className="font-bold text-base text-blue-50 mb-1">{skill.name}</div>
-                                                                    <div className="text-xs leading-relaxed opacity-90 whitespace-pre-wrap">{skill.text}</div>
+                                                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#eff6ff', marginBottom: '4px' }}>{skill.name}</div>
+                                                                    <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>{skill.text}</div>
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     )}
 
                                                     {overlayCard.arts && overlayCard.arts.length > 0 && (
-                                                        <div className="space-y-5">
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                                             {overlayCard.arts.map((art, i) => (
-                                                                <div key={i} className="border-b border-white/10 pb-4 last:border-0">
-                                                                    <div className="flex justify-between items-start mb-2">
-                                                                        <div className="font-bold text-xl text-white">{art.name}</div>
-                                                                        <div className="flex items-center gap-3">
-                                                                            <span className="text-sm font-bold opacity-70 tracking-tighter">{art.costs.join('')}</span>
-                                                                            <span className="text-2xl font-bold text-red-500 font-orbitron">{art.damage}</span>
+                                                                <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>{art.name}</div>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                            <span style={{ fontSize: '14px', fontWeight: 'bold', opacity: 0.7 }}>{art.costs.join('')}</span>
+                                                                            <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>{art.damage}</span>
                                                                         </div>
                                                                     </div>
-                                                                    {art.text && <div className="text-sm leading-relaxed opacity-90 whitespace-pre-wrap">{art.text}</div>}
+                                                                    {art.text && <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>{art.text}</div>}
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     )}
 
                                                     {overlayCard.keywords && overlayCard.keywords.length > 0 && (
-                                                        <div className="space-y-3">
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                             {overlayCard.keywords.map((kw, i) => (
-                                                                <div key={i} className="text-sm">
-                                                                    <span className="font-bold text-yellow-500">【{kw.type}：{kw.name}】</span>
-                                                                    <span className="opacity-90 ml-2">{kw.text}</span>
+                                                                <div key={i} style={{ fontSize: '13px' }}>
+                                                                    <span style={{ fontWeight: 'bold', color: '#eab308' }}>【{kw.type}：{kw.name}】</span>
+                                                                    <span style={{ opacity: 0.9, marginLeft: '8px' }}>{kw.text}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     )}
 
                                                     {overlayCard.abilityText && (
-                                                        <div className="text-sm leading-relaxed opacity-90 whitespace-pre-wrap">
+                                                        <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>
                                                             {overlayCard.abilityText
                                                                 .replace(/^[◆・]?(LIMITED|imited)\s*/i, '')
                                                                 .replace(/LIMITED：?ターンに[1１]枚しか使えない。?\s*/g, '')
@@ -194,20 +200,20 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                                             {/* Footer Area: Fixed at the bottom */}
                                             {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
-                                                <div className="shrink-0 bg-[#111827]">
+                                                <div style={{ marginTop: '20px', flexShrink: 0 }}>
                                                     {overlayCard.extra && (
-                                                        <div className="px-8 pb-3 text-[11px] italic opacity-60 leading-tight">
+                                                        <div style={{ fontSize: '11px', fontStyle: 'italic', opacity: 0.6, marginBottom: '12px', lineHeight: 1.4 }}>
                                                             {overlayCard.extra}
                                                         </div>
                                                     )}
-                                                    <div className="px-8 pb-8 pt-3 border-t border-white/10 flex justify-between items-center gap-4 text-xs">
-                                                        <div className="flex flex-nowrap gap-3 opacity-80 overflow-hidden whitespace-nowrap">
+                                                    <div style={{ paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div style={{ display: 'flex', gap: '12px', opacity: 0.8, overflow: 'hidden', whiteSpace: 'nowrap' }}>
                                                             {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
-                                                                <span key={ti} className="text-blue-400 font-medium shrink-0">{tag}</span>
+                                                                <span key={ti} style={{ color: '#60a5fa', fontWeight: '500', fontSize: '12px' }}>{tag}</span>
                                                             ))}
                                                         </div>
-                                                        <div className="text-right shrink-0">
-                                                            {overlayCard.limited && <div className="text-yellow-500 font-bold tracking-widest">LIMITED</div>}
+                                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                                            {overlayCard.limited && <div style={{ color: '#eab308', fontWeight: 'bold', fontSize: '12px', letterSpacing: '0.05em' }}>LIMITED</div>}
                                                         </div>
                                                     </div>
                                                 </div>
