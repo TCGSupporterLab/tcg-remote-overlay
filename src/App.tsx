@@ -79,10 +79,14 @@ function App() {
   // Check URL for overlay mode
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'overlay') {
+    const isOverlay = params.get('mode') === 'overlay';
+    if (isOverlay) {
       setIsOverlayMode(true);
       setObsMode('transparent');
       document.body.classList.add('obs-transparent');
+      document.title = '【表示】Remote Duel Overlay';
+    } else {
+      document.title = '【操作】リモート対戦ツール';
     }
 
     // Setup Sync
