@@ -360,24 +360,23 @@ function App() {
                 )}
               </button>
 
-              <div className="flex bg-slate-800/50 rounded-lg border border-slate-600/30 shadow-inner overflow-hidden">
-                <button
-                  className="flex items-center gap-2 text-sm font-bold px-4 py-1.5 hover:brightness-110 bg-[#bb9af7] text-slate-950 transition-all active:scale-95 border-r border-slate-900/10"
-                  onClick={() => openOverlay('tab')}
-                  title="別タブで開く (直接利用向け: 全画面推奨)"
-                >
-                  <Monitor size={14} />
-                  起動
-                </button>
-                <button
-                  className="flex items-center gap-2 text-sm font-bold px-4 py-1.5 hover:brightness-110 bg-[#bb9af7]/90 text-slate-950 transition-all active:scale-95"
-                  onClick={() => openOverlay('window')}
-                  title="別ウィンドウで開く (OBS向け: サイズ固定可)"
-                >
-                  <ExternalLink size={14} />
-                  別窓で起動
-                </button>
-              </div>
+              <button
+                className="btn flex items-center gap-2 text-sm px-3"
+                onClick={() => openOverlay('tab')}
+                title="別タブで開く (直接利用向け: 全画面推奨)"
+              >
+                <Monitor size={16} />
+                起動
+              </button>
+
+              <button
+                className="btn flex items-center gap-2 text-sm px-3"
+                onClick={() => openOverlay('window')}
+                title="別ウィンドウで開く (OBS向け: サイズ固定可)"
+              >
+                <ExternalLink size={16} />
+                別窓で起動
+              </button>
 
               <button
                 className="btn flex items-center justify-center gap-2 text-sm w-[120px] flex-none whitespace-nowrap"
