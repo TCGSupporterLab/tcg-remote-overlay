@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Move, Maximize2, RotateCw, Maximize, Minimize } from 'lucide-react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { Move, Maximize2, RotateCw } from 'lucide-react';
 
 interface WidgetState {
     px: number; // Position X as fraction of window (-0.5 to 0.5)
@@ -24,25 +24,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
     const [isResizing, setIsResizing] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
     const [isWindowResizing, setIsWindowResizing] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
-    // Toggle Fullscreen
-    const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-            });
-        } else {
-            document.exitFullscreen();
-        }
-    };
 
-    // Fullscreen event listener
-    useEffect(() => {
-        const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
-        document.addEventListener('fullscreenchange', handleFsChange);
-        return () => document.removeEventListener('fullscreenchange', handleFsChange);
-    }, []);
+
+
+
 
     // Store window size for mouse event calculations
     const [winSize, setWinSize] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -198,42 +184,88 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
     const finalScale = useMemo(() => state.scale * (winSize.h / REFERENCE_HEIGHT), [state.scale, winSize.h]);
     const shouldDisableTransition = isDragging || isResizing || isRotating || isWindowResizing;
 
+    const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 });
+    const [yOffset, setYOffset] = useState(60);
+    const handleBarRef = useRef<HTMLDivElement>(null);
+
+    // Solution 2 & 3: Anti-rotation and Viewport Clamping
+    useLayoutEffect(() => {
+        if (!containerRef.current || !handleBarRef.current) return;
+
+        // 1. Calculate dynamic Y offset based on rotated bounding box
+        const contentRect = containerRef.current.getBoundingClientRect();
+        const nextYOffset = (contentRect.height / 2) + 40;
+        if (Math.abs(nextYOffset - yOffset) > 1) {
+            setYOffset(nextYOffset);
+        }
+
+        // 2. Calculate ideal handle position without clamping
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+
+        // The base container is at the center of the screen, translated by state.px/py.
+        const idealX = (viewportW / 2) + (state.px * viewportW);
+        const idealY = (viewportH / 2) + (state.py * viewportH) + yOffset;
+
+        // We need to know the handle bar's width/height to clamp its edges
+        const handleWidth = handleBarRef.current.offsetWidth;
+        const handleHeight = handleBarRef.current.offsetHeight;
+        const margin = 12;
+
+        // Calculate clamped position
+        const minX = margin + handleWidth / 2;
+        const maxX = viewportW - margin - handleWidth / 2;
+        const minY = margin + handleHeight / 2;
+        const maxY = viewportH - margin - handleHeight / 2;
+
+        const clampedX = Math.min(Math.max(idealX, minX), maxX);
+        const clampedY = Math.min(Math.max(idealY, minY), maxY);
+
+        // Required offset is the difference between clamped and ideal
+        const dx = clampedX - idealX;
+        const dy = clampedY - idealY;
+
+        if (Math.abs(dx - clampedOffset.x) > 0.5 || Math.abs(dy - clampedOffset.y) > 0.5) {
+            setClampedOffset({ x: dx, y: dy });
+        }
+    }, [state, winSize, finalScale, yOffset, clampedOffset.x, clampedOffset.y]);
+
     return (
         <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
+            {/* Translation Base (Center of Widget) */}
             <div
-                ref={containerRef}
-                className="pointer-events-auto relative group will-change-transform"
+                className="absolute group"
                 style={{
-                    transform: `translate3d(${state.px * 100}vw, ${state.py * 100}vh, 0) scale(${finalScale}) rotate(${state.rotation}deg)`,
+                    transform: `translate3d(${state.px * 100}vw, ${state.py * 100}vh, 0)`,
                     zIndex: 100,
-                    transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s'
+                    transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)'
                 }}
             >
-                {/* Main Content */}
-                <div className="relative">
+                {/* A. Rotated & Scaled Content (The card/panel) */}
+                <div
+                    ref={containerRef}
+                    className="pointer-events-auto relative"
+                    style={{
+                        transform: `scale(${finalScale}) rotate(${state.rotation}deg)`,
+                        transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)'
+                    }}
+                >
                     {children}
                 </div>
 
-                {/* Floating Handles (Bottom-Right) */}
+                {/* B. Floating Handles (Stays Upright & Clamped) */}
                 <div
-                    className="absolute flex items-center gap-2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                    ref={handleBarRef}
+                    className="absolute pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap flex items-center gap-2"
                     style={{
-                        bottom: `${-45 / finalScale}px`,
                         left: '50%',
-                        transform: `translateX(-50%) scale(${1 / finalScale})`,
-                        transformOrigin: 'top center',
-                        transition: shouldDisableTransition ? 'none' : 'all 0.2s cubic-bezier(0.2, 0, 0, 1)'
+                        top: '50%',
+                        // yOffset moves it to bottom, clampedOffset keeps it in screen.
+                        // No rotation applied here = Always upright.
+                        transform: `translate(-50%, -50%) translate(${clampedOffset.x}px, ${yOffset + clampedOffset.y}px)`,
+                        transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s'
                     }}
                 >
-                    {/* Fullscreen Toggle */}
-                    <div
-                        onClick={toggleFullscreen}
-                        className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110"
-                        title={isFullscreen ? "全画面解除" : "全画面表示"}
-                    >
-                        {isFullscreen ? <Minimize size={17} /> : <Maximize size={17} />}
-                    </div>
-
                     {/* Move Handle */}
                     <div
                         onMouseDown={handleDragStart}

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Maximize, Minimize } from 'lucide-react';
 
 export type VideoSourceType = 'none' | 'camera' | 'screen';
 
@@ -41,6 +42,26 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, y: 0, cropX: 0, cropY: 0 });
+    const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+    const toggleFullscreen = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
+    useEffect(() => {
+        const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
 
     const stopStream = () => {
         setIsActive(false);
@@ -296,7 +317,15 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                             </div>
 
                             {/* Right Side: Actions (Aligned with pl-5 / pr-[25px]) */}
-                            <div className="flex gap-8">
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={toggleFullscreen}
+                                    className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md flex items-center justify-center gap-2"
+                                    title={isFullscreen ? "全画面解除" : "全画面表示"}
+                                >
+                                    {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+                                    {isFullscreen ? "縮小" : "全画面"}
+                                </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onReset?.(); }}
                                     className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
