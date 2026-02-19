@@ -329,8 +329,19 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                 <div className="flex bg-black/40 p-1 rounded-none gap-0.5 border border-white/5">
                                     {[
                                         { icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>, delta: -90, title: "-90°" },
-                                        { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>, delta: 90, title: "+90°" },
-                                        { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10" /><path d="m16 21-4-4-4 4" /><path d="m7 3 4 4 4-4" /></svg>, delta: 180, title: "180°" }
+                                        { icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>, delta: 90, title: "+90°" },
+                                        {
+                                            icon: (
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    {/* Straight double-headed arrow */}
+                                                    <path d="M2 8h20" />
+                                                    <path d="m6 5-4 3 4 3" />
+                                                    <path d="m18 5 4 3-4 3" />
+                                                    {/* Text at the bottom */}
+                                                    <text x="12" y="22" fontSize="10" fontWeight="900" fill="currentColor" stroke="none" textAnchor="middle" letterSpacing="-0.5">180°</text>
+                                                </svg>
+                                            ), delta: 180, title: "180°"
+                                        }
                                     ].map((btn, idx) => (
                                         <button
                                             key={idx}
@@ -349,14 +360,24 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                         className={`p-2.5 rounded-none transition-all active:scale-95 ${cropConfig.flipH ? 'bg-blue-600 text-white' : 'text-white/60 hover:bg-white/10'}`}
                                         title="左右反転"
                                     >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12H2" /><path d="M7 12l5 5 5-5" /><path d="M7 12l5-5 5 5" className="opacity-40" strokeDasharray="4 4" transform="rotate(180 12 12)" /></svg>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="m5 15-3-3 3-3" />
+                                            <path d="m19 9 3 3-3 3" />
+                                            <path d="M2 12h20" />
+                                            <path d="M12 2v20" strokeDasharray="3 3" className="opacity-40" />
+                                        </svg>
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); toggleFlip('V'); }}
                                         className={`p-2.5 rounded-none transition-all active:scale-95 ${cropConfig.flipV ? 'bg-blue-600 text-white' : 'text-white/60 hover:bg-white/10'}`}
                                         title="上下反転"
                                     >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="rotate-90"><path d="M22 12H2" /><path d="M7 12l5 5 5-5" /><path d="M7 12l5-5 5 5" className="opacity-40" strokeDasharray="4 4" transform="rotate(180 12 12)" /></svg>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="m15 5-3-3-3 3" />
+                                            <path d="m9 19 3 3 3-3" />
+                                            <path d="M12 2v20" />
+                                            <path d="M2 12h20" strokeDasharray="3 3" className="opacity-40" />
+                                        </svg>
                                     </button>
                                 </div>
                             </div>
