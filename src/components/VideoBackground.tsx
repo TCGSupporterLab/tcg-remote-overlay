@@ -185,20 +185,59 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         if (!onCropChange) return;
         let nextRotation = (cropConfig.rotation + delta) % 360;
         if (nextRotation < 0) nextRotation += 360;
-        onCropChange({ ...cropConfig, rotation: nextRotation });
+
+        // Swap values so the trim follows the content's orientation
+        let { top, right, bottom, left } = cropConfig;
+        if (delta === 90 || delta === -270) {
+            [top, right, bottom, left] = [left, top, right, bottom];
+        } else if (delta === -90 || delta === 270) {
+            [top, right, bottom, left] = [right, bottom, left, top];
+        } else if (Math.abs(delta) === 180) {
+            [top, right, bottom, left] = [bottom, left, top, right];
+        }
+
+        onCropChange({ ...cropConfig, rotation: nextRotation, top, right, bottom, left });
     };
 
     const toggleFlip = (axis: 'H' | 'V') => {
         if (!onCropChange) return;
+        const { flipH, flipV, top, right, bottom, left } = cropConfig;
         if (axis === 'H') {
-            onCropChange({ ...cropConfig, flipH: !cropConfig.flipH });
+            onCropChange({ ...cropConfig, flipH: !flipH, left: right, right: left });
         } else {
-            onCropChange({ ...cropConfig, flipV: !cropConfig.flipV });
+            onCropChange({ ...cropConfig, flipV: !flipV, top: bottom, bottom: top });
         }
     };
 
-    // Use clip-path for edge trimming
-    const clipPath = `inset(${cropConfig.top}% ${cropConfig.right}% ${cropConfig.bottom}% ${cropConfig.left}%)`;
+    // Calculate physical inset mapping so sliders always control visual directions (Top slider = Visual Top)
+    const getPhysicalInset = () => {
+        let { top: vT, right: vR, bottom: vB, left: vL } = cropConfig;
+
+        // 1. Un-flip (Inverse of scaleX/scaleY applied AFTER rotate in CSS)
+        // If visually flipped, the 'visual top' slider value actually belongs to the 'physical bottom' edge, etc.
+        if (cropConfig.flipV) [vT, vB] = [vB, vT];
+        if (cropConfig.flipH) [vL, vR] = [vR, vL];
+
+        // 2. Un-rotate (Inverse of rotate applied BEFORE flip in CSS)
+        const r = ((cropConfig.rotation % 360) + 360) % 360;
+
+        // Map visual directions to physical edges
+        let pT, pR, pB, pL;
+        if (r === 90) {
+            // Clockwise 90: Visual Top is Physical Left, Visual Right is Physical Top...
+            [pT, pR, pB, pL] = [vR, vB, vL, vT];
+        } else if (r === 180) {
+            [pT, pR, pB, pL] = [vB, vL, vT, vR];
+        } else if (r === 270) {
+            [pT, pR, pB, pL] = [vL, vT, vR, vB];
+        } else {
+            [pT, pR, pB, pL] = [vT, vR, vB, vL];
+        }
+
+        return `inset(${pT}% ${pR}% ${pB}% ${pL}%)`;
+    };
+
+    const clipPath = getPhysicalInset();
 
     return (
         <>
