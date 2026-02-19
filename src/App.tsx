@@ -362,7 +362,6 @@ function App() {
                 className={`btn flex items-center justify-center p-2 ${videoFlip !== 'none' ? 'ring-2 ring-white/50' : 'opacity-80'}`}
                 onClick={toggleVideoFlip}
                 title="反転モード切替 (M: 無し/左右/上下/180度)"
-                disabled={videoSource === 'none'}
               >
                 <FlipHorizontal size={16} style={{
                   transform: videoFlip === 'vertical' ? 'rotate(90deg)' : videoFlip === 'both' ? 'rotate(180deg)' : 'none'
