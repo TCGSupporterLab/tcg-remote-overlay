@@ -18,8 +18,12 @@ function App() {
     return saved || 'normal';
   });
   const [isOverlayMode, setIsOverlayMode] = useState(false);
-  const [videoSource, setVideoSource] = useState<VideoSourceType>('none');
-  const [videoFlip, setVideoFlip] = useState<'none' | 'horizontal' | 'vertical' | 'both'>('none');
+  const [videoSource, setVideoSource] = useState<VideoSourceType>(() => {
+    return (localStorage.getItem('remote_duel_video_source') as VideoSourceType) || 'none';
+  });
+  const [videoFlip, setVideoFlip] = useState<'none' | 'horizontal' | 'vertical' | 'both'>(() => {
+    return (localStorage.getItem('remote_duel_video_flip') as 'none' | 'horizontal' | 'vertical' | 'both') || 'none';
+  });
   const [videoCrop, setVideoCrop] = useState<CropConfig>(() => {
     const saved = localStorage.getItem('remote_duel_video_crop');
     return saved ? JSON.parse(saved) : { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0 };
@@ -44,10 +48,18 @@ function App() {
     };
   }, [isOverlayMode]); // Re-run when overlay mode is confirmed
 
-  // Persist OBS mode
+  // Persist OBS mode & Video settings
   useEffect(() => {
     localStorage.setItem('remote_duel_obs_mode', obsMode);
   }, [obsMode]);
+
+  useEffect(() => {
+    localStorage.setItem('remote_duel_video_source', videoSource);
+  }, [videoSource]);
+
+  useEffect(() => {
+    localStorage.setItem('remote_duel_video_flip', videoFlip);
+  }, [videoFlip]);
 
   // Shared State
   const [gameMode, setGameMode] = useState<GameMode>(() => {
@@ -396,7 +408,7 @@ function App() {
           <header className="flex justify-between items-center mb-4 p-2 bg-panel rounded-lg">
             <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
               Remote Duel Tool
-              <span className="text-xs font-normal opacity-50">v0.3.0</span>
+              <span className="text-xs font-normal opacity-50">v1.0.0</span>
             </h1>
 
             <div className="flex gap-2">
@@ -427,7 +439,7 @@ function App() {
               <button
                 className={`btn flex items-center justify-center p-2 ${isAdjustingVideo ? 'ring-2 ring-blue-500 bg-blue-900/30' : 'opacity-80'}`}
                 onClick={toggleAdjustmentMode}
-                title="ビデオ位置・ズーム調整"
+                title="ビデオ調整 (A / オーバーレイ上でホイールクリック)"
                 disabled={videoSource === 'none'}
               >
                 <Maximize size={16} className={isAdjustingVideo ? 'text-blue-400' : ''} />
