@@ -215,21 +215,21 @@ function App() {
     }
   }, [broadcast]);
 
-  const toggleVideoSource = () => {
+  const toggleVideoSource = useCallback(() => {
     const sources: VideoSourceType[] = ['none', 'camera', 'screen'];
     const nextIndex = (sources.indexOf(videoSource) + 1) % sources.length;
     const nextSource = sources[nextIndex];
     setVideoSource(nextSource);
     broadcast('VIDEO_SOURCE', nextSource);
-  };
+  }, [videoSource, broadcast]);
 
-  const toggleVideoFlip = () => {
+  const toggleVideoFlip = useCallback(() => {
     const modes: ('none' | 'horizontal' | 'vertical' | 'both')[] = ['none', 'horizontal', 'vertical', 'both'];
     const nextIndex = (modes.indexOf(videoFlip) + 1) % modes.length;
     const nextFlip = modes[nextIndex];
     setVideoFlip(nextFlip);
     broadcast('VIDEO_FLIP', nextFlip);
-  };
+  }, [videoFlip, broadcast]);
 
   // Keyboard Shortcuts
   useEffect(() => {
