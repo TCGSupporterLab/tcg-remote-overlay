@@ -241,27 +241,29 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         <div className="absolute inset-0 border-[10px] border-blue-500/20 pointer-events-none" />
                     </div>
 
-                    {/* 2. Top Banner (Fixed) - Sharp and Solid */}
+                    {/* 2. Top Banner (Fixed) - Solid Frame with Maximum Spacing */}
                     <div
-                        className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto"
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto"
                         onMouseDown={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-blue-600/95 backdrop-blur-xl text-white px-8 py-3 rounded-none flex items-center border border-white/20 shadow-2xl">
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-1.5 h-1.5 bg-blue-400 animate-pulse" />
-                                <span className="font-bold text-base tracking-tight">ビデオ調整中</span>
+                        <div className="bg-[#0f172a] text-white pl-5 pr-[25px] py-5 rounded-none flex items-center justify-between w-[640px] border border-blue-500/50 shadow-[0_0_50px_rgba(0,0,0,0.6)]">
+                            {/* Left Side: Status */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-2 h-2 bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)] animate-pulse" />
+                                <span className="font-black text-lg tracking-tight">ビデオ調整中</span>
                             </div>
-                            <div className="w-24" /> {/* Spacer to ensure separation */}
-                            <div className="flex gap-2 ml-32">
+
+                            {/* Right Side: Actions (Aligned with pl-5 / pr-[25px]) */}
+                            <div className="flex gap-8">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onReset?.(); }}
-                                    className="w-[100px] flex-shrink-0 bg-white hover:bg-white/90 py-1.5 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
+                                    className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
                                 >
                                     リセット
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-                                    className="w-[100px] flex-shrink-0 bg-white hover:bg-white/90 py-1.5 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
+                                    className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
                                 >
                                     完了
                                 </button>
