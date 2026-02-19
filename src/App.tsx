@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, RefreshCw, ExternalLink, Camera, Monitor, FlipHorizontal, Maximize } from 'lucide-react';
+import { Settings, RefreshCw, ExternalLink, Camera, Monitor, Maximize } from 'lucide-react';
 import { YugiohTools } from './components/YugiohTools';
 import { HololiveTools } from './components/HololiveTools';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
@@ -21,12 +21,9 @@ function App() {
   const [videoSource, setVideoSource] = useState<VideoSourceType>(() => {
     return (localStorage.getItem('remote_duel_video_source') as VideoSourceType) || 'none';
   });
-  const [videoFlip, setVideoFlip] = useState<'none' | 'horizontal' | 'vertical' | 'both'>(() => {
-    return (localStorage.getItem('remote_duel_video_flip') as 'none' | 'horizontal' | 'vertical' | 'both') || 'none';
-  });
   const [videoCrop, setVideoCrop] = useState<CropConfig>(() => {
     const saved = localStorage.getItem('remote_duel_video_crop');
-    return saved ? JSON.parse(saved) : { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0 };
+    return saved ? JSON.parse(saved) : { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
   });
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
 
@@ -57,10 +54,6 @@ function App() {
     localStorage.setItem('remote_duel_video_source', videoSource);
   }, [videoSource]);
 
-  useEffect(() => {
-    localStorage.setItem('remote_duel_video_flip', videoFlip);
-  }, [videoFlip]);
-
   // Shared State
   const [gameMode, setGameMode] = useState<GameMode>(() => {
     const saved = localStorage.getItem('remote_duel_game_mode');
@@ -84,7 +77,6 @@ function App() {
   const diceValueRef = useRef<number>(diceValue);
   const coinValueRef = useRef<string>(coinValue);
   const videoSourceRef = useRef<VideoSourceType>(videoSource);
-  const videoFlipRef = useRef<'none' | 'horizontal' | 'vertical' | 'both'>(videoFlip);
   const videoCropRef = useRef<CropConfig>(videoCrop);
 
   // Update ref when state changes
@@ -99,9 +91,8 @@ function App() {
 
   useEffect(() => {
     videoSourceRef.current = videoSource;
-    videoFlipRef.current = videoFlip;
     videoCropRef.current = videoCrop;
-  }, [videoSource, videoFlip, videoCrop]);
+  }, [videoSource, videoCrop]);
 
   // Check URL for overlay mode
   useEffect(() => {
@@ -139,8 +130,6 @@ function App() {
         setDiceValue(data.value.dice);
         setCoinValue(data.value.coin);
         if (data.value.videoSource) setVideoSource(data.value.videoSource);
-        if (data.value.videoFlip) setVideoFlip(data.value.videoFlip);
-        else if (data.value.isVideoMirrored !== undefined) setVideoFlip(data.value.isVideoMirrored ? 'horizontal' : 'none');
         if (data.value.videoCrop) setVideoCrop(data.value.videoCrop);
         if (data.value.isAdjustingVideo !== undefined) setIsAdjustingVideo(data.value.isAdjustingVideo);
       }
@@ -162,10 +151,6 @@ function App() {
         setVideoSource(data.value);
       }
 
-      if (data.type === 'VIDEO_MIRROR' || data.type === 'VIDEO_FLIP') {
-        setVideoFlip(data.value);
-      }
-
       if (data.type === 'VIDEO_CROP') {
         setVideoCrop(data.value);
       }
@@ -185,7 +170,6 @@ function App() {
         setDiceValue(1);
         setCoinValue('表');
         setVideoSource('none');
-        setVideoFlip('none');
         setResetKey(prev => prev + 1);
       }
 
@@ -198,7 +182,6 @@ function App() {
             dice: diceValueRef.current,
             coin: coinValueRef.current,
             videoSource: videoSourceRef.current,
-            videoFlip: videoFlipRef.current,
             videoCrop: videoCropRef.current,
             isAdjustingVideo: isAdjustingVideo
           }
@@ -240,7 +223,6 @@ function App() {
       setDiceValue(1);
       setCoinValue('表');
       setVideoSource('none');
-      setVideoFlip('none');
       setResetKey(prev => prev + 1);
       broadcast('RESET', null);
     }
@@ -253,14 +235,6 @@ function App() {
     setVideoSource(nextSource);
     broadcast('VIDEO_SOURCE', nextSource);
   }, [videoSource, broadcast]);
-
-  const toggleVideoFlip = useCallback(() => {
-    const modes: ('none' | 'horizontal' | 'vertical' | 'both')[] = ['none', 'horizontal', 'vertical', 'both'];
-    const nextIndex = (modes.indexOf(videoFlip) + 1) % modes.length;
-    const nextFlip = modes[nextIndex];
-    setVideoFlip(nextFlip);
-    broadcast('VIDEO_FLIP', nextFlip);
-  }, [videoFlip, broadcast]);
 
   const handleCropChange = useCallback((config: CropConfig) => {
     setVideoCrop(config);
@@ -275,7 +249,7 @@ function App() {
   };
 
   const resetCrop = useCallback(() => {
-    const defaultConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0 };
+    const defaultConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
     setVideoCrop(defaultConfig);
     broadcast('VIDEO_CROP', defaultConfig);
     localStorage.removeItem('remote_duel_video_crop');
@@ -295,9 +269,6 @@ function App() {
       if (e.key === 'v' || e.key === 'V') {
         toggleVideoSource();
       }
-      if (e.key === 'm' || e.key === 'M') {
-        toggleVideoFlip();
-      }
       if (e.key === 'a' || e.key === 'A') {
         toggleAdjustmentMode();
       }
@@ -305,7 +276,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, videoFlip, toggleAdjustmentMode]);
+  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, toggleAdjustmentMode]);
 
   // Persistence for Overlay Window Size
   useEffect(() => {
@@ -394,7 +365,6 @@ function App() {
       {isOverlayMode && (
         <VideoBackground
           sourceType={videoSource}
-          flipMode={videoFlip}
           cropConfig={videoCrop}
           onCropChange={handleCropChange}
           onReset={resetCrop}
@@ -419,21 +389,6 @@ function App() {
               >
                 {videoSource === 'none' ? <Camera size={16} /> : videoSource === 'camera' ? <Camera size={16} className="text-slate-800" /> : <Monitor size={16} className="text-green-700" />}
                 <span className="text-xs">{videoSource === 'none' ? 'OFF' : videoSource === 'camera' ? 'Camera' : 'Screen'}</span>
-              </button>
-
-              <button
-                className={`btn flex items-center justify-center p-2 ${videoFlip !== 'none' ? 'ring-2 ring-white/50' : 'opacity-80'}`}
-                onClick={toggleVideoFlip}
-                title="反転モード切替 (M: 無し/左右/上下/180度)"
-              >
-                <FlipHorizontal size={16} style={{
-                  transform: videoFlip === 'vertical' ? 'rotate(90deg)' : videoFlip === 'both' ? 'rotate(180deg)' : 'none'
-                }} />
-                {videoFlip !== 'none' && (
-                  <span className="text-[10px] ml-1 font-bold">
-                    {videoFlip === 'horizontal' ? 'H' : videoFlip === 'vertical' ? 'V' : '180'}
-                  </span>
-                )}
               </button>
 
               <button

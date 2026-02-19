@@ -10,11 +10,13 @@ export interface CropConfig {
     bottom: number; // crop bottom (%)
     left: number;   // crop left (%)
     right: number;  // crop right (%)
+    rotation: number; // 0, 90, 180, 270
+    flipH: boolean;
+    flipV: boolean;
 }
 
 interface VideoBackgroundProps {
     sourceType: VideoSourceType;
-    flipMode?: 'none' | 'horizontal' | 'vertical' | 'both';
     cropConfig?: CropConfig;
     className?: string;
     onCropChange?: (config: CropConfig) => void;
@@ -25,8 +27,7 @@ interface VideoBackgroundProps {
 
 export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     sourceType,
-    flipMode = 'none',
-    cropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0 },
+    cropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false },
     className = '',
     onCropChange,
     onReset,
@@ -91,8 +92,12 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     };
 
     useEffect(() => {
-        startStream();
-        return () => stopStream();
+        // Stop any active stream when the source type changes or is set to none
+        stopStream();
+
+        // Do NOT auto-call startStream(). 
+        // Browsers require a user gesture for getDisplayMedia, 
+        // and we want to avoid multiple/unwanted dialogs when syncing state.
     }, [sourceType]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -135,13 +140,6 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         });
     };
 
-    const handleCropEdge = (edge: 'top' | 'bottom' | 'left' | 'right', value: number) => {
-        if (!onCropChange) return;
-        onCropChange({
-            ...cropConfig,
-            [edge]: value
-        });
-    };
 
     useEffect(() => {
         if (isDragging) {
@@ -172,16 +170,31 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     if (sourceType === 'none') return null;
 
     const getFinalTransform = () => {
-        let flipStr = '';
-        switch (flipMode) {
-            case 'horizontal': flipStr = 'scaleX(-1)'; break;
-            case 'vertical': flipStr = 'scaleY(-1)'; break;
-            case 'both': flipStr = 'scale(-1, -1)'; break;
+        // The video element is already covering the full div with object-fit: cover.
+        // We apply scale, translate, rotate, and flip directly to it.
+        let transform = `scale(${cropConfig.scale}) translate(${cropConfig.x / cropConfig.scale}%, ${cropConfig.y / cropConfig.scale}%)`;
+        transform += ` rotate(${cropConfig.rotation}deg)`;
+
+        if (cropConfig.flipH) transform += ' scaleX(-1)';
+        if (cropConfig.flipV) transform += ' scaleY(-1)';
+
+        return transform;
+    };
+
+    const handleRotate = (delta: number) => {
+        if (!onCropChange) return;
+        let nextRotation = (cropConfig.rotation + delta) % 360;
+        if (nextRotation < 0) nextRotation += 360;
+        onCropChange({ ...cropConfig, rotation: nextRotation });
+    };
+
+    const toggleFlip = (axis: 'H' | 'V') => {
+        if (!onCropChange) return;
+        if (axis === 'H') {
+            onCropChange({ ...cropConfig, flipH: !cropConfig.flipH });
+        } else {
+            onCropChange({ ...cropConfig, flipV: !cropConfig.flipV });
         }
-
-        const cropStr = `scale(${cropConfig.scale}) translate(${cropConfig.x / cropConfig.scale}%, ${cropConfig.y / cropConfig.scale}%)`;
-
-        return `${flipStr} ${cropStr}`.trim();
     };
 
     // Use clip-path for edge trimming
@@ -216,90 +229,143 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
             {/* Interaction Layer (Only visible during adjustment) */}
             {isAdjustmentMode && (
-                <div
-                    className="fixed inset-0 z-[100] cursor-move select-none"
-                    onMouseDown={(e) => {
-                        if (e.button === 1) return; // Handled by global listener
-                        handleMouseDown(e);
-                    }}
-                    onWheel={handleWheel}
-                >
-                    {/* Visual Guide Overlay */}
-                    <div className="absolute inset-0 border-4 border-blue-500/50 pointer-events-none animate-pulse" />
-
-                    {/* Control Panel */}
+                <>
+                    {/* 1. Full Screen Drag & Interaction Layer */}
                     <div
-                        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center bg-blue-600 text-white p-4 rounded-full text-base font-bold shadow-2xl pointer-events-auto min-w-[800px]"
-                        onWheel={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-[400] cursor-move select-none pointer-events-auto"
+                        onMouseDown={handleMouseDown}
+                        onWheel={handleWheel}
                     >
-                        {/* Left Margin Spacer */}
-                        <div className="w-32" />
+                        {/* Strong guide waku with thicker stroke */}
+                        {/* Strong guide waku set to 10px as requested */}
+                        <div className="absolute inset-0 border-[10px] border-blue-500/20 pointer-events-none" />
+                    </div>
 
-                        <span>ビデオ調整中 (ドラッグ:移動 / ホイール:ズーム)</span>
-
-                        {/* Middle Spacer to push buttons to the right */}
-                        <div className="flex-1" />
-
-                        <div
-                            className="flex gap-2 mr-4"
-                            onMouseDown={(e) => e.stopPropagation()}
-                        >
-                            {onReset && (
+                    {/* 2. Top Banner (Fixed) - Sharp and Solid */}
+                    <div
+                        className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <div className="bg-blue-600/95 backdrop-blur-xl text-white px-8 py-3 rounded-none flex items-center border border-white/20 shadow-2xl">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-1.5 h-1.5 bg-blue-400 animate-pulse" />
+                                <span className="font-bold text-base tracking-tight">ビデオ調整中</span>
+                            </div>
+                            <div className="w-24" /> {/* Spacer to ensure separation */}
+                            <div className="flex gap-2 ml-32">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onReset(); }}
-                                    className="bg-white/20 hover:bg-white/30 px-6 py-2 rounded-lg text-xs transition-all border border-white/10 active:scale-95 whitespace-nowrap"
+                                    onClick={(e) => { e.stopPropagation(); onReset?.(); }}
+                                    className="w-[100px] flex-shrink-0 bg-white hover:bg-white/90 py-1.5 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
                                 >
                                     リセット
                                 </button>
-                            )}
-                            {onClose && (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onClose(); }}
-                                    className="bg-white/20 hover:bg-white/30 px-6 py-2 rounded-lg text-xs transition-all border border-white/10 active:scale-95 whitespace-nowrap"
+                                    onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+                                    className="w-[100px] flex-shrink-0 bg-white hover:bg-white/90 py-1.5 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
                                 >
-                                    終了
+                                    完了
                                 </button>
-                            )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Edge Crop Sliders */}
+                    {/* 3. Bottom-Left Adjustment Panel (Fixed) - Sharp and Solid */}
                     <div
-                        className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 bg-black/60 p-4 rounded-xl border border-white/20 pointer-events-auto"
+                        className="fixed bottom-10 left-10 z-[500] pointer-events-auto"
+                        style={{ bottom: '40px', left: '40px' }}
                         onMouseDown={(e) => e.stopPropagation()}
-                        onWheel={(e) => e.stopPropagation()}
                     >
-                        <div className="text-[10px] text-white/60 mb-1 uppercase font-bold tracking-wider">Trimming</div>
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] text-white">Top: {cropConfig.top}%</label>
-                            <input type="range" min="0" max="50" value={cropConfig.top} onChange={(e) => handleCropEdge('top', Number(e.target.value))} className="w-24 h-1 appearance-none bg-white/20 rounded-full" />
+                        <div
+                            className="p-6 rounded-none border border-blue-400/30 shadow-2xl flex flex-col gap-[26px]"
+                            style={{
+                                backgroundColor: 'rgba(30, 58, 138, 0.4)', // Deeper blue for solid look
+                                backdropFilter: 'blur(20px)',
+                                WebkitBackdropFilter: 'blur(20px)'
+                            }}
+                        >
+                            {/* Sharp Icon Controls */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex bg-black/40 p-1 rounded-none gap-0.5 border border-white/5">
+                                    {[
+                                        { icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>, delta: -90, title: "-90°" },
+                                        { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>, delta: 90, title: "+90°" },
+                                        { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10" /><path d="m16 21-4-4-4 4" /><path d="m7 3 4 4 4-4" /></svg>, delta: 180, title: "180°" }
+                                    ].map((btn, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={(e) => { e.stopPropagation(); handleRotate(btn.delta); }}
+                                            className="p-2.5 hover:bg-white/10 rounded-none transition-all text-white active:scale-95"
+                                            title={btn.title}
+                                        >
+                                            {btn.icon}
+                                        </button>
+                                    ))}
+                                </div>
 
-                            <label className="text-[10px] text-white">Bot: {cropConfig.bottom}%</label>
-                            <input type="range" min="0" max="50" value={cropConfig.bottom} onChange={(e) => handleCropEdge('bottom', Number(e.target.value))} className="w-24 h-1 appearance-none bg-white/20 rounded-full" />
+                                <div className="flex bg-black/40 p-1 rounded-none gap-0.5 border border-white/5">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); toggleFlip('H'); }}
+                                        className={`p-2.5 rounded-none transition-all active:scale-95 ${cropConfig.flipH ? 'bg-blue-600 text-white' : 'text-white/60 hover:bg-white/10'}`}
+                                        title="左右反転"
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12H2" /><path d="M7 12l5 5 5-5" /><path d="M7 12l5-5 5 5" className="opacity-40" strokeDasharray="4 4" transform="rotate(180 12 12)" /></svg>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); toggleFlip('V'); }}
+                                        className={`p-2.5 rounded-none transition-all active:scale-95 ${cropConfig.flipV ? 'bg-blue-600 text-white' : 'text-white/60 hover:bg-white/10'}`}
+                                        title="上下反転"
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="rotate-90"><path d="M22 12H2" /><path d="M7 12l5 5 5-5" /><path d="M7 12l5-5 5 5" className="opacity-40" strokeDasharray="4 4" transform="rotate(180 12 12)" /></svg>
+                                    </button>
+                                </div>
+                            </div>
 
-                            <label className="text-[10px] text-white">Left: {cropConfig.left}%</label>
-                            <input type="range" min="0" max="50" value={cropConfig.left} onChange={(e) => handleCropEdge('left', Number(e.target.value))} className="w-24 h-1 appearance-none bg-white/20 rounded-full" />
-
-                            <label className="text-[10px] text-white">Right: {cropConfig.right}%</label>
-                            <input type="range" min="0" max="50" value={cropConfig.right} onChange={(e) => handleCropEdge('right', Number(e.target.value))} className="w-24 h-1 appearance-none bg-white/20 rounded-full" />
+                            {/* Sharp Trimming Sliders */}
+                            <div className="w-[220px] flex flex-col gap-4">
+                                {[
+                                    { key: 'top', label: '上端' },
+                                    { key: 'bottom', label: '下端' },
+                                    { key: 'left', label: '左端' },
+                                    { key: 'right', label: '右端' }
+                                ].map(({ key, label }) => (
+                                    <div key={key} className="flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center px-0.5">
+                                            <span className="text-white/40 text-[9px] uppercase font-black tracking-widest">{label}</span>
+                                            <span className="text-blue-300 font-mono text-[10px] font-bold">{cropConfig[key as keyof CropConfig] as number}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="50"
+                                            value={cropConfig[key as keyof CropConfig] as number}
+                                            onChange={(e) => {
+                                                if (onCropChange) onCropChange({ ...cropConfig, [key]: Number(e.target.value) });
+                                            }}
+                                            className="w-full h-1 appearance-none bg-white/10 rounded-none accent-blue-500 cursor-pointer"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
-            {!isActive && (
-                <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-10 p-6 text-center">
-                    <p className="text-white mb-4 text-sm font-medium">
-                        {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
-                    </p>
-                    <button
-                        onClick={startStream}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
-                    >
-                        {sourceType === 'camera' ? 'カメラを起動' : '画面共有を開始'}
-                    </button>
-                </div>
-            )}
+            {
+                !isActive && (
+                    <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-10 p-6 text-center">
+                        <p className="text-white mb-4 text-sm font-medium">
+                            {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
+                        </p>
+                        <button
+                            onClick={startStream}
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+                        >
+                            {sourceType === 'camera' ? 'カメラを起動' : '画面共有を開始'}
+                        </button>
+                    </div>
+                )
+            }
         </>
     );
 };
