@@ -276,8 +276,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         onWheel={handleWheel}
                     >
                         {/* Strong guide waku with thicker stroke */}
-                        {/* Strong guide waku set to 10px as requested */}
-                        <div className="absolute inset-0 border-[10px] border-blue-500/20 pointer-events-none" />
+                        {/* Strong guide waku set to 8px as requested */}
+                        <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{ outline: '8px solid rgba(255, 0, 0, 0.6)', outlineOffset: '-8px' }}
+                        />
                     </div>
 
                     {/* 2. Top Banner (Fixed) - Solid Frame with Maximum Spacing */}
@@ -285,11 +288,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         className="fixed top-10 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto"
                         onMouseDown={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-[#0f172a] text-white pl-5 pr-[25px] py-5 rounded-none flex items-center justify-between w-[640px] border border-blue-500/50 shadow-[0_0_50px_rgba(0,0,0,0.6)]">
+                        <div className="bg-[#0f172a] text-white pl-5 pr-[25px] py-5 rounded-none flex items-center justify-between w-[640px] border border-[#ff0000] shadow-[0_0_50px_rgba(255,0,0,0.2)]">
                             {/* Left Side: Status */}
                             <div className="flex items-center gap-4">
-                                <div className="w-2 h-2 bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)] animate-pulse" />
-                                <span className="font-black text-lg tracking-tight">ビデオ調整中</span>
+                                <div className="w-2 h-2 bg-[#ff0000] shadow-[0_0_10px_rgba(255,0,0,0.8)] animate-pulse" />
+                                <span className="font-black text-lg tracking-tight text-[#ff0000]">ビデオ調整中</span>
                             </div>
 
                             {/* Right Side: Actions (Aligned with pl-5 / pr-[25px]) */}
