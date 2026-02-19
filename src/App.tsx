@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, RefreshCw, ExternalLink, Camera, Monitor, FlipHorizontal } from 'lucide-react';
+import { Settings, RefreshCw, ExternalLink, Camera, Monitor, FlipHorizontal, Maximize } from 'lucide-react';
 import { YugiohTools } from './components/YugiohTools';
 import { HololiveTools } from './components/HololiveTools';
-import { VideoBackground, type VideoSourceType } from './components/VideoBackground';
+import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { OverlayWidget } from './components/OverlayWidget';
 import './App.css';
 
@@ -20,6 +20,11 @@ function App() {
   const [isOverlayMode, setIsOverlayMode] = useState(false);
   const [videoSource, setVideoSource] = useState<VideoSourceType>('none');
   const [videoFlip, setVideoFlip] = useState<'none' | 'horizontal' | 'vertical' | 'both'>('none');
+  const [videoCrop, setVideoCrop] = useState<CropConfig>(() => {
+    const saved = localStorage.getItem('remote_duel_video_crop');
+    return saved ? JSON.parse(saved) : { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0 };
+  });
+  const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
 
   // Apply initial OBS mode class (Only for Overlay)
   useEffect(() => {
@@ -68,6 +73,7 @@ function App() {
   const coinValueRef = useRef<string>(coinValue);
   const videoSourceRef = useRef<VideoSourceType>(videoSource);
   const videoFlipRef = useRef<'none' | 'horizontal' | 'vertical' | 'both'>(videoFlip);
+  const videoCropRef = useRef<CropConfig>(videoCrop);
 
   // Update ref when state changes
   useEffect(() => {
@@ -82,7 +88,8 @@ function App() {
   useEffect(() => {
     videoSourceRef.current = videoSource;
     videoFlipRef.current = videoFlip;
-  }, [videoSource, videoFlip]);
+    videoCropRef.current = videoCrop;
+  }, [videoSource, videoFlip, videoCrop]);
 
   // Check URL for overlay mode
   useEffect(() => {
@@ -122,6 +129,8 @@ function App() {
         if (data.value.videoSource) setVideoSource(data.value.videoSource);
         if (data.value.videoFlip) setVideoFlip(data.value.videoFlip);
         else if (data.value.isVideoMirrored !== undefined) setVideoFlip(data.value.isVideoMirrored ? 'horizontal' : 'none');
+        if (data.value.videoCrop) setVideoCrop(data.value.videoCrop);
+        if (data.value.isAdjustingVideo !== undefined) setIsAdjustingVideo(data.value.isAdjustingVideo);
       }
 
       if (data.type === 'OBS_MODE') {
@@ -143,6 +152,14 @@ function App() {
 
       if (data.type === 'VIDEO_MIRROR' || data.type === 'VIDEO_FLIP') {
         setVideoFlip(data.value);
+      }
+
+      if (data.type === 'VIDEO_CROP') {
+        setVideoCrop(data.value);
+      }
+
+      if (data.type === 'VIDEO_ADJUST_MODE') {
+        setIsAdjustingVideo(data.value);
       }
 
       if (data.type === 'CLOSE_OVERLAY') {
@@ -169,7 +186,9 @@ function App() {
             dice: diceValueRef.current,
             coin: coinValueRef.current,
             videoSource: videoSourceRef.current,
-            videoFlip: videoFlipRef.current
+            videoFlip: videoFlipRef.current,
+            videoCrop: videoCropRef.current,
+            isAdjustingVideo: isAdjustingVideo
           }
         });
       }
@@ -231,6 +250,25 @@ function App() {
     broadcast('VIDEO_FLIP', nextFlip);
   }, [videoFlip, broadcast]);
 
+  const handleCropChange = useCallback((config: CropConfig) => {
+    setVideoCrop(config);
+    broadcast('VIDEO_CROP', config);
+    localStorage.setItem('remote_duel_video_crop', JSON.stringify(config));
+  }, [broadcast]);
+
+  const toggleAdjustmentMode = () => {
+    const nextState = !isAdjustingVideo;
+    setIsAdjustingVideo(nextState);
+    broadcast('VIDEO_ADJUST_MODE', nextState);
+  };
+
+  const resetCrop = useCallback(() => {
+    const defaultConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0 };
+    setVideoCrop(defaultConfig);
+    broadcast('VIDEO_CROP', defaultConfig);
+    localStorage.removeItem('remote_duel_video_crop');
+  }, [broadcast]);
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -248,11 +286,14 @@ function App() {
       if (e.key === 'm' || e.key === 'M') {
         toggleVideoFlip();
       }
+      if (e.key === 'a' || e.key === 'A') {
+        toggleAdjustmentMode();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, videoFlip]);
+  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, videoFlip, toggleAdjustmentMode]);
 
   // Persistence for Overlay Window Size
   useEffect(() => {
@@ -338,7 +379,17 @@ function App() {
 
   return (
     <div className={`app-container w-full h-full flex flex-col box-border ${isOverlayMode ? 'overlay-mode p-0' : 'p-4'}`}>
-      {isOverlayMode && <VideoBackground sourceType={videoSource} flipMode={videoFlip} />}
+      {isOverlayMode && (
+        <VideoBackground
+          sourceType={videoSource}
+          flipMode={videoFlip}
+          cropConfig={videoCrop}
+          onCropChange={handleCropChange}
+          onReset={resetCrop}
+          onClose={toggleAdjustmentMode}
+          isAdjustmentMode={isAdjustingVideo}
+        />
+      )}
 
       {!isOverlayMode && (
         <>
@@ -371,6 +422,15 @@ function App() {
                     {videoFlip === 'horizontal' ? 'H' : videoFlip === 'vertical' ? 'V' : '180'}
                   </span>
                 )}
+              </button>
+
+              <button
+                className={`btn flex items-center justify-center p-2 ${isAdjustingVideo ? 'ring-2 ring-blue-500 bg-blue-900/30' : 'opacity-80'}`}
+                onClick={toggleAdjustmentMode}
+                title="ビデオ位置・ズーム調整"
+                disabled={videoSource === 'none'}
+              >
+                <Maximize size={16} className={isAdjustingVideo ? 'text-blue-400' : ''} />
               </button>
 
               <button
