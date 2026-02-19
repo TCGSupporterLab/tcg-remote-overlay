@@ -98,7 +98,43 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     onDiceClick,
     onCoinClick
 }) => {
-    const { overlayCard, overlayMode, overlayDisplayMode } = useCardSearch();
+    const {
+        overlayCard,
+        overlayMode,
+        overlayDisplayMode,
+        pinnedCards,
+        setOverlayForcedCard
+    } = useCardSearch();
+
+    // Keyboard Shortcuts (Hololive Overlay Pin Select)
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            // Requirement: Do nothing if the overlay card display is OFF
+            if (overlayMode === 'off') return;
+
+            // Handle Digit 0-9 and Numpad 0-9
+            const digitMatch = e.code.match(/^(?:Digit|Numpad)(\d)$/);
+            if (!digitMatch) return;
+
+            const num = parseInt(digitMatch[1]);
+
+            if (num === 0) {
+                e.preventDefault();
+                setOverlayForcedCard(null); // Return to automatic selection, keeping current image/text mode
+            } else {
+                const index = num - 1;
+                if (pinnedCards[index]) {
+                    e.preventDefault();
+                    setOverlayForcedCard(pinnedCards[index]); // Display specific pinned card
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [pinnedCards, setOverlayForcedCard, overlayMode]);
 
     // Overlay View: Only show result and image
     if (isOverlay) {
