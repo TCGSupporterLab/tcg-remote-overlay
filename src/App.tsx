@@ -336,16 +336,16 @@ function App() {
 
             <div className="flex gap-2">
               <button
-                className="btn flex items-center justify-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3"
+                className="btn flex items-center justify-center gap-2 text-sm px-3"
                 onClick={toggleVideoSource}
                 title="ビデオソース切替 (V)"
               >
-                {videoSource === 'none' ? <Camera size={16} /> : videoSource === 'camera' ? <Camera size={16} className="text-blue-400" /> : <Monitor size={16} className="text-green-400" />}
+                {videoSource === 'none' ? <Camera size={16} /> : videoSource === 'camera' ? <Camera size={16} className="text-slate-800" /> : <Monitor size={16} className="text-green-700" />}
                 <span className="text-xs">{videoSource === 'none' ? 'OFF' : videoSource === 'camera' ? 'Camera' : 'Screen'}</span>
               </button>
 
               <button
-                className={`btn flex items-center justify-center p-2 ${videoFlip !== 'none' ? 'bg-blue-600' : 'bg-slate-700'}`}
+                className={`btn flex items-center justify-center p-2 ${videoFlip !== 'none' ? 'ring-2 ring-white/50' : 'opacity-80'}`}
                 onClick={toggleVideoFlip}
                 title="反転モード切替 (M: 無し/左右/上下/180度)"
                 disabled={videoSource === 'none'}
@@ -360,22 +360,21 @@ function App() {
                 )}
               </button>
 
-              <div className="flex bg-slate-700 rounded-lg border border-slate-600/50 p-0.5 shadow-inner">
+              <div className="flex bg-slate-800/50 rounded-lg border border-slate-600/30 shadow-inner overflow-hidden">
                 <button
-                  className="flex items-center gap-2 text-[11px] font-bold px-3 py-1.5 rounded-md hover:bg-slate-600 text-slate-200 transition-all active:scale-95"
+                  className="flex items-center gap-2 text-sm font-bold px-4 py-1.5 hover:brightness-110 bg-[#bb9af7] text-slate-950 transition-all active:scale-95 border-r border-slate-900/10"
                   onClick={() => openOverlay('tab')}
                   title="別タブで開く (直接利用向け: 全画面推奨)"
                 >
-                  <Monitor size={14} className="text-blue-400" />
+                  <Monitor size={14} />
                   起動
                 </button>
-                <div className="w-px bg-slate-600/50 my-1" />
                 <button
-                  className="flex items-center gap-2 text-[11px] font-bold px-3 py-1.5 rounded-md hover:bg-slate-600 text-slate-200 transition-all active:scale-95"
+                  className="flex items-center gap-2 text-sm font-bold px-4 py-1.5 hover:brightness-110 bg-[#bb9af7]/90 text-slate-950 transition-all active:scale-95"
                   onClick={() => openOverlay('window')}
                   title="別ウィンドウで開く (OBS向け: サイズ固定可)"
                 >
-                  <ExternalLink size={14} className="text-blue-400" />
+                  <ExternalLink size={14} />
                   別窓で起動
                 </button>
               </div>
