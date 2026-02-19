@@ -10,6 +10,7 @@ interface CardGridProps {
     onReorder?: (startIndex: number, endIndex: number) => void;
     selectedId?: string;
     selectedImageUrl?: string;
+    showIndex?: boolean;
 }
 
 // Memory-efficient card item
@@ -23,7 +24,8 @@ const CardItem = React.memo(({
     onDragOver,
     onDrop,
     onDragEnd,
-    isDragging
+    isDragging,
+    indexLabel
 }: {
     card: Card,
     isPinned: boolean,
@@ -34,7 +36,8 @@ const CardItem = React.memo(({
     onDragOver?: (e: React.DragEvent) => void,
     onDrop?: (e: React.DragEvent) => void,
     onDragEnd?: (e: React.DragEvent) => void,
-    isDragging?: boolean
+    isDragging?: boolean,
+    indexLabel?: string
 }) => {
     return (
         <div
@@ -54,6 +57,24 @@ const CardItem = React.memo(({
                     }
                 `}
             >
+                {indexLabel && (
+                    <div
+                        className="absolute z-20 flex items-center justify-center font-bold text-white shadow-lg backdrop-blur-md px-1.5"
+                        style={{
+                            top: '6px',
+                            left: '6px',
+                            height: '24px',
+                            minWidth: '24px',
+                            fontSize: indexLabel.length >= 3 ? '9px' : '11px',
+                            borderRadius: '12px',
+                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
+                        }}
+                    >
+                        {indexLabel}
+                    </div>
+                )}
 
                 <img
                     src={card.resolvedImageUrl || card.imageUrl}
@@ -83,7 +104,8 @@ export const CardGrid: React.FC<CardGridProps> = ({
     onSelect,
     onReorder,
     selectedId,
-    selectedImageUrl
+    selectedImageUrl,
+    showIndex
 }) => {
     const gridRef = useRef<HTMLDivElement>(null);
     const [draggingIndex, setDraggingIndex] = React.useState<number | null>(null);
@@ -178,6 +200,7 @@ export const CardGrid: React.FC<CardGridProps> = ({
                     onDragEnd={onReorder ? () => {
                         setDraggingIndex(null);
                     } : undefined}
+                    indexLabel={showIndex ? (idx + 1).toString() : undefined}
                 />
             ))}
         </div>

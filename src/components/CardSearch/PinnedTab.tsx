@@ -120,6 +120,7 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
                             onReorder={onReorderPins}
                             selectedId={selectedId}
                             selectedImageUrl={selectedImageUrl}
+                            showIndex={true}
                         />
                     )}
                 </div>
