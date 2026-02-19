@@ -172,6 +172,11 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         updateLife(targetPlayer, Math.ceil(currentLife / 2));
     };
 
+    const handleToggleTarget = () => {
+        const next = targetPlayer === 'p1' ? 'p2' : 'p1';
+        handleSetTarget(next);
+    };
+
     // Keyboard Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -220,6 +225,13 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
             if (e.key === 'Delete' || e.key === 'Del') {
                 e.preventDefault();
                 handleClear();
+                return;
+            }
+
+            // Target Toggle
+            if (e.key === 'p' || e.key === 'P' || e.key === '*' || e.key === 'Multiply') {
+                e.preventDefault();
+                handleToggleTarget();
                 return;
             }
 
