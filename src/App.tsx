@@ -295,7 +295,7 @@ function App() {
     const url = window.location.pathname + '?mode=overlay';
 
     if (target === 'tab') {
-      window.open(url, '_blank');
+      window.open(url, 'RemoteDuelOverlayTab');
       return;
     }
 
