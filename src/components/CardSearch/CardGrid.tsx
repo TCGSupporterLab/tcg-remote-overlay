@@ -7,6 +7,7 @@ interface CardGridProps {
     pinnedIds: Set<string>;
     onPin: (card: Card) => void;
     onSelect: (card: Card) => void;
+    onReorder?: (startIndex: number, endIndex: number) => void;
     selectedId?: string;
     selectedImageUrl?: string;
 }
@@ -17,18 +18,33 @@ const CardItem = React.memo(({
     isPinned,
     isSelected,
     onPin,
-    onSelect
+    onSelect,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
+    isDragging
 }: {
     card: Card,
     isPinned: boolean,
     isSelected: boolean,
     onPin: (card: Card) => void,
-    onSelect: (card: Card) => void
+    onSelect: (card: Card) => void,
+    onDragStart?: (e: React.DragEvent) => void,
+    onDragOver?: (e: React.DragEvent) => void,
+    onDrop?: (e: React.DragEvent) => void,
+    onDragEnd?: (e: React.DragEvent) => void,
+    isDragging?: boolean
 }) => {
     return (
         <div
-            className="group relative flex flex-col items-center"
+            className={`group relative flex flex-col items-center transition-opacity ${isDragging ? 'opacity-30' : 'opacity-100'}`}
             onClick={() => onSelect(card)}
+            draggable={!!onDragStart}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onDragEnd={onDragEnd}
         >
             <div
                 className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-75 active:scale-95 border-2 w-full aspect-[7/10] bg-gray-800/30
@@ -38,6 +54,7 @@ const CardItem = React.memo(({
                     }
                 `}
             >
+
                 <img
                     src={card.resolvedImageUrl || card.imageUrl}
                     alt={card.name}
@@ -64,10 +81,12 @@ export const CardGrid: React.FC<CardGridProps> = ({
     onPin,
     pinnedIds,
     onSelect,
+    onReorder,
     selectedId,
     selectedImageUrl
 }) => {
     const gridRef = useRef<HTMLDivElement>(null);
+    const [draggingIndex, setDraggingIndex] = React.useState<number | null>(null);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -133,7 +152,7 @@ export const CardGrid: React.FC<CardGridProps> = ({
             ref={gridRef}
             className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 pb-24 min-h-[50vh]"
         >
-            {cards.map((card) => (
+            {cards.map((card, idx) => (
                 <CardItem
                     key={`${card.id}-${card.imageUrl}`}
                     card={card}
@@ -141,6 +160,24 @@ export const CardGrid: React.FC<CardGridProps> = ({
                     isSelected={selectedId === card.id && (selectedImageUrl ? card.imageUrl === selectedImageUrl : true)}
                     onPin={onPin}
                     onSelect={onSelect}
+                    isDragging={draggingIndex === idx}
+                    onDragStart={onReorder ? (e) => {
+                        setDraggingIndex(idx);
+                        e.dataTransfer.effectAllowed = 'move';
+                    } : undefined}
+                    onDragOver={onReorder ? (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                    } : undefined}
+                    onDrop={onReorder ? (e) => {
+                        e.preventDefault();
+                        if (draggingIndex !== null && draggingIndex !== idx) {
+                            onReorder(draggingIndex, idx);
+                        }
+                    } : undefined}
+                    onDragEnd={onReorder ? () => {
+                        setDraggingIndex(null);
+                    } : undefined}
                 />
             ))}
         </div>

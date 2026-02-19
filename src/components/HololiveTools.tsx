@@ -106,34 +106,48 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
         setOverlayForcedCard
     } = useCardSearch();
 
+    const inputBufferRef = React.useRef("");
+    const timerRef = React.useRef<number | null>(null);
+
     // Keyboard Shortcuts (Hololive Overlay Pin Select)
+    // Only enabled in the separate overlay window (multi-digit support up to 1000)
     React.useEffect(() => {
+        const isOverlayWindow = new URLSearchParams(window.location.search).get('mode') === 'overlay';
+        if (!isOverlayWindow) return;
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-            // Requirement: Do nothing if the overlay card display is OFF
             if (overlayMode === 'off') return;
 
-            // Handle Digit 0-9 and Numpad 0-9
             const digitMatch = e.code.match(/^(?:Digit|Numpad)(\d)$/);
             if (!digitMatch) return;
 
-            const num = parseInt(digitMatch[1]);
+            e.preventDefault();
+            const digit = digitMatch[1];
 
-            if (num === 0) {
-                e.preventDefault();
-                setOverlayForcedCard(null); // Return to automatic selection, keeping current image/text mode
-            } else {
-                const index = num - 1;
-                if (pinnedCards[index]) {
-                    e.preventDefault();
-                    setOverlayForcedCard(pinnedCards[index]); // Display specific pinned card
+            if (timerRef.current) window.clearTimeout(timerRef.current);
+            inputBufferRef.current += digit;
+
+            timerRef.current = window.setTimeout(() => {
+                const num = parseInt(inputBufferRef.current);
+                if (num === 0) {
+                    setOverlayForcedCard(null);
+                } else {
+                    const index = num - 1;
+                    if (pinnedCards[index]) {
+                        setOverlayForcedCard(pinnedCards[index]);
+                    }
                 }
-            }
+                inputBufferRef.current = "";
+                timerRef.current = null;
+            }, 200); // 200ms buffer for multi-digit input
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            if (timerRef.current) window.clearTimeout(timerRef.current);
+        };
     }, [pinnedCards, setOverlayForcedCard, overlayMode]);
 
     // Overlay View: Only show result and image

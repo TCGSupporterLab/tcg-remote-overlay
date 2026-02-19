@@ -9,6 +9,7 @@ interface PinnedTabProps {
     onTogglePin: (card: Card) => void;
     onSelect: (card: Card) => void;
     onResetPins: () => void;
+    onReorderPins: (startIndex: number, endIndex: number) => void;
     selectedId?: string;
     selectedImageUrl?: string;
 }
@@ -24,6 +25,7 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
     onTogglePin,
     onSelect,
     onResetPins,
+    onReorderPins,
     selectedId,
     selectedImageUrl
 }, ref) => {
@@ -115,6 +117,7 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
                             pinnedIds={pinnedIds}
                             onPin={onTogglePin}
                             onSelect={onSelect}
+                            onReorder={onReorderPins}
                             selectedId={selectedId}
                             selectedImageUrl={selectedImageUrl}
                         />

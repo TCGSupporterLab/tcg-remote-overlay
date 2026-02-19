@@ -21,6 +21,7 @@ export const CardSearchContainer: React.FC = () => {
         setKeyword,
         togglePin,
         resetPins,
+        reorderPins,
         setSelectedCard,
         toggleOverlayMode,
         overlayDisplayMode,
@@ -176,6 +177,7 @@ export const CardSearchContainer: React.FC = () => {
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
                                 onResetPins={resetPins}
+                                onReorderPins={reorderPins}
                                 selectedId={selectedCard?.id}
                                 selectedImageUrl={selectedCard?.imageUrl}
                             />

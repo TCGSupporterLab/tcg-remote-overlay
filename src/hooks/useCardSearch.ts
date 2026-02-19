@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import cardDataOriginal from '../data/hololive-cards.json';
 
 // Type Definitions
@@ -52,22 +52,22 @@ const removeSymbols = (text: string) => {
     return text.replace(/[・ー\s\-\!\?\.\,]/g, '');
 };
 
-// --- SYNC MANAGER (Singleton to avoid hook-instance loops) ---
-const isOverlayWindow = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'overlay';
+// --- SINGLETON STATE MANAGER ---
+const IS_OVERLAY = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'overlay';
 
-const shared = {
+const sharedState = {
     filters: JSON.parse(localStorage.getItem('hololive_search_filters') || 'null') || {
         keyword: '',
         color: ['all'],
         cardType: ['all'],
         bloomLevel: ['all'],
     },
-    pinnedCards: JSON.parse(localStorage.getItem('hololive_pinned_cards') || '[]'),
-    selectedCard: JSON.parse(localStorage.getItem('hololive_selected_card') || 'null'),
+    pinnedCards: JSON.parse(localStorage.getItem('hololive_pinned_cards') || '[]') as Card[],
+    selectedCard: JSON.parse(localStorage.getItem('hololive_selected_card') || 'null') as Card | null,
     overlayMode: (localStorage.getItem('hololive_overlay_mode') as 'on' | 'off') || 'off',
     overlayDisplayMode: (localStorage.getItem('hololive_overlay_display_mode') as 'image' | 'text') || 'image',
     overlayForcedCard: null as Card | null,
-    remoteOverlayCard: null as Card | null
+    remoteCard: null as Card | null
 };
 
 const listeners = new Set<() => void>();
@@ -75,71 +75,65 @@ const notify = () => listeners.forEach(l => l());
 
 const channel = new BroadcastChannel('remote_duel_sync');
 
-const broadcastAuth = () => {
-    if (isOverlayWindow) return;
-    const card = (shared.overlayMode !== 'off') ? (shared.overlayForcedCard || shared.selectedCard) : null;
-    channel.postMessage({ type: 'HOLOLIVE_OVERLAY_STATE_UPDATE', value: shared.overlayMode });
-    channel.postMessage({ type: 'HOLOLIVE_OVERLAY_DISPLAY_MODE_UPDATE', value: shared.overlayDisplayMode });
-    channel.postMessage({ type: 'HOLOLIVE_OVERLAY_CARD_UPDATE', value: card });
-    channel.postMessage({ type: 'HOLOLIVE_PINNED_CARDS_UPDATE', value: shared.pinnedCards });
+const broadcast = () => {
+    if (IS_OVERLAY) return;
+    const effectiveCard = (sharedState.overlayMode !== 'off') ? (sharedState.overlayForcedCard || sharedState.selectedCard) : null;
+    channel.postMessage({
+        type: 'SYNC_STATE', state: {
+            overlayMode: sharedState.overlayMode,
+            overlayDisplayMode: sharedState.overlayDisplayMode,
+            pinnedCards: sharedState.pinnedCards,
+            card: effectiveCard
+        }
+    });
 };
 
-channel.onmessage = (event: MessageEvent) => {
-    const { type, value } = event.data;
+channel.onmessage = (e) => {
+    const { type, state, value } = e.data;
     let changed = false;
 
-    if (type === 'HOLOLIVE_OVERLAY_STATE_UPDATE') {
-        if (shared.overlayMode !== value) { shared.overlayMode = value; changed = true; }
-    } else if (type === 'HOLOLIVE_OVERLAY_DISPLAY_MODE_UPDATE') {
-        if (shared.overlayDisplayMode !== value) { shared.overlayDisplayMode = value; changed = true; }
-    } else if (type === 'HOLOLIVE_OVERLAY_CARD_UPDATE') {
-        const isSame = (!shared.remoteOverlayCard && !value) ||
-            (shared.remoteOverlayCard && value && shared.remoteOverlayCard.id === value.id && shared.remoteOverlayCard.imageUrl === value.imageUrl);
-        if (!isSame) { shared.remoteOverlayCard = value; changed = true; }
-    } else if (type === 'HOLOLIVE_PINNED_CARDS_UPDATE') {
-        const isSame = shared.pinnedCards.length === value.length && (value.length === 0 || shared.pinnedCards[0].id === value[0].id);
-        if (!isSame) { shared.pinnedCards = value; changed = true; }
-    } else if (type === 'HOLOLIVE_CMD_SET_FORCED_CARD') {
-        if (!isOverlayWindow) {
-            shared.overlayForcedCard = value;
+    if (type === 'SYNC_STATE') {
+        if (sharedState.overlayMode !== state.overlayMode) { sharedState.overlayMode = state.overlayMode; changed = true; }
+        if (sharedState.overlayDisplayMode !== state.overlayDisplayMode) { sharedState.overlayDisplayMode = state.overlayDisplayMode; changed = true; }
+        if (JSON.stringify(sharedState.pinnedCards) !== JSON.stringify(state.pinnedCards)) { sharedState.pinnedCards = state.pinnedCards; changed = true; }
+        if (JSON.stringify(sharedState.remoteCard) !== JSON.stringify(state.card)) { sharedState.remoteCard = state.card; changed = true; }
+    } else if (type === 'CMD_SET_FORCED') {
+        if (!IS_OVERLAY) {
+            sharedState.overlayForcedCard = value;
             changed = true;
-            broadcastAuth();
+            broadcast();
         }
-    } else if (type === 'REQUEST_STATE') {
-        if (!isOverlayWindow) broadcastAuth();
+    } else if (type === 'REQ_STATE') {
+        if (!IS_OVERLAY) broadcast();
     }
 
     if (changed) notify();
 };
 
-if (isOverlayWindow) {
-    channel.postMessage({ type: 'REQUEST_STATE' });
-}
+if (IS_OVERLAY) channel.postMessage({ type: 'REQ_STATE' });
 
-const updateShared = (updates: Partial<typeof shared>, skipBroadcast = false) => {
+const updateShared = (updates: Partial<typeof sharedState>) => {
     let changed = false;
     for (const key in updates) {
-        const k = key as keyof typeof shared;
-        if (shared[k] === updates[k]) continue;
-        (shared as any)[k] = updates[k];
+        const k = key as keyof typeof sharedState;
+        if (JSON.stringify(sharedState[k]) === JSON.stringify(updates[k])) continue;
+        (sharedState as any)[k] = updates[k];
         changed = true;
 
-        if (!isOverlayWindow) {
-            if (k === 'filters') localStorage.setItem('hololive_search_filters', JSON.stringify(shared.filters));
-            if (k === 'pinnedCards') localStorage.setItem('hololive_pinned_cards', JSON.stringify(shared.pinnedCards));
-            if (k === 'selectedCard') localStorage.setItem('hololive_selected_card', JSON.stringify(shared.selectedCard));
-            if (k === 'overlayMode') localStorage.setItem('hololive_overlay_mode', shared.overlayMode);
-            if (k === 'overlayDisplayMode') localStorage.setItem('hololive_overlay_display_mode', shared.overlayDisplayMode);
+        if (!IS_OVERLAY) {
+            if (k === 'filters') localStorage.setItem('hololive_search_filters', JSON.stringify(sharedState.filters));
+            if (k === 'pinnedCards') localStorage.setItem('hololive_pinned_cards', JSON.stringify(sharedState.pinnedCards));
+            if (k === 'selectedCard') localStorage.setItem('hololive_selected_card', JSON.stringify(sharedState.selectedCard));
+            if (k === 'overlayMode') localStorage.setItem('hololive_overlay_mode', sharedState.overlayMode);
+            if (k === 'overlayDisplayMode') localStorage.setItem('hololive_overlay_display_mode', sharedState.overlayDisplayMode);
         }
     }
 
     if (changed) {
         notify();
-        if (!skipBroadcast) {
-            if (!isOverlayWindow) broadcastAuth();
-            else if (updates.overlayForcedCard !== undefined) {
-                channel.postMessage({ type: 'HOLOLIVE_CMD_SET_FORCED_CARD', value: updates.overlayForcedCard });
-            }
+        if (!IS_OVERLAY) broadcast();
+        else if (updates.overlayForcedCard !== undefined) {
+            channel.postMessage({ type: 'CMD_SET_FORCED', value: updates.overlayForcedCard });
         }
     }
 };
@@ -177,90 +171,81 @@ export const useCardSearch = () => {
     }, []);
 
     const filteredCards = useMemo(() => {
-        const { keyword, color, cardType, bloomLevel } = shared.filters;
+        const { keyword, color, cardType, bloomLevel } = sharedState.filters;
         const normKeyword = keyword ? normalizeText(keyword) : '';
         const hiraKeyword = keyword ? toHiragana(normKeyword) : '';
         const pureKeyword = normKeyword ? removeSymbols(normKeyword) : '';
-        const selectedColors = color.filter(s => s !== 'all');
-        const selectedTypes = cardType.filter(s => s !== 'all');
-        const selectedBlooms = bloomLevel.filter(s => s !== 'all');
+        const selectedColors = color.filter((s: string) => s !== 'all');
+        const selectedTypes = cardType.filter((s: string) => s !== 'all');
+        const selectedBlooms = bloomLevel.filter((s: string) => s !== 'all');
+
         return normalizedData.filter(card => {
             if (card.cardType === 'エール') return false;
             if (normKeyword) {
-                const matches = (card._normName?.includes(normKeyword)) || (card._hiraName?.includes(hiraKeyword)) ||
-                    (pureKeyword && (card._pureName?.includes(pureKeyword) || card._pureHira?.includes(pureKeyword)));
-                if (!matches) return false;
+                if (!(card._normName?.includes(normKeyword) || card._hiraName?.includes(hiraKeyword) || (pureKeyword && (card._pureName?.includes(pureKeyword) || card._pureHira?.includes(pureKeyword))))) return false;
             }
             if (selectedColors.length > 0) {
                 const isMulti = card.color.length >= 2;
-                const isMono = card.color.length === 1;
-                const isColorless = card.color === '◇';
-                let match = false;
-                if (selectedColors.includes('multi') && isMulti) match = true;
-                if (selectedColors.includes('not_multi') && isMono) match = true;
-                if (selectedColors.includes('colorless') && isColorless) match = true;
-                if (!match && selectedColors.some(c => card.color.includes(c))) match = true;
+                const match = selectedColors.includes('multi') ? isMulti : (selectedColors.includes('colorless') ? card.color === '◇' : selectedColors.some((c: string) => card.color.includes(c)));
                 if (!match) return false;
             }
             if (selectedTypes.length > 0) {
-                let match = selectedTypes.some(t => {
-                    if (t === 'サポート') return card.cardType.startsWith('サポート');
-                    if (t === 'LIMITED') return card.cardType.includes('LIMITED');
-                    return card.cardType === t;
-                });
+                const match = selectedTypes.some((t: string) => t === 'サポート' ? card.cardType.startsWith('サポート') : (t === 'LIMITED' ? card.cardType.includes('LIMITED') : card.cardType === t));
                 if (!match) return false;
             }
             if (selectedBlooms.length > 0 && (card.bloomLevel === undefined || !selectedBlooms.includes(card.bloomLevel))) return false;
             return true;
         });
-    }, [normalizedData, shared.filters]);
+    }, [normalizedData, sharedState.filters]);
 
     const updateFilter = useCallback((category: FilterCategory, value: string) => {
-        const current = shared.filters[category];
-        let next;
-        if (value === 'all') next = ['all'];
-        else if (current.includes(value)) {
-            next = current.filter(v => v !== value);
-            if (next.length === 0) next = ['all'];
-        } else {
-            next = [...current.filter(v => v !== 'all'), value];
-        }
-        updateShared({ filters: { ...shared.filters, [category]: next } });
+        const current = sharedState.filters[category];
+        let next = value === 'all' ? ['all'] : (current.includes(value) ? current.filter((v: string) => v !== value) : [...current.filter((v: string) => v !== 'all'), value]);
+        if (next.length === 0) next = ['all'];
+        updateShared({ filters: { ...sharedState.filters, [category]: next } });
     }, []);
 
-    const setKeyword = useCallback((keyword: string) => updateShared({ filters: { ...shared.filters, keyword } }), []);
+    const setKeyword = useCallback((keyword: string) => updateShared({ filters: { ...sharedState.filters, keyword } }), []);
     const togglePin = useCallback((card: Card) => {
-        const exists = shared.pinnedCards.some(c => c.id === card.id);
-        if (exists) updateShared({ pinnedCards: shared.pinnedCards.filter(c => c.id !== card.id) });
-        else if (shared.pinnedCards.length < 100) updateShared({ pinnedCards: [...shared.pinnedCards, card] });
-        else alert('ピン留めできるのは100枚までです。');
+        const exists = sharedState.pinnedCards.some(c => c.id === card.id);
+        if (exists) updateShared({ pinnedCards: sharedState.pinnedCards.filter(c => c.id !== card.id) });
+        else if (sharedState.pinnedCards.length < 1000) updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
+        else alert('ピン留めできるのは1000枚までです。');
     }, []);
+
     const resetPins = useCallback(() => updateShared({ pinnedCards: [] }), []);
+    const reorderPins = useCallback((startIndex: number, endIndex: number) => {
+        const result = Array.from(sharedState.pinnedCards);
+        const [removed] = result.splice(startIndex, 1);
+        result.splice(endIndex, 0, removed);
+        updateShared({ pinnedCards: result });
+    }, []);
     const setSelectedCard = useCallback((card: Card | null) => updateShared({ selectedCard: card }), []);
     const setOverlayForcedCard = useCallback((card: Card | null) => updateShared({ overlayForcedCard: card }), []);
     const setOverlayDisplayMode = useCallback((mode: 'image' | 'text') => updateShared({ overlayDisplayMode: mode }), []);
-    const toggleOverlayMode = useCallback(() => updateShared({ overlayMode: shared.overlayMode === 'off' ? 'on' : 'off' }), []);
-    const toggleOverlayDisplayMode = useCallback(() => updateShared({ overlayDisplayMode: shared.overlayDisplayMode === 'image' ? 'text' : 'image' }), []);
+    const toggleOverlayMode = useCallback(() => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }), []);
+    const toggleOverlayDisplayMode = useCallback(() => updateShared({ overlayDisplayMode: sharedState.overlayDisplayMode === 'image' ? 'text' : 'image' }), []);
 
     return {
-        filters: shared.filters,
+        filters: sharedState.filters,
         filteredCards,
-        pinnedCards: shared.pinnedCards,
-        pinnedIds: useMemo(() => new Set(shared.pinnedCards.map(c => c.id)), [shared.pinnedCards]),
-        selectedCard: shared.selectedCard,
-        overlayCard: isOverlayWindow ? shared.remoteOverlayCard : (shared.overlayMode !== 'off' ? (shared.overlayForcedCard || shared.selectedCard) : null),
-        overlayMode: shared.overlayMode,
-        overlayDisplayMode: shared.overlayDisplayMode,
-        overlayForcedCard: shared.overlayForcedCard,
+        pinnedCards: sharedState.pinnedCards,
+        pinnedIds: useMemo(() => new Set(sharedState.pinnedCards.map(c => c.id)), [sharedState.pinnedCards]),
+        selectedCard: sharedState.selectedCard,
+        overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayMode !== 'off' ? (sharedState.overlayForcedCard || sharedState.selectedCard) : null),
+        overlayMode: sharedState.overlayMode,
+        overlayDisplayMode: sharedState.overlayDisplayMode,
+        overlayForcedCard: sharedState.overlayForcedCard,
         updateFilter,
         setKeyword,
         togglePin,
         resetPins,
+        reorderPins,
         setSelectedCard,
         setOverlayForcedCard,
         setOverlayDisplayMode,
         toggleOverlayMode,
         toggleOverlayDisplayMode,
-        searchKey: `${shared.filters.keyword}-${shared.filters.color.join(',')}-${shared.filters.cardType.join(',')}-${shared.filters.bloomLevel.join(',')}`
+        searchKey: `${sharedState.filters.keyword}-${sharedState.filters.color.join(',')}-${sharedState.filters.cardType.join(',')}-${sharedState.filters.bloomLevel.join(',')}`
     };
 };
