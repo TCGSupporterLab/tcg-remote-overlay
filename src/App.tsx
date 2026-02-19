@@ -145,6 +145,13 @@ function App() {
         setVideoFlip(data.value);
       }
 
+      if (data.type === 'CLOSE_OVERLAY') {
+        const isOverlay = new URLSearchParams(window.location.search).get('mode') === 'overlay';
+        if (isOverlay) {
+          window.close();
+        }
+      }
+
       if (data.type === 'RESET') {
         setDiceValue(1);
         setCoinValue('表');
@@ -292,28 +299,35 @@ function App() {
   }, [isOverlayMode, gameMode, broadcast]);
 
   const openOverlay = (target: 'window' | 'tab') => {
-    const url = window.location.pathname + '?mode=overlay';
+    // 既存のオーバーレイ（タブ・窓問わず）に閉じるよう通知
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    channel.postMessage({ type: 'CLOSE_OVERLAY' });
 
-    if (target === 'tab') {
-      window.open(url, 'RemoteDuelOverlayTab');
-      return;
-    }
+    // BroadcastChannelが閉じるのを待つ時間が必要な場合があるため、わずかに遅延させる
+    setTimeout(() => {
+      const url = window.location.pathname + '?mode=overlay';
 
-    const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
-    let width = gameMode === 'yugioh' ? 350 : 450;
-    let height = gameMode === 'yugioh' ? 500 : 750;
-    if (savedSizeStr) {
-      try {
-        const saved = JSON.parse(savedSizeStr);
-        width = saved.width || width;
-        height = saved.height || height;
-      } catch (e) { console.error(e); }
-    }
-    window.open(
-      url,
-      'RemoteDuelOverlay',
-      `width=${width},height=${height},location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes`
-    );
+      if (target === 'tab') {
+        window.open(url, 'RemoteDuelOverlayTab');
+        return;
+      }
+
+      const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
+      let width = gameMode === 'yugioh' ? 350 : 450;
+      let height = gameMode === 'yugioh' ? 500 : 750;
+      if (savedSizeStr) {
+        try {
+          const saved = JSON.parse(savedSizeStr);
+          width = saved.width || width;
+          height = saved.height || height;
+        } catch (e) { console.error(e); }
+      }
+      window.open(
+        url,
+        'RemoteDuelOverlayWindow',
+        `width=${width},height=${height},location=no,toolbar=no,menubar=no,status=no,directories=no,resizable=yes`
+      );
+    }, 100);
   };
 
   const toggleObsMode = () => {
