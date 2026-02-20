@@ -73,7 +73,7 @@ export const SPMarkerBadge: React.FC<SPMarkerBadgeProps> = ({ mode, onToggle }) 
                 zIndex: 10,
                 opacity: isActive ? 1 : undefined
             }}
-            title={getNextModeLabel()}
+            title={`${getNextModeLabel()} (Oキーで強制表示/非表示)`}
         >
             {getIcon()}
         </button>

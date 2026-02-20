@@ -18,7 +18,9 @@ function App() {
   const {
     spMarkerMode,
     spMarkerFace,
-    toggleSPMarkerFace
+    toggleSPMarkerFace,
+    toggleSPMarkerForceHidden,
+    showSPMarkerForceHidden
   } = useCardSearch();
 
   const [obsMode, setObsMode] = useState<ObsMode>(() => {
@@ -282,6 +284,10 @@ function App() {
       if (e.key === 'a' || e.key === 'A') {
         toggleAdjustmentMode();
       }
+      if (gameMode === 'hololive' && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault();
+        toggleSPMarkerForceHidden();
+      }
 
       // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
       if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
@@ -337,7 +343,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
     };
-  }, [isOverlayMode, gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode]);
+  }, [isOverlayMode, gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden]);
 
   // Persistence for Overlay Window Size
   useEffect(() => {
@@ -549,7 +555,7 @@ function App() {
             </OverlayWidget>
 
             {/* Independent SP Marker Widget */}
-            {gameMode === 'hololive' && spMarkerMode === 'independent' && (
+            {gameMode === 'hololive' && spMarkerMode === 'independent' && !showSPMarkerForceHidden && (
               <OverlayWidget gameMode="hololive_sp_marker">
                 <SPMarkerWidget
                   face={spMarkerFace}

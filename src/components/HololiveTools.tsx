@@ -112,7 +112,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
         setOverlayForcedCard,
         spMarkerMode,
         spMarkerFace,
-        toggleSPMarkerFace
+        toggleSPMarkerFace,
+        showSPMarkerForceHidden
     } = useCardSearch();
 
     const inputBufferRef = React.useRef("");
@@ -131,7 +132,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
             const digitMatch = e.code.match(/^(?:Digit|Numpad)(\d)$/);
             if (!digitMatch) return;
 
-            e.preventDefault();
             const digit = digitMatch[1];
 
             if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -369,7 +369,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                     )}
 
                     {/* SP Marker: Moved outside to avoid clipping by overflow-hidden container */}
-                    {isOverlayEnabled && spMarkerMode === 'follow' && overlayCard && (
+                    {isOverlayEnabled && spMarkerMode === 'follow' && !showSPMarkerForceHidden && overlayCard && (
                         <div
                             className="absolute z-50 animate-in slide-in-from-bottom-10 duration-500"
                             style={{

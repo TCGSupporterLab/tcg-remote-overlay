@@ -69,6 +69,7 @@ const sharedState = {
     spMarkerMode: (localStorage.getItem('hololive_sp_marker_mode') as 'off' | 'follow' | 'independent') || 'off',
     spMarkerFace: 'front' as 'front' | 'back',
     independentMarkerState: JSON.parse(localStorage.getItem('hololive_sp_marker_independent_state') || '{"px": 0.3, "py": 0.3, "scale": 0.5, "rotation": 0}'),
+    showSPMarkerForceHidden: false, // Oキーによる強制非表示フラグ
     overlayForcedCard: null as Card | null,
     remoteCard: null as Card | null
 };
@@ -89,6 +90,7 @@ const broadcast = () => {
             spMarkerMode: sharedState.spMarkerMode,
             spMarkerFace: sharedState.spMarkerFace,
             independentMarkerState: sharedState.independentMarkerState,
+            showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
             card: effectiveCard
         }
     });
@@ -104,6 +106,7 @@ channel.onmessage = (e) => {
         if (sharedState.spMarkerMode !== state.spMarkerMode) { sharedState.spMarkerMode = state.spMarkerMode; changed = true; }
         if (sharedState.spMarkerFace !== state.spMarkerFace) { sharedState.spMarkerFace = state.spMarkerFace; changed = true; }
         if (JSON.stringify(sharedState.independentMarkerState) !== JSON.stringify(state.independentMarkerState)) { sharedState.independentMarkerState = state.independentMarkerState; changed = true; }
+        if (sharedState.showSPMarkerForceHidden !== state.showSPMarkerForceHidden) { sharedState.showSPMarkerForceHidden = state.showSPMarkerForceHidden; changed = true; }
         if (JSON.stringify(sharedState.pinnedCards) !== JSON.stringify(state.pinnedCards)) { sharedState.pinnedCards = state.pinnedCards; changed = true; }
         if (JSON.stringify(sharedState.remoteCard) !== JSON.stringify(state.card)) { sharedState.remoteCard = state.card; changed = true; }
     } else if (type === 'CMD_SET_FORCED') {
@@ -115,6 +118,7 @@ channel.onmessage = (e) => {
     } else if (type === 'REQ_STATE') {
         if (!IS_OVERLAY) {
             sharedState.spMarkerFace = 'front';
+            sharedState.showSPMarkerForceHidden = false; // Reset force-hidden when a new overlay starts
             broadcast();
         }
     }
@@ -140,6 +144,7 @@ const updateShared = (updates: Partial<typeof sharedState>) => {
             if (k === 'overlayDisplayMode') localStorage.setItem('hololive_overlay_display_mode', sharedState.overlayDisplayMode);
             if (k === 'spMarkerMode') {
                 localStorage.setItem('hololive_sp_marker_mode', sharedState.spMarkerMode);
+                sharedState.showSPMarkerForceHidden = false; // Reset force-hidden when mode changed by badge/click
                 if (updates.spMarkerMode !== 'off') {
                     sharedState.spMarkerFace = 'front'; // Reset to front when enabled
                 }
@@ -153,7 +158,7 @@ const updateShared = (updates: Partial<typeof sharedState>) => {
         if (!IS_OVERLAY) broadcast();
         else if (updates.overlayForcedCard !== undefined) {
             channel.postMessage({ type: 'CMD_SET_FORCED', value: updates.overlayForcedCard });
-        } else if (updates.spMarkerFace !== undefined || updates.independentMarkerState !== undefined) {
+        } else if (updates.spMarkerFace !== undefined || updates.independentMarkerState !== undefined || updates.showSPMarkerForceHidden !== undefined) {
             // Overlay can update face or independent position too, but typically it's from shortcuts or dragging
             // Let's broadcast back if overlay changes these
             channel.postMessage({
@@ -263,6 +268,10 @@ export const useCardSearch = () => {
         updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' });
     }, []);
 
+    const toggleSPMarkerForceHidden = useCallback(() => {
+        updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden });
+    }, []);
+
     const updateIndependentMarkerState = useCallback((s: any) => {
         updateShared({ independentMarkerState: s });
     }, []);
@@ -292,6 +301,8 @@ export const useCardSearch = () => {
         toggleOverlayDisplayMode,
         toggleSPMarkerMode,
         toggleSPMarkerFace,
+        toggleSPMarkerForceHidden,
+        showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
         updateIndependentMarkerState,
         searchKey: `${sharedState.filters.keyword}-${sharedState.filters.color.join(',')}-${sharedState.filters.cardType.join(',')}-${sharedState.filters.bloomLevel.join(',')}`
     };
