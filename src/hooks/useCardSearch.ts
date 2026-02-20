@@ -66,6 +66,7 @@ const sharedState = {
     selectedCard: JSON.parse(localStorage.getItem('hololive_selected_card') || 'null') as Card | null,
     overlayMode: (localStorage.getItem('hololive_overlay_mode') as 'on' | 'off') || 'off',
     overlayDisplayMode: (localStorage.getItem('hololive_overlay_display_mode') as 'image' | 'text') || 'image',
+    spMarkerMode: (localStorage.getItem('hololive_sp_marker_mode') as 'off' | 'follow' | 'independent') || 'off',
     overlayForcedCard: null as Card | null,
     remoteCard: null as Card | null
 };
@@ -95,6 +96,7 @@ channel.onmessage = (e) => {
     if (type === 'SYNC_STATE') {
         if (sharedState.overlayMode !== state.overlayMode) { sharedState.overlayMode = state.overlayMode; changed = true; }
         if (sharedState.overlayDisplayMode !== state.overlayDisplayMode) { sharedState.overlayDisplayMode = state.overlayDisplayMode; changed = true; }
+        if (sharedState.spMarkerMode !== state.spMarkerMode) { sharedState.spMarkerMode = state.spMarkerMode; changed = true; }
         if (JSON.stringify(sharedState.pinnedCards) !== JSON.stringify(state.pinnedCards)) { sharedState.pinnedCards = state.pinnedCards; changed = true; }
         if (JSON.stringify(sharedState.remoteCard) !== JSON.stringify(state.card)) { sharedState.remoteCard = state.card; changed = true; }
     } else if (type === 'CMD_SET_FORCED') {
@@ -126,6 +128,7 @@ const updateShared = (updates: Partial<typeof sharedState>) => {
             if (k === 'selectedCard') localStorage.setItem('hololive_selected_card', JSON.stringify(sharedState.selectedCard));
             if (k === 'overlayMode') localStorage.setItem('hololive_overlay_mode', sharedState.overlayMode);
             if (k === 'overlayDisplayMode') localStorage.setItem('hololive_overlay_display_mode', sharedState.overlayDisplayMode);
+            if (k === 'spMarkerMode') localStorage.setItem('hololive_sp_marker_mode', sharedState.spMarkerMode);
         }
     }
 
@@ -225,6 +228,11 @@ export const useCardSearch = () => {
     const setOverlayDisplayMode = useCallback((mode: 'image' | 'text') => updateShared({ overlayDisplayMode: mode }), []);
     const toggleOverlayMode = useCallback(() => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }), []);
     const toggleOverlayDisplayMode = useCallback(() => updateShared({ overlayDisplayMode: sharedState.overlayDisplayMode === 'image' ? 'text' : 'image' }), []);
+    const toggleSPMarkerMode = useCallback(() => {
+        const modes: Array<'off' | 'follow' | 'independent'> = ['off', 'follow', 'independent'];
+        const nextIndex = (modes.indexOf(sharedState.spMarkerMode) + 1) % modes.length;
+        updateShared({ spMarkerMode: modes[nextIndex] });
+    }, []);
 
     return {
         filters: sharedState.filters,
@@ -235,6 +243,7 @@ export const useCardSearch = () => {
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayMode !== 'off' ? (sharedState.overlayForcedCard || sharedState.selectedCard) : null),
         overlayMode: sharedState.overlayMode,
         overlayDisplayMode: sharedState.overlayDisplayMode,
+        spMarkerMode: sharedState.spMarkerMode,
         overlayForcedCard: sharedState.overlayForcedCard,
         updateFilter,
         setKeyword,
@@ -246,6 +255,7 @@ export const useCardSearch = () => {
         setOverlayDisplayMode,
         toggleOverlayMode,
         toggleOverlayDisplayMode,
+        toggleSPMarkerMode,
         searchKey: `${sharedState.filters.keyword}-${sharedState.filters.color.join(',')}-${sharedState.filters.cardType.join(',')}-${sharedState.filters.bloomLevel.join(',')}`
     };
 };
