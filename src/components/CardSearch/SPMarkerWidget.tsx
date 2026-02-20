@@ -9,11 +9,13 @@ interface SPMarkerWidgetProps {
 export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle, isFollowMode }) => {
     // --- 【調整用】サイズの設定 ---
     // ここを書き換えるだけで、縦横比を保ったままサイズが変わります
-    const FOLLOW_SIZE = 300;      // カード追従モードの大きさ
-    const INDEPENDENT_SIZE = 300; // 独立表示モードの大きさ
+    const FOLLOW_SIZE = 380;      // カード追従モードの大きさ
+    const INDEPENDENT_SIZE = 380; // 独立表示モードの大きさ
     // ----------------------------
 
     const size = isFollowMode ? FOLLOW_SIZE : INDEPENDENT_SIZE;
+    const height = Math.round(size * ((283 + 285) / (481 + 482))); // アスペクト比を元画像の平均に合わせる
+
     const base = import.meta.env.BASE_URL;
     const frontPath = `${base}images/utility/sp_marker_front.png`.replace(/\/+/g, '/');
     const backPath = `${base}images/utility/sp_marker_back.png`.replace(/\/+/g, '/');
@@ -27,12 +29,12 @@ export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle, 
             }}
             style={{
                 width: `${size}px`,
-                height: `${size}px`,
+                height: `${height}px`,
                 perspective: '1000px',
             }}
         >
             <div
-                className="relative w-full h-full transition-transform duration-500 shadow-2xl rounded-full"
+                className="relative w-full h-full transition-transform duration-500 drop-shadow-2xl"
                 style={{
                     transformStyle: 'preserve-3d',
                     transform: face === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -40,7 +42,7 @@ export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle, 
             >
                 {/* Front Side */}
                 <div
-                    className="absolute inset-0 w-full h-full backface-hidden rounded-full overflow-hidden"
+                    className="absolute inset-0 w-full h-full backface-hidden overflow-hidden"
                     style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -55,7 +57,7 @@ export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle, 
 
                 {/* Back Side */}
                 <div
-                    className="absolute inset-0 w-full h-full rounded-full overflow-hidden"
+                    className="absolute inset-0 w-full h-full overflow-hidden"
                     style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',

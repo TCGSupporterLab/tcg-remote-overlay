@@ -90,12 +90,10 @@ const TypeIcon: React.FC<{ color: string; height?: number }> = ({ color, height 
     );
 };
 
-// --- 【調整用】追従モードの位置設定 ---
-// 画像表示、テキスト表示それぞれで高さを調整できます
-export const IMAGE_FOLLOW_OFFSET = '-50px';
-export const TEXT_FOLLOW_OFFSET = '-50px';
-export const OVERLAY_CARD_RADIUS = '17px'; // 角丸の強さ (10px, 20px, etc. で調整可能)
-// ----------------------------------
+// --- 【調整用】追従モードの位置・サイズ設定 ---
+export const OVERLAY_SP_MARKER_BOTTOM = '0px'; // 下端からのオフセット（マイナスで上へ移動）
+export const OVERLAY_CARD_RADIUS = '17px';      // カードの角丸
+// ------------------------------------------
 
 export const HololiveTools: React.FC<HololiveToolsProps> = ({
     isOverlay = false,
@@ -206,7 +204,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                             }}>
 
                             {/* 2. Card/Placeholder Area: Fills the remaining space and centers the content */}
-                            <div className={`flex-1 w-full flex items-center justify-center ${overlayDisplayMode === 'image' ? 'p-0' : 'p-4'}`}>
+                            <div className="flex-1 w-full flex items-center justify-center p-0">
                                 {overlayCard ? (
                                     overlayDisplayMode === 'image' ? (
                                         <div className="h-full aspect-[63/88] overflow-hidden bg-black flex items-center justify-center relative"
@@ -218,7 +216,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                             />
                                         </div>
                                     ) : (
-                                        <div className="overlay-text-container w-full h-[520px] bg-[#111827] border border-white/20 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
+                                        <div className="overlay-text-container w-full h-full bg-[#111827] border border-white/20 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
                                             style={{
                                                 backgroundColor: '#111827',
                                                 padding: '24px',
@@ -375,7 +373,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                         <div
                             className="absolute z-50 animate-in slide-in-from-bottom-10 duration-500"
                             style={{
-                                bottom: overlayDisplayMode === 'image' ? IMAGE_FOLLOW_OFFSET : TEXT_FOLLOW_OFFSET,
+                                bottom: OVERLAY_SP_MARKER_BOTTOM,
                                 left: '50%',
                                 transform: 'translateX(-50%)'
                             }}
