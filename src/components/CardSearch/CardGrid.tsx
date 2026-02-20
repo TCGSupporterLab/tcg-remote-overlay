@@ -41,7 +41,7 @@ const CardItem = React.memo(({
 }) => {
     return (
         <div
-            className={`group relative flex flex-col items-center transition-opacity ${isDragging ? 'opacity-30' : 'opacity-100'}`}
+            className={`group card-hover-group relative flex flex-col items-center transition-opacity ${isDragging ? 'opacity-30' : 'opacity-100'}`}
             onClick={() => onSelect(card)}
             draggable={!!onDragStart}
             onDragStart={onDragStart}
