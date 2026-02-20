@@ -93,6 +93,7 @@ const TypeIcon: React.FC<{ color: string; height?: number }> = ({ color, height 
 // --- 【調整用】追従モードの位置・サイズ設定 ---
 export const OVERLAY_SP_MARKER_BOTTOM = '0px'; // 下端からのオフセット（マイナスで上へ移動）
 export const OVERLAY_CARD_RADIUS = '17px';      // カードの角丸
+export const FOLLOW_MODE_MARKER_ONLY_HEIGHT = '250px'; // カード非表示・マーカーのみの時の仮想的な高さ
 // ------------------------------------------
 
 export const HololiveTools: React.FC<HololiveToolsProps> = ({
@@ -168,9 +169,26 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
         return (
             <div className="relative w-fit h-fit min-w-[400px] pointer-events-auto flex flex-col items-center">
+                {/* 0. Centered Dice/Coin: Shown at the top when the main overlay is OFF */}
+                {!isOverlayEnabled && (
+                    <div className={spMarkerMode === 'follow' ? 'mb-4' : 'mb-8'}>
+                        <OverlayDisplay
+                            diceValue={diceValue}
+                            coinValue={coinValue}
+                            diceKey={diceKey}
+                            coinKey={coinKey}
+                            onDiceClick={onDiceClick}
+                            onCoinClick={onCoinClick}
+                            compact={false}
+                            showCoin={false}
+                            className="pointer-events-auto"
+                        />
+                    </div>
+                )}
+
                 <div className="relative w-fit h-fit">
 
-                    {/* 1. Dice/Coin Overlay: Moved outside the frame to prevent clipping by overflow-hidden */}
+                    {/* 1. Dice/Coin Overlay: Shown when the main overlay is ON */}
                     {isOverlayEnabled && (
                         <div className="absolute inset-0 z-30 flex flex-col items-center pointer-events-none">
                             <div className="flex flex-col items-center w-full h-full transition-all duration-500 justify-start mt-[-25px]">
@@ -191,12 +209,12 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                         </div>
                     )}
 
-                    {/* Card Display Area: Fixed height frame */}
-                    {isOverlayEnabled && (
+                    {/* Card Display Area: Dynamic height frame */}
+                    {(isOverlayEnabled || spMarkerMode === 'follow') && (
                         <div className="overlay-card-frame relative flex flex-col items-center justify-start animate-in zoom-in duration-500 transform"
                             style={{
                                 width: '400px',
-                                height: '560px',
+                                height: isOverlayEnabled ? '560px' : FOLLOW_MODE_MARKER_ONLY_HEIGHT,
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 boxShadow: 'none',
@@ -205,171 +223,173 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                             {/* 2. Card/Placeholder Area: Fills the remaining space and centers the content */}
                             <div className="flex-1 w-full flex items-center justify-center p-0">
-                                {overlayCard ? (
-                                    overlayDisplayMode === 'image' ? (
-                                        <div className="h-full aspect-[63/88] overflow-hidden bg-black flex items-center justify-center relative"
-                                            style={{ borderRadius: OVERLAY_CARD_RADIUS }}>
-                                            <img
-                                                src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
-                                                alt={overlayCard.name}
-                                                className="h-full w-full object-cover scale-100 animate-in fade-in zoom-in duration-300 transition-transform"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="overlay-text-container w-full h-full bg-[#111827] border border-white/20 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
-                                            style={{
-                                                backgroundColor: '#111827',
-                                                padding: '24px',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                boxSizing: 'border-box',
-                                                borderRadius: OVERLAY_CARD_RADIUS
-                                            }}>
-
-                                            {/* Scrollable Main Content */}
-                                            <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ paddingRight: '10px' }}>
-                                                {/* Header */}
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '12px', marginBottom: '12px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        {(overlayCard.cardType?.includes('ホロメン') || overlayCard.cardType === '推しホロメン') && (
-                                                            <TypeIcon color={overlayCard.color} height={45} />
-                                                        )}
-                                                        <div style={{ fontSize: '25px', fontWeight: 'bold', letterSpacing: '0.05em', opacity: 0.9 }}>
-                                                            {(() => {
-                                                                const type = overlayCard.cardType || '';
-                                                                const bloom = overlayCard.bloomLevel || '';
-                                                                if (type.includes('ホロメン') && type !== '推しホロメン') {
-                                                                    return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
-                                                                }
-                                                                if (type.includes('サポート')) {
-                                                                    return type
-                                                                        .replace(/サポート・/g, '')
-                                                                        .replace(/・?LIMITED/g, '')
-                                                                        .replace(/^・+|・+$/g, '')
-                                                                        .trim();
-                                                                }
-                                                                return type;
-                                                            })()}
-                                                        </div>
-                                                    </div>
-                                                    {overlayCard.hp && (
-                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                            <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444', whiteSpace: 'nowrap', lineHeight: 1 }}>
-                                                                {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 12px 0', lineHeight: 1.2, color: '#ffffff' }}>
-                                                        {overlayCard.name}
-                                                    </h2>
-                                                </div>
-
-                                                {/* Skills/Arts/Keywords/Ability (Summary) */}
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                                    {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                                            {overlayCard.oshiSkills.map((skill, i) => (
-                                                                <div key={i} style={{ backgroundColor: 'rgba(30, 58, 138, 0.4)', borderLeft: '4px solid #3b82f6', padding: '12px', borderRadius: '0 4px 4px 0' }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                                                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{skill.label}</span>
-                                                                        <span style={{ fontSize: '11px', backgroundColor: 'rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>ホロパワー: {skill.cost}</span>
-                                                                    </div>
-                                                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#eff6ff', marginBottom: '4px' }}>{skill.name}</div>
-                                                                    <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>{skill.text}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {overlayCard.arts && overlayCard.arts.length > 0 && (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                                            {overlayCard.arts.map((art, i) => (
-                                                                <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                                                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>{art.name}</div>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                                                                {art.costs.map((cost, ci) => (
-                                                                                    <EnergyIcon key={ci} color={cost} size={18} />
-                                                                                ))}
-                                                                            </div>
-                                                                            <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>{art.damage}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                    {art.text && <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>{art.text}</div>}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {overlayCard.keywords && overlayCard.keywords.length > 0 && (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                            {overlayCard.keywords.map((kw, i) => (
-                                                                <div key={i} style={{ fontSize: '13px' }}>
-                                                                    <span style={{ fontWeight: 'bold', color: '#eab308' }}>【{kw.type}：{kw.name}】</span>
-                                                                    <span style={{ opacity: 0.9, marginLeft: '8px' }}>{kw.text}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {overlayCard.abilityText && (
-                                                        <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>
-                                                            {overlayCard.abilityText
-                                                                .replace(/^[◆・]?(LIMITED|imited)\s*/i, '')
-                                                                .replace(/LIMITED：?ターンに[1１]枚しか使えない。?\s*/g, '')
-                                                                .trim()}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                {isOverlayEnabled && (
+                                    overlayCard ? (
+                                        overlayDisplayMode === 'image' ? (
+                                            <div className="h-full aspect-[63/88] overflow-hidden bg-black flex items-center justify-center relative"
+                                                style={{ borderRadius: OVERLAY_CARD_RADIUS }}>
+                                                <img
+                                                    src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
+                                                    alt={overlayCard.name}
+                                                    className="h-full w-full object-cover scale-100 animate-in fade-in zoom-in duration-300 transition-transform"
+                                                />
                                             </div>
+                                        ) : (
+                                            <div className="overlay-text-container w-full h-full bg-[#111827] border border-white/20 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
+                                                style={{
+                                                    backgroundColor: '#111827',
+                                                    padding: '24px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    boxSizing: 'border-box',
+                                                    borderRadius: OVERLAY_CARD_RADIUS
+                                                }}>
 
-                                            {/* Footer Area: Fixed at the bottom */}
-                                            {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
-                                                <div style={{ marginTop: '20px', flexShrink: 0 }}>
-                                                    {overlayCard.extra && (
-                                                        <div style={{ fontSize: '11px', fontStyle: 'italic', opacity: 0.6, marginBottom: '12px', lineHeight: 1.4 }}>
-                                                            {overlayCard.extra}
+                                                {/* Scrollable Main Content */}
+                                                <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ paddingRight: '10px' }}>
+                                                    {/* Header */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '12px', marginBottom: '12px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            {(overlayCard.cardType?.includes('ホロメン') || overlayCard.cardType === '推しホロメン') && (
+                                                                <TypeIcon color={overlayCard.color} height={45} />
+                                                            )}
+                                                            <div style={{ fontSize: '25px', fontWeight: 'bold', letterSpacing: '0.05em', opacity: 0.9 }}>
+                                                                {(() => {
+                                                                    const type = overlayCard.cardType || '';
+                                                                    const bloom = overlayCard.bloomLevel || '';
+                                                                    if (type.includes('ホロメン') && type !== '推しホロメン') {
+                                                                        return `${bloom}${type.includes('Buzz') ? ' Buzz' : ''}`;
+                                                                    }
+                                                                    if (type.includes('サポート')) {
+                                                                        return type
+                                                                            .replace(/サポート・/g, '')
+                                                                            .replace(/・?LIMITED/g, '')
+                                                                            .replace(/^・+|・+$/g, '')
+                                                                            .trim();
+                                                                    }
+                                                                    return type;
+                                                                })()}
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    <div style={{ paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', opacity: 0.8, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                            <div style={{ display: 'flex', gap: '12px' }}>
-                                                                {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
-                                                                    <span key={ti} style={{ color: '#60a5fa', fontWeight: '500', fontSize: '12px' }}>{tag}</span>
+                                                        {overlayCard.hp && (
+                                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444', whiteSpace: 'nowrap', lineHeight: 1 }}>
+                                                                    {overlayCard.cardType === '推しホロメン' ? '❤' : 'HP'} {overlayCard.hp}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 12px 0', lineHeight: 1.2, color: '#ffffff' }}>
+                                                            {overlayCard.name}
+                                                        </h2>
+                                                    </div>
+
+                                                    {/* Skills/Arts/Keywords/Ability (Summary) */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                                        {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                                {overlayCard.oshiSkills.map((skill, i) => (
+                                                                    <div key={i} style={{ backgroundColor: 'rgba(30, 58, 138, 0.4)', borderLeft: '4px solid #3b82f6', padding: '12px', borderRadius: '0 4px 4px 0' }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{skill.label}</span>
+                                                                            <span style={{ fontSize: '11px', backgroundColor: 'rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>ホロパワー: {skill.cost}</span>
+                                                                        </div>
+                                                                        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#eff6ff', marginBottom: '4px' }}>{skill.name}</div>
+                                                                        <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>{skill.text}</div>
+                                                                    </div>
                                                                 ))}
                                                             </div>
-                                                            {(overlayCard.batonTouch || overlayCard.cardType?.includes('ホロメン')) && (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '12px', marginLeft: '4px' }}>
-                                                                    <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)' }}>バトンタッチ</span>
-                                                                    {overlayCard.batonTouch && (
-                                                                        <EnergyIcon color={overlayCard.batonTouch} size={20} />
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                            {overlayCard.limited && <div style={{ color: '#eab308', fontWeight: 'bold', fontSize: '12px', letterSpacing: '0.05em' }}>LIMITED</div>}
-                                                        </div>
+                                                        )}
+
+                                                        {overlayCard.arts && overlayCard.arts.length > 0 && (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                                {overlayCard.arts.map((art, i) => (
+                                                                    <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>{art.name}</div>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                                                    {art.costs.map((cost, ci) => (
+                                                                                        <EnergyIcon key={ci} color={cost} size={18} />
+                                                                                    ))}
+                                                                                </div>
+                                                                                <span className="font-orbitron" style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>{art.damage}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        {art.text && <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>{art.text}</div>}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {overlayCard.keywords && overlayCard.keywords.length > 0 && (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                                {overlayCard.keywords.map((kw, i) => (
+                                                                    <div key={i} style={{ fontSize: '13px' }}>
+                                                                        <span style={{ fontWeight: 'bold', color: '#eab308' }}>【{kw.type}：{kw.name}】</span>
+                                                                        <span style={{ opacity: 0.9, marginLeft: '8px' }}>{kw.text}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {overlayCard.abilityText && (
+                                                            <div style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.9, whiteSpace: 'pre-wrap' }}>
+                                                                {overlayCard.abilityText
+                                                                    .replace(/^[◆・]?(LIMITED|imited)\s*/i, '')
+                                                                    .replace(/LIMITED：?ターンに[1１]枚しか使えない。?\s*/g, '')
+                                                                    .trim()}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            )}
+
+                                                {/* Footer Area: Fixed at the bottom */}
+                                                {(overlayCard.extra || overlayCard.limited || overlayCard.tags) && (
+                                                    <div style={{ marginTop: '20px', flexShrink: 0 }}>
+                                                        {overlayCard.extra && (
+                                                            <div style={{ fontSize: '11px', fontStyle: 'italic', opacity: 0.6, marginBottom: '12px', lineHeight: 1.4 }}>
+                                                                {overlayCard.extra}
+                                                            </div>
+                                                        )}
+                                                        <div style={{ paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', opacity: 0.8, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                                                <div style={{ display: 'flex', gap: '12px' }}>
+                                                                    {overlayCard.tags && overlayCard.tags.split(' ').filter(t => t).map((tag, ti) => (
+                                                                        <span key={ti} style={{ color: '#60a5fa', fontWeight: '500', fontSize: '12px' }}>{tag}</span>
+                                                                    ))}
+                                                                </div>
+                                                                {(overlayCard.batonTouch || overlayCard.cardType?.includes('ホロメン')) && (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '12px', marginLeft: '4px' }}>
+                                                                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)' }}>バトンタッチ</span>
+                                                                        {overlayCard.batonTouch && (
+                                                                            <EnergyIcon color={overlayCard.batonTouch} size={20} />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                                                {overlayCard.limited && <div style={{ color: '#eab308', fontWeight: 'bold', fontSize: '12px', letterSpacing: '0.05em' }}>LIMITED</div>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-white/40 gap-4 animate-pulse transition-transform">
+                                            <Search size={64} strokeWidth={1} />
+                                            <p className="text-xl font-bold tracking-widest font-orbitron">CARD SELECTING...</p>
                                         </div>
                                     )
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center text-white/40 gap-4 animate-pulse transition-transform">
-                                        <Search size={64} strokeWidth={1} />
-                                        <p className="text-xl font-bold tracking-widest font-orbitron">CARD SELECTING...</p>
-                                    </div>
                                 )}
                             </div>
                         </div>
                     )}
 
                     {/* SP Marker: Moved outside to avoid clipping by overflow-hidden container */}
-                    {isOverlayEnabled && spMarkerMode === 'follow' && !showSPMarkerForceHidden && overlayCard && (
+                    {spMarkerMode === 'follow' && !showSPMarkerForceHidden && overlayCard && (
                         <div
                             className="absolute z-50 animate-in slide-in-from-bottom-10 duration-500"
                             style={{
@@ -382,23 +402,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                 face={spMarkerFace}
                                 onToggle={toggleSPMarkerFace}
                                 isFollowMode={true}
-                            />
-                        </div>
-                    )}
-
-                    {/* When Overlay is disabled, just show dice/coin centered below */}
-                    {!isOverlayEnabled && (
-                        <div className="mt-8">
-                            <OverlayDisplay
-                                diceValue={diceValue}
-                                coinValue={coinValue}
-                                diceKey={diceKey}
-                                coinKey={coinKey}
-                                onDiceClick={onDiceClick}
-                                onCoinClick={onCoinClick}
-                                compact={false}
-                                showCoin={false}
-                                className="pointer-events-auto"
                             />
                         </div>
                     )}

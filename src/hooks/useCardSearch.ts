@@ -84,7 +84,7 @@ const channel = new BroadcastChannel('remote_duel_sync');
 
 const broadcast = () => {
     if (IS_OVERLAY) return;
-    const effectiveCard = (sharedState.overlayMode !== 'off') ? (sharedState.overlayForcedCard || sharedState.selectedCard) : null;
+    const effectiveCard = (sharedState.overlayForcedCard || sharedState.selectedCard);
     channel.postMessage({
         type: 'SYNC_STATE', state: {
             overlayMode: sharedState.overlayMode,
@@ -292,7 +292,7 @@ export const useCardSearch = () => {
         pinnedCards: sharedState.pinnedCards,
         pinnedUniqueKeys: useMemo(() => new Set(sharedState.pinnedCards.map(c => `${c.id}-${c.imageUrl}`)), [sharedState.pinnedCards]),
         selectedCard: sharedState.selectedCard,
-        overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayMode !== 'off' ? (sharedState.overlayForcedCard || sharedState.selectedCard) : null),
+        overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayForcedCard || sharedState.selectedCard),
         overlayMode: sharedState.overlayMode,
         overlayDisplayMode: sharedState.overlayDisplayMode,
         spMarkerMode: sharedState.spMarkerMode,
