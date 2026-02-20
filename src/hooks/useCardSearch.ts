@@ -21,8 +21,11 @@ export interface Card {
     extra?: string;
     limited?: boolean;
     batonTouch?: string;
+    kana?: string;
     _normName?: string;
     _hiraName?: string;
+    _pureName?: string;
+    _pureHira?: string;
     _joinedText?: string;
 }
 
@@ -192,13 +195,16 @@ export const useCardSearch = () => {
                 resolvedImageUrl = base + path;
             }
             const normName = normalizeText(card.name);
+            const normKana = card.kana ? normalizeText(card.kana) : '';
+            const combinedNorm = normName + (normKana ? ' ' + normKana : '');
+
             return {
                 ...card,
                 resolvedImageUrl,
-                _normName: normName,
-                _hiraName: toHiragana(normName),
-                _pureName: removeSymbols(normName),
-                _pureHira: removeSymbols(toHiragana(normName))
+                _normName: combinedNorm,
+                _hiraName: toHiragana(combinedNorm),
+                _pureName: removeSymbols(combinedNorm),
+                _pureHira: removeSymbols(toHiragana(combinedNorm))
             };
         });
     }, []);
@@ -240,8 +246,12 @@ export const useCardSearch = () => {
 
     const setKeyword = useCallback((keyword: string) => updateShared({ filters: { ...sharedState.filters, keyword } }), []);
     const togglePin = useCallback((card: Card) => {
-        const exists = sharedState.pinnedCards.some(c => c.id === card.id);
-        if (exists) updateShared({ pinnedCards: sharedState.pinnedCards.filter(c => c.id !== card.id) });
+        const exists = sharedState.pinnedCards.some(c => c.id === card.id && c.imageUrl === card.imageUrl);
+        if (exists) {
+            updateShared({
+                pinnedCards: sharedState.pinnedCards.filter(c => !(c.id === card.id && c.imageUrl === card.imageUrl))
+            });
+        }
         else if (sharedState.pinnedCards.length < 1000) updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
         else alert('ピン留めできるのは1000枚までです。');
     }, []);
@@ -280,7 +290,7 @@ export const useCardSearch = () => {
         filters: sharedState.filters,
         filteredCards,
         pinnedCards: sharedState.pinnedCards,
-        pinnedIds: useMemo(() => new Set(sharedState.pinnedCards.map(c => c.id)), [sharedState.pinnedCards]),
+        pinnedUniqueKeys: useMemo(() => new Set(sharedState.pinnedCards.map(c => `${c.id}-${c.imageUrl}`)), [sharedState.pinnedCards]),
         selectedCard: sharedState.selectedCard,
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayMode !== 'off' ? (sharedState.overlayForcedCard || sharedState.selectedCard) : null),
         overlayMode: sharedState.overlayMode,

@@ -4,7 +4,7 @@ import { CardGrid } from './CardGrid';
 
 interface SearchTabProps {
     filteredCards: Card[];
-    pinnedIds: Set<string>;
+    pinnedUniqueKeys: Set<string>;
     searchKey: string;
     onTogglePin: (card: Card) => void;
     onSelect: (card: Card) => void;
@@ -21,7 +21,7 @@ const ITEMS_PER_PAGE = 50; // Increased for better fill
 
 export const SearchTab = React.forwardRef<SearchTabHandle, SearchTabProps>(({
     filteredCards,
-    pinnedIds,
+    pinnedUniqueKeys,
     searchKey,
     onTogglePin,
     onSelect,
@@ -88,7 +88,7 @@ export const SearchTab = React.forwardRef<SearchTabHandle, SearchTabProps>(({
         >
             <CardGrid
                 cards={visibleCards}
-                pinnedIds={pinnedIds}
+                pinnedUniqueKeys={pinnedUniqueKeys}
                 onPin={onTogglePin}
                 onSelect={onSelect}
                 selectedId={selectedId}

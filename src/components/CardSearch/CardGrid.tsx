@@ -4,7 +4,7 @@ import { PinBadge } from './PinBadge';
 
 interface CardGridProps {
     cards: Card[];
-    pinnedIds: Set<string>;
+    pinnedUniqueKeys: Set<string>;
     onPin: (card: Card) => void;
     onSelect: (card: Card) => void;
     onReorder?: (startIndex: number, endIndex: number) => void;
@@ -43,6 +43,7 @@ const CardItem = React.memo(({
         <div
             className={`group card-hover-group relative flex flex-col items-center transition-opacity ${isDragging ? 'opacity-30' : 'opacity-100'}`}
             onClick={() => onSelect(card)}
+            onDoubleClick={() => onPin(card)}
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
@@ -100,7 +101,7 @@ CardItem.displayName = 'CardItem';
 export const CardGrid: React.FC<CardGridProps> = ({
     cards,
     onPin,
-    pinnedIds,
+    pinnedUniqueKeys,
     onSelect,
     onReorder,
     selectedId,
@@ -178,7 +179,7 @@ export const CardGrid: React.FC<CardGridProps> = ({
                 <CardItem
                     key={`${card.id}-${card.imageUrl}`}
                     card={card}
-                    isPinned={pinnedIds.has(card.id)}
+                    isPinned={pinnedUniqueKeys.has(`${card.id}-${card.imageUrl}`)}
                     isSelected={selectedId === card.id && (selectedImageUrl ? card.imageUrl === selectedImageUrl : true)}
                     onPin={onPin}
                     onSelect={onSelect}

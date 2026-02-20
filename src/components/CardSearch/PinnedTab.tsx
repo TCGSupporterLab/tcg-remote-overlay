@@ -5,7 +5,7 @@ import { Trash2, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 
 interface PinnedTabProps {
     pinnedCards: Card[];
-    pinnedIds: Set<string>;
+    pinnedUniqueKeys: Set<string>;
     onTogglePin: (card: Card) => void;
     onSelect: (card: Card) => void;
     onResetPins: () => void;
@@ -21,7 +21,7 @@ export interface PinnedTabHandle {
 
 export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
     pinnedCards,
-    pinnedIds,
+    pinnedUniqueKeys,
     onTogglePin,
     onSelect,
     onResetPins,
@@ -114,7 +114,7 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
                     ) : (
                         <CardGrid
                             cards={pinnedCards}
-                            pinnedIds={pinnedIds}
+                            pinnedUniqueKeys={pinnedUniqueKeys}
                             onPin={onTogglePin}
                             onSelect={onSelect}
                             onReorder={onReorderPins}

@@ -16,7 +16,7 @@ export const CardSearchContainer: React.FC = () => {
         searchKey,
         filteredCards,
         pinnedCards,
-        pinnedIds,
+        pinnedUniqueKeys,
         selectedCard,
         overlayMode,
         updateFilter,
@@ -79,7 +79,8 @@ export const CardSearchContainer: React.FC = () => {
                 {selectedCard ? (
                     <div className="flex flex-col h-full animate-in fade-in duration-300">
                         {/* Enlarged Image Area */}
-                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center card-hover-group overflow-hidden"
+                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center card-hover-group overflow-hidden cursor-pointer"
+                            onDoubleClick={() => selectedCard && togglePin(selectedCard)}
                             style={{ borderRadius: OVERLAY_CARD_RADIUS }}>
                             <img
                                 src={selectedCard.resolvedImageUrl || selectedCard.imageUrl}
@@ -90,7 +91,7 @@ export const CardSearchContainer: React.FC = () => {
 
                             {/* Detail View Pin Badge (Hover) */}
                             <PinBadge
-                                isPinned={pinnedIds.has(selectedCard.id)}
+                                isPinned={pinnedUniqueKeys.has(`${selectedCard.id}-${selectedCard.imageUrl}`)}
                                 onToggle={() => selectedCard && togglePin(selectedCard)}
                             />
 
@@ -174,7 +175,7 @@ export const CardSearchContainer: React.FC = () => {
                             <SearchTab
                                 ref={searchTabRef}
                                 filteredCards={filteredCards}
-                                pinnedIds={pinnedIds}
+                                pinnedUniqueKeys={pinnedUniqueKeys}
                                 searchKey={searchKey}
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
@@ -185,7 +186,7 @@ export const CardSearchContainer: React.FC = () => {
                             <PinnedTab
                                 ref={pinnedTabRef}
                                 pinnedCards={pinnedCards}
-                                pinnedIds={pinnedIds}
+                                pinnedUniqueKeys={pinnedUniqueKeys}
                                 onTogglePin={togglePin}
                                 onSelect={setSelectedCard}
                                 onResetPins={resetPins}
