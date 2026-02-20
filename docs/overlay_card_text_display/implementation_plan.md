@@ -1,46 +1,48 @@
-# オーバーレイ・カードテキスト表示実装計画
+# オーバ�Eレイ・カードテキスト表示実裁E��画
 
-オーバーレイ画面において、カード画像の代わりに詳細なテキスト情報を表示する機能を実装します。
+オーバ�Eレイ画面において、カード画像�E代わりに詳細なチE��スト情報を表示する機�Eを実裁E��ます、E
 
-## 修正内容
+## 修正冁E��
 
 ### [Hook] useCardSearch フック
-#### [MODIFY] [useCardSearch.ts](file:///f:/dev/github/RemoteDuelTool/src/hooks/useCardSearch.ts)
-- `Card` インターフェースを更新し、今回追加した詳細フィールド（`oshiSkills`, `arts`, `keywords`, `abilityText`, `extra`, `limited`）を型定義に含めます。
-- `overlayDisplayMode` 状態（`'image' | 'text'`）を追加します。
-- `localStorage` への保存および、`BroadcastChannel` を通じた同期ロジックを追加します。
-- `toggleOverlayDisplayMode` 関数をエクスポートします。
+#### [MODIFY] [useCardSearch.ts](file:///f:/dev/github/tcg-remote-overlay/src/hooks/useCardSearch.ts)
+- `Card` インターフェースを更新し、今回追加した詳細フィールド！EoshiSkills`, `arts`, `keywords`, `abilityText`, `extra`, `limited`�E�を型定義に含めます、E
+- `overlayDisplayMode` 状態！E'image' | 'text'`�E�を追加します、E
+- `localStorage` への保存およ�E、`BroadcastChannel` を通じた同期ロジチE��を追加します、E
+- `toggleOverlayDisplayMode` 関数をエクスポ�Eトします、E
 
 ### [Component] コントローラー UI
-#### [NEW] [DisplayModeBadge.tsx](file:///f:/dev/github/RemoteDuelTool/src/components/CardSearch/DisplayModeBadge.tsx)
-- 画像モードとテキストモードを切り替えるトグルボタンを作成します。
-- **UI仕様**: 現在のモードに対応するアイコン（画像モードなら `Image`, テキストモードなら `Type`）を表示し、一目で現在の状態が分かるようにします。
-- 配置場所: `OverlayBadge` の左隣（詳細表示エリア）。
+#### [NEW] [DisplayModeBadge.tsx](file:///f:/dev/github/tcg-remote-overlay/src/components/CardSearch/DisplayModeBadge.tsx)
+- 画像モードとチE��ストモードを刁E��替えるトグルボタンを作�Eします、E
+- **UI仕槁E*: 現在のモードに対応するアイコン�E�画像モードなめE`Image`, チE��ストモードなめE`Type`�E�を表示し、一目で現在の状態が刁E��るよぁE��します、E
+- 配置場所: `OverlayBadge` の左隣�E�詳細表示エリア�E�、E
 
-#### [MODIFY] [CardSearchContainer.tsx](file:///f:/dev/github/RemoteDuelTool/src/components/CardSearch/CardSearchContainer.tsx)
-- `DisplayModeBadge` をインポートし、詳細表示エリアに配置します。
+#### [MODIFY] [CardSearchContainer.tsx](file:///f:/dev/github/tcg-remote-overlay/src/components/CardSearch/CardSearchContainer.tsx)
+- `DisplayModeBadge` をインポ�Eトし、詳細表示エリアに配置します、E
 
-### [Component] オーバーレイ UI
-#### [MODIFY] [HololiveTools.tsx](file:///f:/dev/github/RemoteDuelTool/src/components/HololiveTools.tsx)
-- `isOverlay` 部において `overlayDisplayMode` を参照します。
-- モードが `'text'` の場合、カード詳細（名前、タイプ、HP、スキル、アーツ、注釈等）を表示する新しいレイアウトを実装します。
-- **反転表示の継承**: `overlayMode === 'rotated'` の場合、テキストレイアウト全体を180度回転させて表示します（画像表示時の挙動と一貫性を持たせます）。
-- **OBSモードへの最適化**: `obsMode` が `'transparent'` または `'green'` の場合、カード外枠の境界線（`border`）とシャドウ（`box-shadow`）を非表示にし、背景を不透明な暗色に固定することで、クロマキー合成時の視認性と美観を確保します。
-- 既存のフレームサイズ（`minWidth: '350px'`, `minHeight: '520px'`）は維持します。
+### [Component] オーバ�Eレイ UI
+#### [MODIFY] [HololiveTools.tsx](file:///f:/dev/github/tcg-remote-overlay/src/components/HololiveTools.tsx)
+- `isOverlay` 部において `overlayDisplayMode` を参照します、E
+- モードが `'text'` の場合、カード詳細�E�名前、タイプ、HP、スキル、アーチE��注釈等）を表示する新しいレイアウトを実裁E��ます、E
+- **反転表示の継承**: `overlayMode === 'rotated'` の場合、テキストレイアウト�E体を180度回転させて表示します（画像表示時�E挙動と一貫性を持たせます）、E
+- **OBSモードへの最適匁E*: `obsMode` ぁE`'transparent'` また�E `'green'` の場合、カード外枠の墁E��線！Eborder`�E�とシャドウ�E�Ebox-shadow`�E�を非表示にし、背景を不透�Eな暗色に固定することで、クロマキー合�E時�E視認性と美観を確保します、E
+- 既存�Eフレームサイズ�E�EminWidth: '350px'`, `minHeight: '520px'`�E��E維持します、E
 
 ## 検証計画
 
-### 自動テスト
-- なし
+### 自動テスチE
+- なぁE
 
-### 手動確認
-1. コントローラーとオーバーレイ窓（`?mode=overlay`）を開く。
-2. カードを選択する。
-3. コントローラーで「表示モード」を切り替える。
-4. オーバーレイ窓が即座に画像とテキストで切り替わることを確認。
-5. テキスト表示時、以下の項目が正しく表示されることを確認：
-    - 推しホロメン: 推しスキル
-    - ホロメン: アーツ、キーワード
-    - サポート: 能力テキスト
-    - その他: 注釈（Extra）
-6. 「回転表示」がテキスト表示時にも適用されることを確認。
+### 手動確誁E
+1. コントローラーとオーバ�Eレイ窓！E?mode=overlay`�E�を開く、E
+2. カードを選択する、E
+3. コントローラーで「表示モード」を刁E��替える、E
+4. オーバ�Eレイ窓が即座に画像とチE��ストで刁E��替わることを確認、E
+5. チE��スト表示時、以下�E頁E��が正しく表示されることを確認！E
+    - 推し�Eロメン: 推しスキル
+    - ホロメン: アーチE��キーワーチE
+    - サポ�EチE 能力テキスチE
+    - そ�E仁E 注釈！Extra�E�E
+6. 「回転表示」がチE��スト表示時にも適用されることを確認、E
+
+

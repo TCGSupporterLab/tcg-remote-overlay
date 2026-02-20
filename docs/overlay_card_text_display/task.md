@@ -23,3 +23,4 @@
 - [x] Update `CardSearchContainer.tsx` with new badge
 - [x] Implement text renderer in `HololiveTools.tsx`
 - [x] Verification on overlay screen
+

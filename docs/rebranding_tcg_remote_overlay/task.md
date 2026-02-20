@@ -1,12 +1,13 @@
 # Task: Rebranding to TCG Remote Overlay
 
-商標リスク回避およびプロジェクトのビジョン拡大のため、プロジェクト全体のリブランディングを行う。
+啁E��リスク回避およびプロジェクト�Eビジョン拡大のため、�Eロジェクト�E体�EリブランチE��ングを行う、E
 
-## ステータス
-- [x] 新名称の決定: `TCG Remote Overlay`
-- [x] 新組織名の決定: `TCGSupporterLab`
-- [x] コード内の文字列置換 (App.tsx, README.md, package.json, vite.config.ts)
+## スチE�Eタス
+- [x] 新名称の決宁E `TCG Remote Overlay`
+- [x] 新絁E��名の決宁E `TCGSupporterLab`
+- [x] コード�Eの斁E���E置揁E(App.tsx, README.md, package.json, vite.config.ts)
 - [x] 同期チャンネル・localStorageキーの更新
-- [x] 仕様書ドキュメントの更新
-- [ ] GitHub組織・リポジトリ名の変更 (ユーザー作業)
-- [ ] ローカルのリモートURL更新 (ユーザー作業)
+- [x] 仕様書ドキュメント�E更新
+- [ ] GitHub絁E���Eリポジトリ名�E変更 (ユーザー作業)
+- [ ] ローカルのリモーチERL更新 (ユーザー作業)
+

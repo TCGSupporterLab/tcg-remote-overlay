@@ -1,38 +1,40 @@
-# リブランディング実装計画書: TCG Remote Overlay
+# リブランチE��ング実裁E��画書: TCG Remote Overlay
 
-## 1. 概要
-- **目的**: 商標リスク（Remote Duel）の回避、および汎用的なTCG支援ツールとしてのリブランディング。
+## 1. 概要E
+- **目皁E*: 啁E��リスク�E�Eemote Duel�E��E回避、およ�E汎用皁E��TCG支援チE�EルとしてのリブランチE��ング、E
 - **新名称**: `TCG Remote Overlay`
-- **新組織名**: `TCGSupporterLab`
-- **リポジトリ名**: `tcg-remote-overlay`
+- **新絁E��名**: `TCGSupporterLab`
+- **リポジトリ吁E*: `tcg-remote-overlay`
 
-## 2. 変更内容
+## 2. 変更冁E��
 
 ### A. 表示名称の変更
 - `Remote Duel Tool` -> `TCG Remote Overlay`
 - `Remote Duel Overlay` -> `TCG Remote Overlay`
 
-### B. 内部識別子の変更 (同期・保存)
-同期の衝突を避け、クリーンな環境に移行するため、接頭辞を変更する。
+### B. 冁E��識別子�E変更 (同期・保孁E
+同期の衝突を避け、クリーンな環墁E��移行するため、接頭辞を変更する、E
 - `remote_duel_sync` -> `tcg_remote_sync`
 - `remote_duel_sync_yugioh` -> `tcg_remote_sync_yugioh`
 - `remote_duel_*` (localStorage) -> `tcg_remote_*`
-  - ※ 移行をスムーズにするため、古いキーがある場合はフォールバックとして読み込む処理を追加。
+  - ※ 移行をスムーズにするため、古ぁE��ーがある場合�Eフォールバックとして読み込む処琁E��追加、E
 
-### C. プロジェクト設定の変更
-- `package.json`: `name` を `tcg-remote-overlay` に変更。
-- `vite.config.ts`: `base` を `/tcg-remote-overlay/` に変更（GitHub Pages用）。
-- `index.html`: タイトルタグを更新。
+### C. プロジェクト設定�E変更
+- `package.json`: `name` めE`tcg-remote-overlay` に変更、E
+- `vite.config.ts`: `base` めE`/tcg-remote-overlay/` に変更�E�EitHub Pages用�E�、E
+- `index.html`: タイトルタグを更新、E
 
-### D. ドキュメントの更新
-- `README.md`: タイトル、クローン用URL、説明文を更新。
-- `docs/system_specifications/`: 全体の名称を更新。
+### D. ドキュメント�E更新
+- `README.md`: タイトル、クローン用URL、説明文を更新、E
+- `docs/system_specifications/`: 全体�E名称を更新、E
 
 ## 3. 追加作業 (ユーザー側)
-以下の手順はGitHub上での操作が必要なため、ユーザーに依頼する。
+以下�E手頁E�EGitHub上での操作が忁E��なため、ユーザーに依頼する、E
 1. GitHub Organization の名称変更 (`RemoteDuelDev` -> `TCGSupporterLab`)
-2. リポジトリ名の変更 (`RemoteDuelTool` -> `tcg-remote-overlay`)
+2. リポジトリ名�E変更 (`tcg-remote-overlay` -> `tcg-remote-overlay`)
 3. ローカルの `git remote` の更新:
    ```bash
    git remote set-url origin https://github.com/TCGSupporterLab/tcg-remote-overlay.git
    ```
+
+
