@@ -1,7 +1,7 @@
-# RemoteDuelTool システム仕様書
+# TCG Remote Overlay システム仕様書
 
 ## 概要
-RemoteDuelToolは、リモート環境でのカードゲーム対戦をサポートするためのWebアプリケーションです。
+TCG Remote Overlayは、リモート環境でのカードゲーム対戦をサポートするためのWebアプリケーションです。
 ライフポイントの管理、ダイス・コインのシミュレーション、カードデータの検索、およびOBS等の配信ソフトに統合するためのオーバーレイ機能を提供します。
 
 ## ドキュメント構成
@@ -16,7 +16,7 @@ RemoteDuelToolは、リモート環境でのカードゲーム対戦をサポー
 
 ### 2. [ホロライブOCGツール仕様 (Hololive Toolset)](./features/hololive_toolset.md)
 - カード検索エンジン（正規化、ひらがな対応、複数条件フィルタ）
-- ピン留め機能（最大100枚制限）
+- ピン留め機能（最大1,000枚制限）
 - ライフポイント管理とオーバーレイ同期
 
 ### 3. [遊戯王ツール仕様 (Yu-Gi-Oh! Toolset)](./features/yugioh_toolset.md)

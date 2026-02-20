@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Move, Maximize2, RotateCw } from 'lucide-react';
 
 interface WidgetState {
@@ -44,7 +44,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
 
         localStorage.setItem(`overlay_widget_v4_${gameMode}`, JSON.stringify(state));
 
-        const channel = new BroadcastChannel('remote_duel_sync');
+        const channel = new BroadcastChannel('tcg_remote_sync');
         channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state } });
         channel.close();
     }, [state, gameMode, isDragging, isResizing, isRotating]);
@@ -67,7 +67,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
 
     // Listen for sync
     useEffect(() => {
-        const channel = new BroadcastChannel('remote_duel_sync');
+        const channel = new BroadcastChannel('tcg_remote_sync');
         channel.onmessage = (event) => {
             if (event.data.type === 'WIDGET_STATE_UPDATE' && event.data.value.gameMode === gameMode) {
                 if (!isDragging && !isResizing && !isRotating) {
@@ -180,8 +180,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
         };
     }, [isDragging, isResizing, isRotating, winSize]);
 
-    const REFERENCE_HEIGHT = 720;
-    const finalScale = useMemo(() => state.scale * (winSize.h / REFERENCE_HEIGHT), [state.scale, winSize.h]);
+    const finalScale = state.scale;
     const shouldDisableTransition = isDragging || isResizing || isRotating || isWindowResizing;
 
     const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 });

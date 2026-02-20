@@ -11,7 +11,7 @@ interface PlayerState {
 }
 
 const INITIAL_LIFE = 8000;
-const CHANNEL_NAME = 'remote_duel_sync_yugioh';
+const CHANNEL_NAME = 'tcg_remote_sync_yugioh';
 
 interface YugiohToolsProps {
     isOverlay?: boolean;

@@ -80,7 +80,7 @@ const sharedState = {
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach(l => l());
 
-const channel = new BroadcastChannel('remote_duel_sync');
+const channel = new BroadcastChannel('tcg_remote_sync');
 
 const broadcast = () => {
     if (IS_OVERLAY) return;

@@ -15,7 +15,7 @@ export type SharedState = {
     ocrResult: string;
 };
 
-const CHANNEL_NAME = 'remote_duel_sync';
+const CHANNEL_NAME = 'tcg_remote_sync';
 
 export const useSharedState = (initialState: SharedState) => {
     const [state, setState] = useState<SharedState>(initialState);

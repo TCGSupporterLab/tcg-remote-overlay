@@ -13,6 +13,7 @@ export const DisplayModeBadge: React.FC<DisplayModeBadgeProps> = ({ mode, onTogg
                 e.stopPropagation();
                 onToggle(e);
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             className={`absolute display-mode-badge p-1.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200
                 ${mode === 'text' ? 'bg-indigo-600 text-white' : 'bg-black/60 text-white hover:bg-indigo-600'}
             `}

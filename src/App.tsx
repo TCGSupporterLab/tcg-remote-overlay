@@ -12,7 +12,7 @@ type GameMode = 'yugioh' | 'hololive';
 type ObsMode = 'normal' | 'green';
 
 // Simple BroadcastChannel implementation for sync
-const CHANNEL_NAME = 'remote_duel_sync';
+const CHANNEL_NAME = 'tcg_remote_sync';
 
 function App() {
   const {
@@ -24,15 +24,15 @@ function App() {
   } = useCardSearch();
 
   const [obsMode, setObsMode] = useState<ObsMode>(() => {
-    const saved = (localStorage.getItem('remote_duel_obs_mode') as ObsMode);
+    const saved = (localStorage.getItem('tcg_remote_obs_mode') || localStorage.getItem('remote_duel_obs_mode')) as ObsMode;
     return saved || 'normal';
   });
   const [isOverlayMode, setIsOverlayMode] = useState(false);
   const [videoSource, setVideoSource] = useState<VideoSourceType>(() => {
-    return (localStorage.getItem('remote_duel_video_source') as VideoSourceType) || 'none';
+    return (localStorage.getItem('tcg_remote_video_source') || localStorage.getItem('remote_duel_video_source')) as VideoSourceType || 'none';
   });
   const [videoCrop, setVideoCrop] = useState<CropConfig>(() => {
-    const saved = localStorage.getItem('remote_duel_video_crop');
+    const saved = localStorage.getItem('tcg_remote_video_crop') || localStorage.getItem('remote_duel_video_crop');
     return saved ? JSON.parse(saved) : { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
   });
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
@@ -57,22 +57,22 @@ function App() {
 
   // Persist OBS mode & Video settings
   useEffect(() => {
-    localStorage.setItem('remote_duel_obs_mode', obsMode);
+    localStorage.setItem('tcg_remote_obs_mode', obsMode);
   }, [obsMode]);
 
   useEffect(() => {
-    localStorage.setItem('remote_duel_video_source', videoSource);
+    localStorage.setItem('tcg_remote_video_source', videoSource);
   }, [videoSource]);
 
   // Shared State
   const [gameMode, setGameMode] = useState<GameMode>(() => {
-    const saved = localStorage.getItem('remote_duel_game_mode');
+    const saved = localStorage.getItem('tcg_remote_game_mode') || localStorage.getItem('remote_duel_game_mode');
     return (saved as GameMode) || 'yugioh';
   });
 
   // Persist gameMode
   useEffect(() => {
-    localStorage.setItem('remote_duel_game_mode', gameMode);
+    localStorage.setItem('tcg_remote_game_mode', gameMode);
   }, [gameMode]);
 
   // Persistent Tool State
@@ -112,9 +112,9 @@ function App() {
     const isOverlay = params.get('mode') === 'overlay';
     if (isOverlay) {
       setIsOverlayMode(true);
-      document.title = 'Remote Duel Overlay';
+      document.title = 'TCG Remote Overlay';
     } else {
-      document.title = 'Remote Duel Tool';
+      document.title = 'TCG Remote Overlay - Controller';
     }
 
     // Setup Sync
@@ -251,7 +251,7 @@ function App() {
   const handleCropChange = useCallback((config: CropConfig) => {
     setVideoCrop(config);
     broadcast('VIDEO_CROP', config);
-    localStorage.setItem('remote_duel_video_crop', JSON.stringify(config));
+    localStorage.setItem('tcg_remote_video_crop', JSON.stringify(config));
   }, [broadcast]);
 
   const toggleAdjustmentMode = () => {
@@ -264,6 +264,7 @@ function App() {
     const defaultConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
     setVideoCrop(defaultConfig);
     broadcast('VIDEO_CROP', defaultConfig);
+    localStorage.removeItem('tcg_remote_video_crop');
     localStorage.removeItem('remote_duel_video_crop');
   }, [broadcast]);
 
@@ -352,7 +353,7 @@ function App() {
       const handler = (event: MessageEvent) => {
         if (event.data.type === 'OVERLAY_RESIZE') {
           const { mode, width, height } = event.data.value;
-          localStorage.setItem(`remote_duel_overlay_size_${mode}`, JSON.stringify({ width, height }));
+          localStorage.setItem(`tcg_remote_overlay_size_${mode}`, JSON.stringify({ width, height }));
         }
       };
       channel.addEventListener('message', handler);
@@ -403,7 +404,7 @@ function App() {
         return;
       }
 
-      const savedSizeStr = localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
+      const savedSizeStr = localStorage.getItem(`tcg_remote_overlay_size_${gameMode}`) || localStorage.getItem(`remote_duel_overlay_size_${gameMode}`);
       let width = gameMode === 'yugioh' ? 350 : 450;
       let height = gameMode === 'yugioh' ? 500 : 750;
       if (savedSizeStr) {
@@ -444,7 +445,7 @@ function App() {
         <>
           <header className="flex justify-between items-center mb-4 p-2 bg-panel rounded-lg">
             <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
-              Remote Duel Tool
+              TCG Remote Overlay
               <span className="text-xs font-normal opacity-50">v1.0.0</span>
             </h1>
 

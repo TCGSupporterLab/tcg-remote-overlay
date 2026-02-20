@@ -13,6 +13,7 @@ export const PinBadge: React.FC<PinBadgeProps> = ({ isPinned, onToggle }) => {
                 e.stopPropagation();
                 onToggle(e);
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             className={`absolute pin-badge p-1.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200
                 ${isPinned
                     ? 'bg-yellow-500 text-white'

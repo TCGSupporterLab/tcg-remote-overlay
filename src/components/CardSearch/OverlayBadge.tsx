@@ -15,6 +15,7 @@ export const OverlayBadge: React.FC<OverlayBadgeProps> = ({ mode, onToggle }) =>
                 e.stopPropagation();
                 onToggle(e);
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             className={`absolute overlay-badge p-1.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200
                 ${mode === 'on' ? 'bg-blue-600 text-white' : 'bg-black/60 text-white hover:bg-blue-600'}
             `}
