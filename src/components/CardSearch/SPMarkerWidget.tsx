@@ -7,18 +7,27 @@ interface SPMarkerWidgetProps {
 }
 
 export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle, isFollowMode }) => {
+    // --- 【調整用】サイズの設定 ---
+    // ここを書き換えるだけで、縦横比を保ったままサイズが変わります
+    const FOLLOW_SIZE = 300;      // カード追従モードの大きさ
+    const INDEPENDENT_SIZE = 300; // 独立表示モードの大きさ
+    // ----------------------------
+
+    const size = isFollowMode ? FOLLOW_SIZE : INDEPENDENT_SIZE;
     const base = import.meta.env.BASE_URL;
     const frontPath = `${base}images/utility/sp_marker_front.png`.replace(/\/+/g, '/');
     const backPath = `${base}images/utility/sp_marker_back.png`.replace(/\/+/g, '/');
 
     return (
         <div
-            className={`relative cursor-pointer transition-all duration-300 ${isFollowMode ? 'w-[100px] h-[100px]' : 'w-[180px] h-[180px]'}`}
+            className="relative cursor-pointer transition-all duration-300"
             onClick={(e) => {
                 e.stopPropagation();
                 onToggle();
             }}
             style={{
+                width: `${size}px`,
+                height: `${size}px`,
                 perspective: '1000px',
             }}
         >

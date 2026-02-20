@@ -86,19 +86,14 @@
 
 /* Ensure card frame in overlay is ALWAYS opaque and borderless in OBS */
 .overlay-card-frame {
-  background-color: #111827 !important;
   opacity: 1 !important;
   outline: none !important;
-  border: 1px solid rgba(203, 213, 225, 0.5) !important;
-  /* slate-300 with transparency for a crisp white edge */
-  border-radius: 24px !important;
-  /* rounded-3xl equivalent */
+  background-color: transparent !important;
+  border: none !important;
 }
 
 .overlay-text-container {
-  background-color: #111827 !important;
   opacity: 1 !important;
-  border-radius: 12px !important;
 }
 
 /* Remove default borders when in overlay mode to avoid "annoying rectangles" EXCEPT for the card frame itself */

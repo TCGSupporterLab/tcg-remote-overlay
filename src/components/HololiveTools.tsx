@@ -90,6 +90,13 @@ const TypeIcon: React.FC<{ color: string; height?: number }> = ({ color, height 
     );
 };
 
+// --- 【調整用】追従モードの位置設定 ---
+// 画像表示、テキスト表示それぞれで高さを調整できます
+export const IMAGE_FOLLOW_OFFSET = '-50px';
+export const TEXT_FOLLOW_OFFSET = '-50px';
+export const OVERLAY_CARD_RADIUS = '17px'; // 角丸の強さ (10px, 20px, etc. で調整可能)
+// ----------------------------------
+
 export const HololiveTools: React.FC<HololiveToolsProps> = ({
     isOverlay = false,
     diceValue = 1,
@@ -188,43 +195,37 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                     {/* Card Display Area: Fixed height frame */}
                     {isOverlayEnabled && (
-                        <div className="overlay-card-frame relative flex flex-col items-center justify-start rounded-3xl animate-in zoom-in duration-500 transform overflow-hidden"
+                        <div className="overlay-card-frame relative flex flex-col items-center justify-start animate-in zoom-in duration-500 transform"
                             style={{
                                 width: '400px',
                                 height: '560px',
-                                backgroundColor: overlayDisplayMode === 'image' ? 'transparent' : '#111827',
-                                border: overlayDisplayMode === 'image' ? 'none' : `1px solid rgba(203, 213, 225, 0.4)`,
-                                boxShadow: 'none'
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                boxShadow: 'none',
+                                borderRadius: OVERLAY_CARD_RADIUS
                             }}>
 
                             {/* 2. Card/Placeholder Area: Fills the remaining space and centers the content */}
                             <div className={`flex-1 w-full flex items-center justify-center ${overlayDisplayMode === 'image' ? 'p-0' : 'p-4'}`}>
                                 {overlayCard ? (
                                     overlayDisplayMode === 'image' ? (
-                                        <div className="relative h-full w-full flex items-center justify-center">
+                                        <div className="h-full aspect-[63/88] overflow-hidden bg-black flex items-center justify-center relative"
+                                            style={{ borderRadius: OVERLAY_CARD_RADIUS }}>
                                             <img
                                                 src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
                                                 alt={overlayCard.name}
-                                                className="h-full w-full object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform"
+                                                className="h-full w-full object-cover scale-100 animate-in fade-in zoom-in duration-300 transition-transform"
                                             />
-                                            {spMarkerMode === 'follow' && (
-                                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-500">
-                                                    <SPMarkerWidget
-                                                        face={spMarkerFace}
-                                                        onToggle={toggleSPMarkerFace}
-                                                        isFollowMode={true}
-                                                    />
-                                                </div>
-                                            )}
                                         </div>
                                     ) : (
-                                        <div className="overlay-text-container w-full h-[520px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
+                                        <div className="overlay-text-container w-full h-[520px] bg-[#111827] border border-white/20 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
                                             style={{
                                                 backgroundColor: '#111827',
                                                 padding: '24px',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                boxSizing: 'border-box'
+                                                boxSizing: 'border-box',
+                                                borderRadius: OVERLAY_CARD_RADIUS
                                             }}>
 
                                             {/* Scrollable Main Content */}
@@ -357,15 +358,6 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     </div>
                                                 </div>
                                             )}
-                                            {spMarkerMode === 'follow' && (
-                                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-500">
-                                                    <SPMarkerWidget
-                                                        face={spMarkerFace}
-                                                        onToggle={toggleSPMarkerFace}
-                                                        isFollowMode={true}
-                                                    />
-                                                </div>
-                                            )}
                                         </div>
                                     )
                                 ) : (
@@ -375,6 +367,24 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    )}
+
+                    {/* SP Marker: Moved outside to avoid clipping by overflow-hidden container */}
+                    {isOverlayEnabled && spMarkerMode === 'follow' && overlayCard && (
+                        <div
+                            className="absolute z-50 animate-in slide-in-from-bottom-10 duration-500"
+                            style={{
+                                bottom: overlayDisplayMode === 'image' ? IMAGE_FOLLOW_OFFSET : TEXT_FOLLOW_OFFSET,
+                                left: '50%',
+                                transform: 'translateX(-50%)'
+                            }}
+                        >
+                            <SPMarkerWidget
+                                face={spMarkerFace}
+                                onToggle={toggleSPMarkerFace}
+                                isFollowMode={true}
+                            />
                         </div>
                     )}
 
