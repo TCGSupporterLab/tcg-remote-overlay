@@ -71,6 +71,8 @@ function App() {
   const [diceKey, setDiceKey] = useState<number>(0);
   const [coinKey, setCoinKey] = useState<number>(0);
   const [resetKey, setResetKey] = useState<number>(0);
+  const lastDotTapRef = useRef<number>(0);
+  const dotTimerRef = useRef<number | null>(null);
 
   // Ref to access latest state in callback (for sync)
   const gameModeRef = useRef<GameMode>(gameMode);
@@ -272,11 +274,45 @@ function App() {
       if (e.key === 'a' || e.key === 'A') {
         toggleAdjustmentMode();
       }
+
+      // Numpad "." (Roll Dice / Double tap for Coin)
+      if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
+        e.preventDefault();
+        const now = Date.now();
+        const diff = now - lastDotTapRef.current;
+
+        if (gameMode === 'yugioh') {
+          if (diff > 0 && diff < 150) {
+            // Double tap!
+            if (dotTimerRef.current) {
+              window.clearTimeout(dotTimerRef.current);
+              dotTimerRef.current = null;
+            }
+            handleFlipCoin();
+            lastDotTapRef.current = 0; // Reset
+          } else {
+            // First tap or outside double-tap window
+            lastDotTapRef.current = now;
+            if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
+            dotTimerRef.current = window.setTimeout(() => {
+              handleRollDice();
+              dotTimerRef.current = null;
+              lastDotTapRef.current = 0;
+            }, 150);
+          }
+        } else {
+          // Hololive mode: immediate roll
+          handleRollDice();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOverlayMode, handleRollDice, handleFlipCoin, videoSource, toggleAdjustmentMode]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
+    };
+  }, [isOverlayMode, gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode]);
 
   // Persistence for Overlay Window Size
   useEffect(() => {
