@@ -17,8 +17,8 @@ export const DisplayModeBadge: React.FC<DisplayModeBadgeProps> = ({ mode, onTogg
                 ${mode === 'text' ? 'bg-indigo-600 text-white' : 'bg-black/60 text-white hover:bg-indigo-600'}
             `}
             style={{
-                top: '6px',
-                left: '42px', // Positioned to the right of OverlayBadge (6px + 30px size + margin)
+                top: '42px',
+                left: '6px', // Positioned below OverlayBadge
                 zIndex: 10,
             }}
             title={

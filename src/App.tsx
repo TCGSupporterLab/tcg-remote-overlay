@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, RefreshCw, ExternalLink, Camera, Monitor, Maximize } from 'lucide-react';
 import { YugiohTools } from './components/YugiohTools';
 import { HololiveTools } from './components/HololiveTools';
+import { useCardSearch } from './hooks/useCardSearch';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { OverlayWidget } from './components/OverlayWidget';
+import { SPMarkerWidget } from './components/CardSearch/SPMarkerWidget';
 import './App.css';
 
 type GameMode = 'yugioh' | 'hololive';
@@ -13,6 +15,12 @@ type ObsMode = 'normal' | 'green';
 const CHANNEL_NAME = 'remote_duel_sync';
 
 function App() {
+  const {
+    spMarkerMode,
+    spMarkerFace,
+    toggleSPMarkerFace
+  } = useCardSearch();
+
   const [obsMode, setObsMode] = useState<ObsMode>(() => {
     const saved = (localStorage.getItem('remote_duel_obs_mode') as ObsMode);
     return saved || 'normal';
@@ -275,7 +283,7 @@ function App() {
         toggleAdjustmentMode();
       }
 
-      // Numpad "." (Roll Dice / Double tap for Coin)
+      // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
       if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
         e.preventDefault();
         const now = Date.now();
@@ -301,8 +309,25 @@ function App() {
             }, 150);
           }
         } else {
-          // Hololive mode: immediate roll
-          handleRollDice();
+          // Hololive mode
+          if (diff > 0 && diff < 200) {
+            // Double tap!
+            if (dotTimerRef.current) {
+              window.clearTimeout(dotTimerRef.current);
+              dotTimerRef.current = null;
+            }
+            toggleSPMarkerFace();
+            lastDotTapRef.current = 0; // Reset
+          } else {
+            // First tap
+            lastDotTapRef.current = now;
+            if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
+            dotTimerRef.current = window.setTimeout(() => {
+              handleRollDice();
+              dotTimerRef.current = null;
+              lastDotTapRef.current = 0;
+            }, 200);
+          }
         }
       }
     };
@@ -494,33 +519,46 @@ function App() {
 
       <main className={`flex-1 flex flex-col ${!isOverlayMode ? 'bg-panel border border-border rounded-lg p-4 mb-4' : ''} overflow-hidden relative`}>
         {isOverlayMode ? (
-          <OverlayWidget gameMode={gameMode}>
-            {gameMode === 'yugioh' ? (
-              <YugiohTools
-                key={`yugioh-${resetKey}`}
-                isOverlay={true}
-                diceValue={diceValue}
-                coinValue={coinValue}
-                diceKey={diceKey}
-                coinKey={coinKey}
-                onDiceClick={handleRollDice}
-                onCoinClick={handleFlipCoin}
-                obsMode={obsMode}
-              />
-            ) : (
-              <HololiveTools
-                key={`hololive-${resetKey}`}
-                isOverlay={true}
-                diceValue={diceValue}
-                coinValue={coinValue}
-                diceKey={diceKey}
-                coinKey={coinKey}
-                onDiceClick={handleRollDice}
-                onCoinClick={handleFlipCoin}
-                obsMode={obsMode}
-              />
+          <>
+            <OverlayWidget gameMode={gameMode}>
+              {gameMode === 'yugioh' ? (
+                <YugiohTools
+                  key={`yugioh-${resetKey}`}
+                  isOverlay={true}
+                  diceValue={diceValue}
+                  coinValue={coinValue}
+                  diceKey={diceKey}
+                  coinKey={coinKey}
+                  onDiceClick={handleRollDice}
+                  onCoinClick={handleFlipCoin}
+                  obsMode={obsMode}
+                />
+              ) : (
+                <HololiveTools
+                  key={`hololive-${resetKey}`}
+                  isOverlay={true}
+                  diceValue={diceValue}
+                  coinValue={coinValue}
+                  diceKey={diceKey}
+                  coinKey={coinKey}
+                  onDiceClick={handleRollDice}
+                  onCoinClick={handleFlipCoin}
+                  obsMode={obsMode}
+                />
+              )}
+            </OverlayWidget>
+
+            {/* Independent SP Marker Widget */}
+            {gameMode === 'hololive' && spMarkerMode === 'independent' && (
+              <OverlayWidget gameMode="hololive_sp_marker">
+                <SPMarkerWidget
+                  face={spMarkerFace}
+                  onToggle={toggleSPMarkerFace}
+                  isFollowMode={false}
+                />
+              </OverlayWidget>
             )}
-          </OverlayWidget>
+          </>
         ) : (
           gameMode === 'yugioh' ? (
             <YugiohTools

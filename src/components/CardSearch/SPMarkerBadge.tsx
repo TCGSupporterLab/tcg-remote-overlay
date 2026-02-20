@@ -66,9 +66,9 @@ export const SPMarkerBadge: React.FC<SPMarkerBadgeProps> = ({ mode, onToggle }) 
                 ${getBgColor()}
             `}
             style={{
-                top: '6px',
-                left: '78px',
-                width: '26px',
+                top: '78px',
+                left: '6px',
+                width: '30px',
                 height: '26px',
                 zIndex: 10,
                 opacity: isActive ? 1 : undefined

@@ -3,6 +3,7 @@ import { RotateCcw, Search } from 'lucide-react';
 import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import { OverlayDisplay } from './OverlayDisplay';
 import { useCardSearch } from '../hooks/useCardSearch';
+import { SPMarkerWidget } from './CardSearch/SPMarkerWidget';
 
 interface HololiveToolsProps {
     isOverlay?: boolean;
@@ -103,7 +104,10 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
         overlayMode,
         overlayDisplayMode,
         pinnedCards,
-        setOverlayForcedCard
+        setOverlayForcedCard,
+        spMarkerMode,
+        spMarkerFace,
+        toggleSPMarkerFace
     } = useCardSearch();
 
     const inputBufferRef = React.useRef("");
@@ -197,13 +201,24 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                             <div className={`flex-1 w-full flex items-center justify-center ${overlayDisplayMode === 'image' ? 'p-0' : 'p-4'}`}>
                                 {overlayCard ? (
                                     overlayDisplayMode === 'image' ? (
-                                        <img
-                                            src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
-                                            alt={overlayCard.name}
-                                            className="h-full w-full object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform"
-                                        />
+                                        <div className="relative h-full w-full flex items-center justify-center">
+                                            <img
+                                                src={overlayCard.resolvedImageUrl || overlayCard.imageUrl}
+                                                alt={overlayCard.name}
+                                                className="h-full w-full object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-300 transition-transform"
+                                            />
+                                            {spMarkerMode === 'follow' && (
+                                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-500">
+                                                    <SPMarkerWidget
+                                                        face={spMarkerFace}
+                                                        onToggle={toggleSPMarkerFace}
+                                                        isFollowMode={true}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : (
-                                        <div className="overlay-text-container w-full h-[520px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform"
+                                        <div className="overlay-text-container w-full h-[520px] bg-[#111827] rounded-lg border border-white/10 text-white flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 transition-transform relative"
                                             style={{
                                                 backgroundColor: '#111827',
                                                 padding: '24px',
@@ -340,6 +355,15 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                             {overlayCard.limited && <div style={{ color: '#eab308', fontWeight: 'bold', fontSize: '12px', letterSpacing: '0.05em' }}>LIMITED</div>}
                                                         </div>
                                                     </div>
+                                                </div>
+                                            )}
+                                            {spMarkerMode === 'follow' && (
+                                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-500">
+                                                    <SPMarkerWidget
+                                                        face={spMarkerFace}
+                                                        onToggle={toggleSPMarkerFace}
+                                                        isFollowMode={true}
+                                                    />
                                                 </div>
                                             )}
                                         </div>

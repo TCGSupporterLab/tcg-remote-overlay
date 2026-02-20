@@ -67,6 +67,8 @@ const sharedState = {
     overlayMode: (localStorage.getItem('hololive_overlay_mode') as 'on' | 'off') || 'off',
     overlayDisplayMode: (localStorage.getItem('hololive_overlay_display_mode') as 'image' | 'text') || 'image',
     spMarkerMode: (localStorage.getItem('hololive_sp_marker_mode') as 'off' | 'follow' | 'independent') || 'off',
+    spMarkerFace: 'front' as 'front' | 'back',
+    independentMarkerState: JSON.parse(localStorage.getItem('hololive_sp_marker_independent_state') || '{"px": 0.3, "py": 0.3, "scale": 0.5, "rotation": 0}'),
     overlayForcedCard: null as Card | null,
     remoteCard: null as Card | null
 };
@@ -84,6 +86,9 @@ const broadcast = () => {
             overlayMode: sharedState.overlayMode,
             overlayDisplayMode: sharedState.overlayDisplayMode,
             pinnedCards: sharedState.pinnedCards,
+            spMarkerMode: sharedState.spMarkerMode,
+            spMarkerFace: sharedState.spMarkerFace,
+            independentMarkerState: sharedState.independentMarkerState,
             card: effectiveCard
         }
     });
@@ -97,6 +102,8 @@ channel.onmessage = (e) => {
         if (sharedState.overlayMode !== state.overlayMode) { sharedState.overlayMode = state.overlayMode; changed = true; }
         if (sharedState.overlayDisplayMode !== state.overlayDisplayMode) { sharedState.overlayDisplayMode = state.overlayDisplayMode; changed = true; }
         if (sharedState.spMarkerMode !== state.spMarkerMode) { sharedState.spMarkerMode = state.spMarkerMode; changed = true; }
+        if (sharedState.spMarkerFace !== state.spMarkerFace) { sharedState.spMarkerFace = state.spMarkerFace; changed = true; }
+        if (JSON.stringify(sharedState.independentMarkerState) !== JSON.stringify(state.independentMarkerState)) { sharedState.independentMarkerState = state.independentMarkerState; changed = true; }
         if (JSON.stringify(sharedState.pinnedCards) !== JSON.stringify(state.pinnedCards)) { sharedState.pinnedCards = state.pinnedCards; changed = true; }
         if (JSON.stringify(sharedState.remoteCard) !== JSON.stringify(state.card)) { sharedState.remoteCard = state.card; changed = true; }
     } else if (type === 'CMD_SET_FORCED') {
@@ -106,7 +113,10 @@ channel.onmessage = (e) => {
             broadcast();
         }
     } else if (type === 'REQ_STATE') {
-        if (!IS_OVERLAY) broadcast();
+        if (!IS_OVERLAY) {
+            sharedState.spMarkerFace = 'front';
+            broadcast();
+        }
     }
 
     if (changed) notify();
@@ -128,7 +138,13 @@ const updateShared = (updates: Partial<typeof sharedState>) => {
             if (k === 'selectedCard') localStorage.setItem('hololive_selected_card', JSON.stringify(sharedState.selectedCard));
             if (k === 'overlayMode') localStorage.setItem('hololive_overlay_mode', sharedState.overlayMode);
             if (k === 'overlayDisplayMode') localStorage.setItem('hololive_overlay_display_mode', sharedState.overlayDisplayMode);
-            if (k === 'spMarkerMode') localStorage.setItem('hololive_sp_marker_mode', sharedState.spMarkerMode);
+            if (k === 'spMarkerMode') {
+                localStorage.setItem('hololive_sp_marker_mode', sharedState.spMarkerMode);
+                if (updates.spMarkerMode !== 'off') {
+                    sharedState.spMarkerFace = 'front'; // Reset to front when enabled
+                }
+            }
+            if (k === 'independentMarkerState') localStorage.setItem('hololive_sp_marker_independent_state', JSON.stringify(sharedState.independentMarkerState));
         }
     }
 
@@ -137,6 +153,15 @@ const updateShared = (updates: Partial<typeof sharedState>) => {
         if (!IS_OVERLAY) broadcast();
         else if (updates.overlayForcedCard !== undefined) {
             channel.postMessage({ type: 'CMD_SET_FORCED', value: updates.overlayForcedCard });
+        } else if (updates.spMarkerFace !== undefined || updates.independentMarkerState !== undefined) {
+            // Overlay can update face or independent position too, but typically it's from shortcuts or dragging
+            // Let's broadcast back if overlay changes these
+            channel.postMessage({
+                type: 'SYNC_STATE', state: {
+                    ...sharedState,
+                    card: sharedState.remoteCard // Ensure remoteCard is sent as 'card'
+                }
+            });
         }
     }
 };
@@ -234,6 +259,14 @@ export const useCardSearch = () => {
         updateShared({ spMarkerMode: modes[nextIndex] });
     }, []);
 
+    const toggleSPMarkerFace = useCallback(() => {
+        updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' });
+    }, []);
+
+    const updateIndependentMarkerState = useCallback((s: any) => {
+        updateShared({ independentMarkerState: s });
+    }, []);
+
     return {
         filters: sharedState.filters,
         filteredCards,
@@ -244,6 +277,8 @@ export const useCardSearch = () => {
         overlayMode: sharedState.overlayMode,
         overlayDisplayMode: sharedState.overlayDisplayMode,
         spMarkerMode: sharedState.spMarkerMode,
+        spMarkerFace: sharedState.spMarkerFace,
+        independentMarkerState: sharedState.independentMarkerState,
         overlayForcedCard: sharedState.overlayForcedCard,
         updateFilter,
         setKeyword,
@@ -256,6 +291,8 @@ export const useCardSearch = () => {
         toggleOverlayMode,
         toggleOverlayDisplayMode,
         toggleSPMarkerMode,
+        toggleSPMarkerFace,
+        updateIndependentMarkerState,
         searchKey: `${sharedState.filters.keyword}-${sharedState.filters.color.join(',')}-${sharedState.filters.cardType.join(',')}-${sharedState.filters.bloomLevel.join(',')}`
     };
 };
