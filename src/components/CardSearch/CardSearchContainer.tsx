@@ -91,23 +91,22 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
                 {selectedCard ? (
                     <div className="flex flex-col h-full animate-in fade-in duration-300">
                         {/* Enlarged Image Area */}
-                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center card-hover-group overflow-hidden cursor-pointer"
-                            onDoubleClick={() => selectedCard && togglePin(selectedCard)}
-                            style={{ borderRadius: OVERLAY_CARD_RADIUS }}>
-                            <img
-                                src={selectedCard.resolvedImageUrl || selectedCard.imageUrl}
-                                alt={selectedCard.name}
-                                className="max-w-full max-h-full object-contain drop-shadow-2xl"
-                                style={{ borderRadius: OVERLAY_CARD_RADIUS }}
-                            />
+                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden"
+                            onDoubleClick={() => selectedCard && togglePin(selectedCard)}>
+                            <div className="relative w-fit h-fit flex items-center justify-center card-hover-group" style={{ borderRadius: OVERLAY_CARD_RADIUS }}>
+                                <img
+                                    src={selectedCard.resolvedImageUrl || selectedCard.imageUrl}
+                                    alt={selectedCard.name}
+                                    className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                                    style={{ borderRadius: OVERLAY_CARD_RADIUS }}
+                                />
 
-                            {/* Detail View Pin Badge (Hover) */}
-                            <PinBadge
-                                isPinned={pinnedUniqueKeys.has(`${selectedCard.id}-${selectedCard.imageUrl}`)}
-                                onToggle={() => selectedCard && togglePin(selectedCard)}
-                            />
-
-
+                                {/* Detail View Pin Badge (Hover) */}
+                                <PinBadge
+                                    isPinned={pinnedUniqueKeys.has(`${selectedCard.id}-${selectedCard.imageUrl}`)}
+                                    onToggle={() => selectedCard && togglePin(selectedCard)}
+                                />
+                            </div>
                         </div>
                     </div>
                 ) : (
