@@ -26,7 +26,8 @@ function App() {
     verifyPermissionAndScan,
     mergeSameNameCards,
     toggleMergeSameNameCards,
-    folderMetadataMap
+    folderMetadataMap,
+    isLoading
   } = useLocalCards();
 
   const {
@@ -255,8 +256,8 @@ function App() {
         <div className="flex-1 rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative">
           <CardSearchContainer localCards={cards} metadataOrder={metadataOrder} folderMetadataMap={folderMetadataMap} />
 
-          {/* Scanning/Loading Overlay when already granted */}
-          {isScanning && hasAccess && (
+          {/* Scanning/Loading Overlay when already granted or checking */}
+          {(isScanning || isLoading) && (hasAccess || !rootHandle) && (
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
@@ -272,7 +273,7 @@ function App() {
           )}
 
           {/* Helper overlay for standalone mode */}
-          {!hasAccess && (
+          {!hasAccess && !isScanning && !isLoading && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center text-center p-6 px-12">
               <div className="bg-[#1a1c2e] p-8 rounded-3xl border border-white/20 shadow-2xl max-w-sm animate-in zoom-in-95 duration-300">
                 <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-500/20">
