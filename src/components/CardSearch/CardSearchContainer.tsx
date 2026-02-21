@@ -90,13 +90,6 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
         }
     };
 
-    const handleNavigateUp = () => {
-        if (!currentPath) return;
-        const parts = currentPath.split('/');
-        parts.pop();
-        setCurrentPath(parts.join('/'));
-    };
-
     return (
         <div className="flex h-full w-full bg-gray-900 text-gray-100 overflow-hidden relative">
             {/* LEFT SIDEBAR: Detail View Only */}
@@ -153,19 +146,28 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
             {/* RIGHT MAIN AREA: Tabs & Content */}
             <div className="flex-1 flex flex-col min-w-0 bg-gray-900">
                 {/* File System Path / Breadcrumbs */}
-                {currentPath && (
-                    <div className="flex-none p-2 bg-gray-800 border-b border-gray-700 flex items-center gap-2">
-                        <button
-                            onClick={handleNavigateUp}
-                            className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-                        >
-                            ↑ 上の階層へ
-                        </button>
-                        <span className="text-xs text-cyan-400 font-mono overflow-hidden text-ellipsis whitespace-nowrap">
-                            ROOT/{currentPath}
-                        </span>
-                    </div>
-                )}
+                <div className="flex-none p-2 bg-gray-800 border-b border-gray-700 flex items-center gap-1 overflow-x-auto scrollbar-none no-scrollbar">
+                    <button
+                        onClick={() => setCurrentPath('')}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${!currentPath ? 'text-cyan-400 font-bold bg-cyan-400/10' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                    >
+                        ROOT
+                    </button>
+                    {currentPath.split('/').filter(Boolean).map((part, idx, arr) => (
+                        <React.Fragment key={idx}>
+                            <span className="text-gray-600 text-[10px] mx-[5px]">/</span>
+                            <button
+                                onClick={() => {
+                                    const path = arr.slice(0, idx + 1).join('/');
+                                    setCurrentPath(path);
+                                }}
+                                className={`text-xs px-2 py-1 rounded transition-colors whitespace-nowrap ${idx === arr.length - 1 ? 'text-cyan-400 font-bold bg-cyan-400/5' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                {part}
+                            </button>
+                        </React.Fragment>
+                    ))}
+                </div>
 
                 {/* Header / Tabs */}
                 <div className="flex-none bg-gray-800 border-b border-gray-700 flex items-center">
