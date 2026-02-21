@@ -113,6 +113,8 @@ export const useCardSearch = (
         return () => { listeners.delete(forceUpdate); };
     }, [forceUpdate]);
 
+
+
     const activeFolderMetadata = useMemo(() => {
         let path = sharedState.currentPath;
         while (true) {
@@ -151,6 +153,41 @@ export const useCardSearch = (
             } as Card;
         });
     }, [localCards]);
+
+    // Refresh pinned and selected cards when local data changes (due to Blob URL expiration)
+    useEffect(() => {
+        if (normalizedData.length === 0) return;
+
+        let needsUpdate = false;
+        const updates: Partial<SharedState> = {};
+
+        // Refresh Selected Card
+        if (sharedState.selectedCard) {
+            const fresh = normalizedData.find(c => c.id === sharedState.selectedCard?.id);
+            if (fresh && fresh.imageUrl !== sharedState.selectedCard.imageUrl) {
+                updates.selectedCard = fresh;
+                needsUpdate = true;
+            }
+        }
+
+        // Refresh Pinned Cards
+        const nextPins = sharedState.pinnedCards.map(p => {
+            const fresh = normalizedData.find(c => c.id === p.id);
+            if (fresh && fresh.imageUrl !== p.imageUrl) {
+                needsUpdate = true;
+                return fresh;
+            }
+            return p;
+        });
+
+        if (needsUpdate) {
+            if (updates.selectedCard) {
+                updateShared({ ...updates, pinnedCards: nextPins });
+            } else {
+                updateShared({ pinnedCards: nextPins });
+            }
+        }
+    }, [normalizedData]);
 
     const filteredCards = useMemo(() => {
         if (normalizedData.length === 0) return [];
