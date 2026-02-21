@@ -4,9 +4,6 @@ import { SearchTab } from './SearchTab';
 import { PinnedTab } from './PinnedTab';
 import { FilterPanel } from './FilterPanel';
 import { PinBadge } from './PinBadge';
-import { OverlayBadge } from './OverlayBadge';
-import { DisplayModeBadge } from './DisplayModeBadge';
-import { SPMarkerBadge } from './SPMarkerBadge';
 import { Search, Pin } from 'lucide-react';
 import { OVERLAY_CARD_RADIUS } from '../HololiveTools';
 import type { LocalCard } from '../../hooks/useLocalCards';
@@ -30,18 +27,12 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
         pinnedCards,
         pinnedUniqueKeys,
         selectedCard,
-        overlayMode,
         updateFilter,
         setKeyword,
         togglePin,
         resetPins,
         reorderPins,
         setSelectedCard,
-        toggleOverlayMode,
-        overlayDisplayMode,
-        toggleOverlayDisplayMode,
-        spMarkerMode,
-        toggleSPMarkerMode,
         dynamicFilterOptions
     } = useCardSearch(localCards, folderMetadataMap);
 
@@ -116,23 +107,7 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
                                 onToggle={() => selectedCard && togglePin(selectedCard)}
                             />
 
-                            {/* Detail View Overlay Badge (Hover) */}
-                            <OverlayBadge
-                                mode={overlayMode}
-                                onToggle={() => toggleOverlayMode()}
-                            />
 
-                            {/* Detail View Display Mode Badge (Hover) */}
-                            <DisplayModeBadge
-                                mode={overlayDisplayMode}
-                                onToggle={() => toggleOverlayDisplayMode()}
-                            />
-
-                            {/* Detail View SP Marker Badge (Hover) */}
-                            <SPMarkerBadge
-                                mode={spMarkerMode}
-                                onToggle={() => toggleSPMarkerMode()}
-                            />
                         </div>
                     </div>
                 ) : (
