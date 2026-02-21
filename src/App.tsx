@@ -255,6 +255,22 @@ function App() {
         <div className="flex-1 rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative">
           <CardSearchContainer localCards={cards} metadataOrder={metadataOrder} folderMetadataMap={folderMetadataMap} />
 
+          {/* Scanning/Loading Overlay when already granted */}
+          {isScanning && hasAccess && (
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
+                  <Layers size={24} className="absolute inset-0 m-auto text-blue-400 opacity-50" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-white font-bold tracking-wider">カードを読み込み中...</span>
+                  <span className="text-gray-400 text-[10px] uppercase tracking-[0.2em]">Synchronizing Collection</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Helper overlay for standalone mode */}
           {!hasAccess && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center text-center p-6 px-12">
