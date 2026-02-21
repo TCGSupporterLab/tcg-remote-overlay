@@ -219,8 +219,15 @@ export const useCardSearch = (
         const targetKeys = Object.keys(activeOrder);
         if (targetKeys.length === 0) return {};
         const options: Record<string, Set<string>> = {};
-        const relevant = sharedState.filters.keyword ? normalizedData : filteredCards;
-        relevant.forEach(c => {
+
+        // フィルタ（キーワード以外）によって選択肢が消えないよう、
+        // キーワード検索時は全データから、そうでない時は「現在の階層の全カード」から抽出する
+        let sourceCards = normalizedData;
+        if (!sharedState.filters.keyword && sharedState.currentPath) {
+            sourceCards = normalizedData.filter(c => c.path?.startsWith(sharedState.currentPath + '/'));
+        }
+
+        sourceCards.forEach(c => {
             if (c.isFolder) return;
             Object.keys(c).forEach(key => {
                 if (excludeKeys.includes(key) || !targetKeys.includes(key)) return;
