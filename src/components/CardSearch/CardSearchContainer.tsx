@@ -9,11 +9,23 @@ import { DisplayModeBadge } from './DisplayModeBadge';
 import { SPMarkerBadge } from './SPMarkerBadge';
 import { Search, Pin } from 'lucide-react';
 import { OVERLAY_CARD_RADIUS } from '../HololiveTools';
+import type { LocalCard } from '../../hooks/useLocalCards';
 
-export const CardSearchContainer: React.FC = () => {
+export interface CardSearchContainerProps {
+    localCards?: LocalCard[];
+    metadataOrder?: Record<string, string[]>;
+    folderMetadataMap?: Map<string, any>;
+}
+
+export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
+    localCards = [],
+    folderMetadataMap = new Map()
+}) => {
     const {
         filters,
         searchKey,
+        currentPath,
+        setCurrentPath,
         filteredCards,
         pinnedCards,
         pinnedUniqueKeys,
@@ -29,11 +41,11 @@ export const CardSearchContainer: React.FC = () => {
         overlayDisplayMode,
         toggleOverlayDisplayMode,
         spMarkerMode,
-        toggleSPMarkerMode
-    } = useCardSearch();
+        toggleSPMarkerMode,
+        dynamicFilterOptions
+    } = useCardSearch(localCards, folderMetadataMap);
 
     const [activeTab, setActiveTab] = useState<'search' | 'pinned'>('search');
-
 
     const searchTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
     const pinnedTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
@@ -68,6 +80,22 @@ export const CardSearchContainer: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
+
+    const handleSelectCard = (card: any) => {
+        if (card.isFolder) {
+            setCurrentPath(card.folderPath || '');
+            setActiveTab('search');
+        } else {
+            setSelectedCard(card);
+        }
+    };
+
+    const handleNavigateUp = () => {
+        if (!currentPath) return;
+        const parts = currentPath.split('/');
+        parts.pop();
+        setCurrentPath(parts.join('/'));
+    };
 
     return (
         <div className="flex h-full w-full bg-gray-900 text-gray-100 overflow-hidden relative">
@@ -124,6 +152,21 @@ export const CardSearchContainer: React.FC = () => {
 
             {/* RIGHT MAIN AREA: Tabs & Content */}
             <div className="flex-1 flex flex-col min-w-0 bg-gray-900">
+                {/* File System Path / Breadcrumbs */}
+                {currentPath && (
+                    <div className="flex-none p-2 bg-gray-800 border-b border-gray-700 flex items-center gap-2">
+                        <button
+                            onClick={handleNavigateUp}
+                            className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                        >
+                            ↑ 上の階層へ
+                        </button>
+                        <span className="text-xs text-cyan-400 font-mono overflow-hidden text-ellipsis whitespace-nowrap">
+                            ROOT/{currentPath}
+                        </span>
+                    </div>
+                )}
+
                 {/* Header / Tabs */}
                 <div className="flex-none bg-gray-800 border-b border-gray-700 flex items-center">
                     <button
@@ -161,6 +204,7 @@ export const CardSearchContainer: React.FC = () => {
                         <div className="flex-none bg-gray-900 border-b border-gray-700 p-2 z-10">
                             <FilterPanel
                                 filters={filters}
+                                options={dynamicFilterOptions}
                                 onUpdate={updateFilter}
                                 onKeywordChange={setKeyword}
                                 onScrollTop={handleScrollTop}
@@ -178,7 +222,7 @@ export const CardSearchContainer: React.FC = () => {
                                 pinnedUniqueKeys={pinnedUniqueKeys}
                                 searchKey={searchKey}
                                 onTogglePin={togglePin}
-                                onSelect={setSelectedCard}
+                                onSelect={handleSelectCard}
                                 selectedId={selectedCard?.id}
                                 selectedImageUrl={selectedCard?.imageUrl}
                             />
@@ -188,7 +232,7 @@ export const CardSearchContainer: React.FC = () => {
                                 pinnedCards={pinnedCards}
                                 pinnedUniqueKeys={pinnedUniqueKeys}
                                 onTogglePin={togglePin}
-                                onSelect={setSelectedCard}
+                                onSelect={handleSelectCard}
                                 onResetPins={resetPins}
                                 onReorderPins={reorderPins}
                                 selectedId={selectedCard?.id}

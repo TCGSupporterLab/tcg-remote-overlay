@@ -96,10 +96,19 @@
   opacity: 1 !important;
 }
 
-/* Remove default borders when in overlay mode to avoid "annoying rectangles" EXCEPT for the card frame itself */
-.overlay-mode .border:not(.overlay-card-frame),
-.overlay-mode .border-border:not(.overlay-card-frame),
+/* Remove default borders when in overlay mode to avoid "annoying rectangles" EXCEPT for the card frame itself and settings menu */
+.overlay-mode .border:not(.overlay-card-frame):not(.settings-window),
+.overlay-mode .border-border:not(.overlay-card-frame):not(.settings-window),
 .overlay-mode main {
   border: none !important;
   box-shadow: none !important;
+}
+
+/* Explicitly styling the settings menu to be distinct from the overlay widgets */
+.settings-window {
+  background-color: #0b0c10 !important;
+  /* Extremely dark, distinct background */
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 100px rgba(0, 0, 0, 1) !important;
+  backdrop-filter: blur(40px);
 }

@@ -447,7 +447,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
             {
                 !isActive && (
-                    <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-10 p-6 text-center">
+                    <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-50 p-6 text-center">
                         <p className="text-white mb-4 text-sm font-medium">
                             {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
                         </p>

@@ -1,74 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { FilterCategory, Filters } from '../../hooks/useCardSearch';
 import { ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 
 interface FilterPanelProps {
     filters: Filters;
+    options: Record<string, string[]>;
     onUpdate: (category: FilterCategory, value: string) => void;
     onKeywordChange: (text: string) => void;
     onScrollTop: () => void;
     onScrollBottom: () => void;
 }
 
-const FILTER_OPTIONS = {
-    color: [
-        { label: 'すべて', value: 'all' },
-        { label: '白', value: '白' },
-        { label: '緑', value: '緑' },
-        { label: '赤', value: '赤' },
-        { label: '青', value: '青' },
-        { label: '紫', value: '紫' },
-        { label: '黄', value: '黄' },
-        { label: '無', value: 'colorless' },
-        { label: '単色', value: 'not_multi' },
-        { label: '多色', value: 'multi' },
-    ],
-    cardType: [
-        { label: 'すべて', value: 'all' },
-        { label: 'ホロメン', value: 'ホロメン' },
-        { label: 'Buzz', value: 'Buzzホロメン' },
-        { label: '推し', value: '推しホロメン' },
-        { label: 'サポート', value: 'サポート' },
-        { label: 'LIMITED', value: 'LIMITED' },
-    ],
-    bloomLevel: [
-        { label: 'すべて', value: 'all' },
-        { label: 'Debut', value: 'Debut' },
-        { label: '1st', value: '1st' },
-        { label: '2nd', value: '2nd' },
-        { label: 'Spot', value: 'Spot' },
-    ]
-};
-
 export const FilterPanel: React.FC<FilterPanelProps> = ({
     filters,
+    options,
     onUpdate,
     onKeywordChange,
     onScrollTop,
     onScrollBottom
 }) => {
-    const [activeTab, setActiveTab] = useState<FilterCategory>('color');
+    const [activeTab, setActiveTab] = useState<string>('');
+
+    // Initialize activeTab when options are loaded
+    useEffect(() => {
+        if (!activeTab && Object.keys(options).length > 0) {
+            const keys = Object.keys(options);
+            // Just pick the first available category
+            setActiveTab(keys[0]);
+        }
+    }, [options, activeTab]);
 
     // -- STYLES --
     const tabStyle = (isActive: boolean): React.CSSProperties => ({
         flex: 1,
-        width: 0, // Force equal width
-        minWidth: 0, // Allow shrinking below content size if needed
+        width: 0,
+        minWidth: 0,
         textAlign: 'center',
         padding: '10px 0',
         cursor: 'pointer',
         fontWeight: 'bold',
         fontSize: '12px',
-        color: isActive ? '#22d3ee' : '#9ca3af', // Cyan-400 : Gray-400
+        color: isActive ? '#22d3ee' : '#9ca3af',
         borderBottom: isActive ? '2px solid #22d3ee' : '2px solid transparent',
         backgroundColor: isActive ? 'rgba(8, 145, 178, 0.1)' : 'transparent',
         transition: 'all 0.2s ease',
-        whiteSpace: 'nowrap', // Prevent text wrapping
-        overflow: 'hidden', // Hide overflow
-        textOverflow: 'ellipsis', // Add ellipsis if too long
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
     });
 
-    const buttonStyle = (isSelected: boolean, colorValue?: string): React.CSSProperties => {
+    const buttonStyle = (isSelected: boolean): React.CSSProperties => {
         const base: React.CSSProperties = {
             padding: '6px 16px',
             borderRadius: '9999px',
@@ -78,61 +59,39 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             cursor: 'pointer',
             transition: 'all 0.2s',
             whiteSpace: 'nowrap',
-            margin: '2px', // Slight margin for safety
+            margin: '2px',
             boxSizing: 'border-box',
         };
 
         if (isSelected) {
-            let bg = '#2563eb'; // Default Blue
-            let shadow = '0 0 10px rgba(37, 99, 235, 0.6)';
-            if (activeTab === 'color') {
-                switch (colorValue) {
-                    case 'all': bg = '#0891b2'; shadow = '0 0 10px rgba(6,182,212,0.6), 0 0 4px rgba(6,182,212,0.8)'; break;
-                    case '白': bg = '#e5e7eb'; shadow = '0 0 10px rgba(255,255,255,0.6)'; break;
-                    case '緑': bg = '#16a34a'; shadow = '0 0 10px rgba(22,163,74,0.6)'; break;
-                    case '赤': bg = '#dc2626'; shadow = '0 0 10px rgba(220,38,38,0.6)'; break;
-                    case '青': bg = '#2563eb'; shadow = '0 0 10px rgba(37,99,235,0.6)'; break;
-                    case '紫': bg = '#9333ea'; shadow = '0 0 10px rgba(147,51,234,0.6)'; break;
-                    case '黄': bg = '#eab308'; shadow = '0 0 10px rgba(234,179,8,0.6)'; break;
-                    case 'colorless': bg = '#6b7280'; shadow = '0 0 10px rgba(107,114,128,0.6)'; break;
-                    case 'multi':
-                        bg = 'linear-gradient(to right, #ef4444, #22c55e, #3b82f6)';
-                        shadow = '0 0 10px rgba(236,72,153,0.5)';
-                        break;
-                }
-                // White text for most selected, Black for White/Yellow
-                if (colorValue === '白' || colorValue === '黄') base.color = '#000';
-                else base.color = '#fff';
-            } else {
-                // Non-color tabs: Cyan theme + Glow
-                bg = '#0891b2'; // Cyan-600
-                shadow = '0 0 10px rgba(6,182,212,0.6), 0 0 4px rgba(6,182,212,0.8)';
-                base.color = '#fff';
-            }
+            // All tabs: Default Cyan theme
+            const bg = '#0891b2';
+            const shadow = '0 0 10px rgba(6,182,212,0.6), 0 0 4px rgba(6,182,212,0.8)';
+            const textColor = '#fff';
 
             return {
                 ...base,
                 background: bg,
                 boxShadow: shadow,
-                borderColor: 'transparent', // Use transparent for all selected states for consistency
+                color: textColor,
+                borderColor: 'transparent',
             };
         } else {
-            // Unselected
             return {
                 ...base,
-                backgroundColor: '#1f2937', // Gray-800
-                color: '#9ca3af', // Gray-400
-                borderColor: '#374151', // Gray-700
+                backgroundColor: '#1f2937',
+                color: '#9ca3af',
+                borderColor: '#374151',
             };
         }
     };
 
-    // Helper to check for active dot
-    const hasActiveFilters = (cat: FilterCategory) => {
-        const s = filters[cat];
+    const hasActiveFilters = (cat: string) => {
+        const s = filters.categories[cat];
         return s && s.length > 0 && !s.includes('all');
     };
 
+    const optionKeys = Object.keys(options);
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {/* Search Input */}
@@ -151,26 +110,27 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                         padding: '8px 16px',
                         fontSize: '14px',
                         outline: 'none',
+                        boxSizing: 'border-box',
                     }}
                     className="focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
                 />
             </div>
 
-            {/* Fixed Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #374151' }}>
-                {(['color', 'cardType', 'bloomLevel'] as FilterCategory[]).map(cat => (
+            {/* Dynamic Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #374151', overflowX: 'auto' }} className="scrollbar-none">
+                {optionKeys.map(cat => (
                     <div
                         key={cat}
                         onClick={() => setActiveTab(cat)}
                         style={tabStyle(activeTab === cat)}
                     >
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                            {cat === 'color' ? '色' : cat === 'cardType' ? 'タイプ' : 'Bloom'}
+                        <div style={{ position: 'relative', display: 'inline-block', padding: '0 8px' }}>
+                            {cat}
                             {hasActiveFilters(cat) && (
                                 <span style={{
                                     position: 'absolute',
                                     top: '-2px',
-                                    right: '-6px',
+                                    right: '-2px',
                                     width: '6px',
                                     height: '6px',
                                     borderRadius: '50%',
@@ -186,18 +146,28 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             {/* Filter Buttons & Scroll Controls */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', paddingTop: '8px' }}>
                 <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {FILTER_OPTIONS[activeTab].map(opt => {
-                        const isSelected = filters[activeTab]?.includes(opt.value);
-                        return (
+                    {activeTab && options[activeTab] && (
+                        <>
                             <button
-                                key={opt.value}
-                                style={buttonStyle(isSelected, opt.value)}
-                                onClick={() => onUpdate(activeTab, opt.value)}
+                                style={buttonStyle((filters.categories[activeTab] || ['all']).includes('all'))}
+                                onClick={() => onUpdate(activeTab, 'all')}
                             >
-                                {opt.label}
+                                すべて
                             </button>
-                        );
-                    })}
+                            {options[activeTab].map(val => {
+                                const isSelected = (filters.categories[activeTab] || []).includes(val);
+                                return (
+                                    <button
+                                        key={val}
+                                        style={buttonStyle(isSelected)}
+                                        onClick={() => onUpdate(activeTab, val)}
+                                    >
+                                        {val}
+                                    </button>
+                                );
+                            })}
+                        </>
+                    )}
                 </div>
 
                 {/* Scroll Buttons */}
@@ -223,3 +193,4 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         </div>
     );
 };
+

@@ -17,7 +17,7 @@
 | `bloomLevel` | `string` | Bloomレベル (Debut, 1st, 2nd, Spot, etc.) |
 | `tags` | `string` | タグ (所属、特徴など。スペース区切り) |
 | `expansion` | `string` | 収録商品名 |
-| `imageUrl` | `string` | **ローカル環境**の画像パス (`/images/cards/filename.png`) |
+| `imageUrl` | `string` | **ローカル環境**の画像パス (`/images/cardlist/hololive/filename.png`) |
 | `originalImageUrl` | `string` | **公式サイト**のオリジン画像URL (デバッグ・再取得用) |
 | `oshiSkills` | `array` | 推しスキルの配列。各要素に `label`, `name`, `cost`, `text` を含む |
 | `arts` | `array` | アーツの配列。各要素に `name`, `costs`, `damage`, `tokkou`, `text` を含む |
@@ -29,7 +29,7 @@
 | `kana` | `string` | 検索用のひらがな読み (自動生成・辞書ベース) |
 
 ### 運用ルール
-- **`imageUrl`**: 常に `/images/cards/` プレフィックスを持ち、ブラウザから直接参照可能なパスを保持します。
+- **`imageUrl`**: 常に `/images/cardlist/hololive/` プレフィックスを持ち、ブラウザから直接参照可能なパスを保持します。
 - **`originalImageUrl`**: `scripts/fetch-hololive-data.js` 実行時に取得され、`scripts/download-images.js` がローカルに保存する際のソースとして利用されます。
 
 ## 2. かな辞書データ (`kana-dictionary.json`)

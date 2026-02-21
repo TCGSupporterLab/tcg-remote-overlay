@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { Card } from '../../hooks/useCardSearch';
 import { PinBadge } from './PinBadge';
+import { Folder } from 'lucide-react';
 
 interface CardGridProps {
     cards: Card[];
@@ -77,20 +78,31 @@ const CardItem = React.memo(({
                     </div>
                 )}
 
-                <img
-                    src={card.resolvedImageUrl || card.imageUrl}
-                    alt={card.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover transition-opacity duration-300"
-                    onLoad={(e) => (e.currentTarget.style.opacity = '1')}
-                    style={{ opacity: 0 }}
-                />
+                {card.isFolder ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800/80 text-cyan-400 gap-4">
+                        <div className="p-4 rounded-full bg-cyan-500/10 shadow-[0_0_20px_rgba(6,182,212,0.3)] border border-cyan-500/20">
+                            <Folder size={64} strokeWidth={1.2} />
+                        </div>
+                        <span className="text-[14px] font-bold px-4 text-center leading-snug break-words opacity-95 tracking-wide">{card.name}</span>
+                    </div>
+                ) : (
+                    <img
+                        src={card.resolvedImageUrl || card.imageUrl}
+                        alt={card.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover transition-opacity duration-300"
+                        onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                        style={{ opacity: 0 }}
+                    />
+                )}
 
-                <PinBadge
-                    isPinned={isPinned}
-                    onToggle={() => onPin(card)}
-                />
+                {!card.isFolder && (
+                    <PinBadge
+                        isPinned={isPinned}
+                        onToggle={() => onPin(card)}
+                    />
+                )}
             </div>
         </div>
     );

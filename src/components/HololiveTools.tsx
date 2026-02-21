@@ -4,6 +4,7 @@ import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import { OverlayDisplay } from './OverlayDisplay';
 import { useCardSearch } from '../hooks/useCardSearch';
 import { SPMarkerWidget } from './CardSearch/SPMarkerWidget';
+import type { LocalCard } from '../hooks/useLocalCards';
 
 interface HololiveToolsProps {
     isOverlay?: boolean;
@@ -14,6 +15,7 @@ interface HololiveToolsProps {
     onDiceClick?: () => void;
     onCoinClick?: () => void;
     obsMode?: 'normal' | 'green';
+    localCards?: LocalCard[];
 }
 const EnergyIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 20 }) => {
     const base = import.meta.env.BASE_URL;
@@ -103,7 +105,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     diceKey = 0,
     coinKey = 0,
     onDiceClick,
-    onCoinClick
+    onCoinClick,
+    localCards = []
 }) => {
     const {
         overlayCard,
@@ -492,7 +495,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
             {/* Part 2: Card Search Tool (Bottom, Fills remaining space) */}
             <div className="flex-1 overflow-hidden min-h-0 bg-gray-900 border-t border-gray-700">
-                <CardSearchContainer />
+                <CardSearchContainer localCards={localCards} />
             </div>
         </div>
     );

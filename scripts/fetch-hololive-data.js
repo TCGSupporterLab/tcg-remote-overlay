@@ -163,7 +163,7 @@ function generateKana(card) {
                         let imageUrl = originalImageUrl;
                         if (originalImageUrl) {
                             const filename = originalImageUrl.split('/').pop();
-                            imageUrl = `/images/cards/${filename}`;
+                            imageUrl = `/images/cardlist/hololive/${filename}`;
                         }
 
                         // Helper to finding values in DL lists
@@ -363,7 +363,7 @@ function generateKana(card) {
                             let imageUrl = originalImageUrl;
                             if (originalImageUrl) {
                                 const filename = originalImageUrl.split('/').pop();
-                                imageUrl = `/images/cards/${filename}`;
+                                imageUrl = `/images/cardlist/hololive/${filename}`;
                             }
 
                             // Helper functions (duplicated here because eval context is isolated)

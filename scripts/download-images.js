@@ -8,8 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_FILE = path.join(__dirname, '../src/data/hololive-cards.json');
-const IMAGE_DIR = path.join(__dirname, '../public/images/cards');
-const PUBLIC_PATH_PREFIX = '/images/cards/';
+const IMAGE_DIR = path.join(__dirname, '../public/images/cardlist/hololive');
+const PUBLIC_PATH_PREFIX = '/images/cardlist/hololive/';
 
 const TARGET_WIDTH = 400;
 const TARGET_HEIGHT = 559;

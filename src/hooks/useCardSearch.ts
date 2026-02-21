@@ -1,181 +1,110 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import cardDataOriginal from '../data/hololive-cards.json';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import type { LocalCard } from './useLocalCards';
 
-// Type Definitions
+const IS_OVERLAY = typeof window !== 'undefined' && (window.location.pathname.includes('/overlay') || new URLSearchParams(window.location.search).get('mode') === 'overlay');
+const CHANNEL_NAME = 'tcg_remote_overlay_sync';
+
+// --- TYPES ---
+export type FilterCategory = string;
+export interface Filters {
+    keyword: string;
+    categories: Record<FilterCategory, string[]>;
+}
+
 export interface Card {
     id: string;
     name: string;
-    cardType: string;
-    hp?: string;
-    color: string;
-    bloomLevel?: string;
-    rarity: string;
-    tags: string;
-    expansion: string;
+    path: string;
     imageUrl: string;
     resolvedImageUrl?: string;
-    oshiSkills?: Array<{ label: string; name: string; cost: string; text: string }>;
-    arts?: Array<{ name: string; costs: string[]; damage: string; tokkou: string; text: string }>;
-    keywords?: Array<{ type: string; name: string; text: string }>;
-    abilityText?: string;
-    extra?: string;
-    limited?: boolean;
-    batonTouch?: string;
+    expansion?: string;
+    rarity?: string;
+    tags?: string;
     kana?: string;
     _normName?: string;
     _hiraName?: string;
     _pureName?: string;
     _pureHira?: string;
-    _joinedText?: string;
+    isFolder?: boolean;
+    folderPath?: string;
+    [key: string]: any;
 }
 
-export type FilterCategory = 'color' | 'cardType' | 'bloomLevel';
-
-export interface Filters {
-    keyword: string;
-    color: string[];
-    cardType: string[];
-    bloomLevel: string[];
+export interface SharedState {
+    filters: Filters;
+    currentPath: string; // Move to shared state
+    pinnedCards: Card[];
+    selectedCard: Card | null;
+    overlayForcedCard: Card | null;
+    overlayMode: 'on' | 'off';
+    overlayDisplayMode: 'image' | 'text';
+    remoteCard: Card | null;
+    spMarkerMode: 'off' | 'follow' | 'independent';
+    spMarkerFace: 'front' | 'back';
+    showSPMarkerForceHidden: boolean;
+    remoteSPMarkerState: any;
+    independentMarkerState: any;
 }
 
-// Utility: Normalize text for search
-const normalizeText = (text: string) => {
-    return text
-        .normalize('NFKC')
-        .toLowerCase()
-        .replace(/[ぁ-ん]/g, s => String.fromCharCode(s.charCodeAt(0) + 0x60)) // Hiragana to Katakana
-        .trim();
+// --- STATE (SINGLETON) ---
+let sharedState: SharedState = {
+    filters: { keyword: '', categories: {} },
+    currentPath: '',
+    pinnedCards: [],
+    selectedCard: null,
+    overlayForcedCard: null,
+    overlayMode: 'on',
+    overlayDisplayMode: 'image',
+    remoteCard: null,
+    spMarkerMode: 'follow',
+    spMarkerFace: 'front',
+    showSPMarkerForceHidden: false,
+    remoteSPMarkerState: null,
+    independentMarkerState: null
 };
 
-const toHiragana = (text: string) => {
-    return text.replace(/[ァ-ン]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60));
-};
-
-const removeSymbols = (text: string) => {
-    return text.replace(/[・ー\s\-\!\?\.\,]/g, '');
-};
-
-// --- SINGLETON STATE MANAGER ---
-const IS_OVERLAY = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'overlay';
-
-const sharedState = {
-    filters: JSON.parse(localStorage.getItem('hololive_search_filters') || 'null') || {
-        keyword: '',
-        color: ['all'],
-        cardType: ['all'],
-        bloomLevel: ['all'],
-    },
-    pinnedCards: JSON.parse(localStorage.getItem('hololive_pinned_cards') || '[]') as Card[],
-    selectedCard: JSON.parse(localStorage.getItem('hololive_selected_card') || 'null') as Card | null,
-    overlayMode: (localStorage.getItem('hololive_overlay_mode') as 'on' | 'off') || 'off',
-    overlayDisplayMode: (localStorage.getItem('hololive_overlay_display_mode') as 'image' | 'text') || 'image',
-    spMarkerMode: (localStorage.getItem('hololive_sp_marker_mode') as 'off' | 'follow' | 'independent') || 'off',
-    spMarkerFace: 'front' as 'front' | 'back',
-    independentMarkerState: JSON.parse(localStorage.getItem('hololive_sp_marker_independent_state') || '{"px": 0.3, "py": 0.3, "scale": 0.5, "rotation": 0}'),
-    showSPMarkerForceHidden: false, // Oキーによる強制非表示フラグ
-    overlayForcedCard: null as Card | null,
-    remoteCard: null as Card | null
-};
-
+// --- SYNC ---
 const listeners = new Set<() => void>();
-const notify = () => listeners.forEach(l => l());
+let syncChannel: BroadcastChannel | null = null;
 
-const channel = new BroadcastChannel('tcg_remote_sync');
-
-const broadcast = () => {
-    if (IS_OVERLAY) return;
-    const effectiveCard = (sharedState.overlayForcedCard || sharedState.selectedCard);
-    channel.postMessage({
-        type: 'SYNC_STATE', state: {
-            overlayMode: sharedState.overlayMode,
-            overlayDisplayMode: sharedState.overlayDisplayMode,
-            pinnedCards: sharedState.pinnedCards,
-            spMarkerMode: sharedState.spMarkerMode,
-            spMarkerFace: sharedState.spMarkerFace,
-            independentMarkerState: sharedState.independentMarkerState,
-            showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
-            card: effectiveCard
+if (typeof window !== 'undefined') {
+    syncChannel = new BroadcastChannel(CHANNEL_NAME);
+    syncChannel.onmessage = (e) => {
+        if (e.data.type === 'UPDATE_STATE') {
+            sharedState = { ...sharedState, ...e.data.state };
+            listeners.forEach(l => l());
+        } else if (e.data.type === 'REQ_STATE') {
+            const reply = new BroadcastChannel(CHANNEL_NAME);
+            reply.postMessage({ type: 'UPDATE_STATE', state: sharedState });
+            reply.close();
         }
-    });
+    };
+    syncChannel.postMessage({ type: 'REQ_STATE' });
+}
+
+export const updateShared = (updates: Partial<SharedState>) => {
+    if (updates.spMarkerMode !== undefined && updates.spMarkerMode !== sharedState.spMarkerMode) {
+        updates.showSPMarkerForceHidden = false;
+    }
+    sharedState = { ...sharedState, ...updates };
+    if (syncChannel) syncChannel.postMessage({ type: 'UPDATE_STATE', state: sharedState });
+    listeners.forEach(l => l());
 };
 
-channel.onmessage = (e) => {
-    const { type, state, value } = e.data;
-    let changed = false;
-
-    if (type === 'SYNC_STATE') {
-        if (sharedState.overlayMode !== state.overlayMode) { sharedState.overlayMode = state.overlayMode; changed = true; }
-        if (sharedState.overlayDisplayMode !== state.overlayDisplayMode) { sharedState.overlayDisplayMode = state.overlayDisplayMode; changed = true; }
-        if (sharedState.spMarkerMode !== state.spMarkerMode) { sharedState.spMarkerMode = state.spMarkerMode; changed = true; }
-        if (sharedState.spMarkerFace !== state.spMarkerFace) { sharedState.spMarkerFace = state.spMarkerFace; changed = true; }
-        if (JSON.stringify(sharedState.independentMarkerState) !== JSON.stringify(state.independentMarkerState)) { sharedState.independentMarkerState = state.independentMarkerState; changed = true; }
-        if (sharedState.showSPMarkerForceHidden !== state.showSPMarkerForceHidden) { sharedState.showSPMarkerForceHidden = state.showSPMarkerForceHidden; changed = true; }
-        if (JSON.stringify(sharedState.pinnedCards) !== JSON.stringify(state.pinnedCards)) { sharedState.pinnedCards = state.pinnedCards; changed = true; }
-        if (JSON.stringify(sharedState.remoteCard) !== JSON.stringify(state.card)) { sharedState.remoteCard = state.card; changed = true; }
-    } else if (type === 'CMD_SET_FORCED') {
-        if (!IS_OVERLAY) {
-            sharedState.overlayForcedCard = value;
-            changed = true;
-            broadcast();
-        }
-    } else if (type === 'REQ_STATE') {
-        if (!IS_OVERLAY) {
-            sharedState.spMarkerFace = 'front';
-            sharedState.showSPMarkerForceHidden = false; // Reset force-hidden when a new overlay starts
-            broadcast();
-        }
-    }
-
-    if (changed) notify();
+// --- HELPERS ---
+const normalizeText = (text: string) => {
+    if (!text) return '';
+    return text.toLowerCase().normalize('NFKC').replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
 };
-
-if (IS_OVERLAY) channel.postMessage({ type: 'REQ_STATE' });
-
-const updateShared = (updates: Partial<typeof sharedState>) => {
-    let changed = false;
-    for (const key in updates) {
-        const k = key as keyof typeof sharedState;
-        if (JSON.stringify(sharedState[k]) === JSON.stringify(updates[k])) continue;
-        (sharedState as any)[k] = updates[k];
-        changed = true;
-
-        if (!IS_OVERLAY) {
-            if (k === 'filters') localStorage.setItem('hololive_search_filters', JSON.stringify(sharedState.filters));
-            if (k === 'pinnedCards') localStorage.setItem('hololive_pinned_cards', JSON.stringify(sharedState.pinnedCards));
-            if (k === 'selectedCard') localStorage.setItem('hololive_selected_card', JSON.stringify(sharedState.selectedCard));
-            if (k === 'overlayMode') localStorage.setItem('hololive_overlay_mode', sharedState.overlayMode);
-            if (k === 'overlayDisplayMode') localStorage.setItem('hololive_overlay_display_mode', sharedState.overlayDisplayMode);
-            if (k === 'spMarkerMode') {
-                localStorage.setItem('hololive_sp_marker_mode', sharedState.spMarkerMode);
-                sharedState.showSPMarkerForceHidden = false; // Reset force-hidden when mode changed by badge/click
-                if (updates.spMarkerMode !== 'off') {
-                    sharedState.spMarkerFace = 'front'; // Reset to front when enabled
-                }
-            }
-            if (k === 'independentMarkerState') localStorage.setItem('hololive_sp_marker_independent_state', JSON.stringify(sharedState.independentMarkerState));
-        }
-    }
-
-    if (changed) {
-        notify();
-        if (!IS_OVERLAY) broadcast();
-        else if (updates.overlayForcedCard !== undefined) {
-            channel.postMessage({ type: 'CMD_SET_FORCED', value: updates.overlayForcedCard });
-        } else if (updates.spMarkerFace !== undefined || updates.independentMarkerState !== undefined || updates.showSPMarkerForceHidden !== undefined) {
-            // Overlay can update face or independent position too, but typically it's from shortcuts or dragging
-            // Let's broadcast back if overlay changes these
-            channel.postMessage({
-                type: 'SYNC_STATE', state: {
-                    ...sharedState,
-                    card: sharedState.remoteCard // Ensure remoteCard is sent as 'card'
-                }
-            });
-        }
-    }
-};
+const toHiragana = (text: string) => text.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
+const removeSymbols = (text: string) => text.replace(/[^\p{L}\p{N}]/gu, '');
+const excludeKeys = ['name', 'yomi', 'imageUrl', 'resolvedImageUrl', 'id', 'path', 'kana', '_normName', '_hiraName', '_pureName', '_pureHira', 'isFolder', 'folderPath'];
 
 // --- HOOK ---
-export const useCardSearch = () => {
+export const useCardSearch = (
+    localCards: LocalCard[] = [],
+    folderMetadataMap: Map<string, any> = new Map()
+) => {
     const [, setTick] = useState(0);
     const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
@@ -184,110 +113,149 @@ export const useCardSearch = () => {
         return () => { listeners.delete(forceUpdate); };
     }, [forceUpdate]);
 
-    const normalizedData = useMemo(() => {
-        const base = import.meta.env.BASE_URL;
-        return (cardDataOriginal as Card[]).map(card => {
-            let resolvedImageUrl = card.imageUrl;
-            if (resolvedImageUrl && !resolvedImageUrl.startsWith('http')) {
-                let path = resolvedImageUrl;
-                if (path.startsWith(base)) path = path.slice(base.length);
-                if (path.startsWith('/')) path = path.slice(1);
-                resolvedImageUrl = base + path;
-            }
-            const normName = normalizeText(card.name);
-            const normKana = card.kana ? normalizeText(card.kana) : '';
-            const combinedNorm = normName + (normKana ? ' ' + normKana : '');
+    const activeFolderMetadata = useMemo(() => {
+        let path = sharedState.currentPath;
+        while (true) {
+            const meta = folderMetadataMap.get(path);
+            if (meta) return meta;
+            if (!path) break;
+            const lastSlash = path.lastIndexOf('/');
+            path = lastSlash === -1 ? '' : path.substring(0, lastSlash);
+        }
+        return null;
+    }, [sharedState.currentPath, folderMetadataMap]);
 
+    const activeOrder = useMemo(() => activeFolderMetadata?.__order || {}, [activeFolderMetadata]);
+
+    const normalizedData = useMemo(() => {
+        if (!localCards || localCards.length === 0) return [];
+        return localCards.map(lc => {
+            const m = lc.metadata || {};
+            const name = m.name || lc.name || '';
+            const yomi = lc.yomi || name;
+            const norm = normalizeText(name);
+            const normYomi = normalizeText(yomi);
+            const combined = norm !== normYomi ? norm + ' ' + normYomi : norm;
             return {
-                ...card,
-                resolvedImageUrl,
-                _normName: combinedNorm,
-                _hiraName: toHiragana(combinedNorm),
-                _pureName: removeSymbols(combinedNorm),
-                _pureHira: removeSymbols(toHiragana(combinedNorm))
-            };
+                ...m,
+                id: lc.id,
+                name: name,
+                path: lc.path || '',
+                imageUrl: lc.url || '',
+                resolvedImageUrl: lc.url || '',
+                kana: yomi,
+                _normName: combined,
+                _hiraName: toHiragana(combined),
+                _pureName: removeSymbols(combined),
+                _pureHira: removeSymbols(toHiragana(combined))
+            } as Card;
         });
-    }, []);
+    }, [localCards]);
 
     const filteredCards = useMemo(() => {
-        const { keyword, color, cardType, bloomLevel } = sharedState.filters;
-        const normKeyword = keyword ? normalizeText(keyword) : '';
-        const hiraKeyword = keyword ? toHiragana(normKeyword) : '';
-        const pureKeyword = normKeyword ? removeSymbols(normKeyword) : '';
-        const selectedColors = color.filter((s: string) => s !== 'all');
-        const selectedTypes = cardType.filter((s: string) => s !== 'all');
-        const selectedBlooms = bloomLevel.filter((s: string) => s !== 'all');
+        if (normalizedData.length === 0) return [];
+        const { keyword, categories } = sharedState.filters;
+        const currentPath = sharedState.currentPath;
+        const normKeyword = normalizeText(keyword);
+        const activeCategories = Object.keys(activeOrder);
 
-        return normalizedData.filter(card => {
-            if (card.cardType === 'エール') return false;
-            if (normKeyword) {
-                if (!(card._normName?.includes(normKeyword) || card._hiraName?.includes(hiraKeyword) || (pureKeyword && (card._pureName?.includes(pureKeyword) || card._pureHira?.includes(pureKeyword))))) return false;
-            }
-            if (selectedColors.length > 0) {
-                const isMulti = card.color.length >= 2;
-                const match = selectedColors.includes('multi') ? isMulti : (selectedColors.includes('colorless') ? card.color === '◇' : selectedColors.some((c: string) => card.color.includes(c)));
-                if (!match) return false;
-            }
-            if (selectedTypes.length > 0) {
-                const match = selectedTypes.some((t: string) => t === 'サポート' ? card.cardType.startsWith('サポート') : (t === 'LIMITED' ? card.cardType.includes('LIMITED') : card.cardType === t));
-                if (!match) return false;
-            }
-            if (selectedBlooms.length > 0 && (card.bloomLevel === undefined || !selectedBlooms.includes(card.bloomLevel))) return false;
-            return true;
-        });
-    }, [normalizedData, sharedState.filters]);
-
-    const updateFilter = useCallback((category: FilterCategory, value: string) => {
-        const current = sharedState.filters[category];
-        let next = value === 'all' ? ['all'] : (current.includes(value) ? current.filter((v: string) => v !== value) : [...current.filter((v: string) => v !== 'all'), value]);
-        if (next.length === 0) next = ['all'];
-        updateShared({ filters: { ...sharedState.filters, [category]: next } });
-    }, []);
-
-    const setKeyword = useCallback((keyword: string) => updateShared({ filters: { ...sharedState.filters, keyword } }), []);
-    const togglePin = useCallback((card: Card) => {
-        const exists = sharedState.pinnedCards.some(c => c.id === card.id && c.imageUrl === card.imageUrl);
-        if (exists) {
-            updateShared({
-                pinnedCards: sharedState.pinnedCards.filter(c => !(c.id === card.id && c.imageUrl === card.imageUrl))
+        if (normKeyword) {
+            const escaped = normKeyword.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escaped.replace(/\*/g, '.*'), 'i');
+            return normalizedData.filter(card => {
+                const searchMatch = regex.test(card._normName!) || regex.test(card._hiraName!) || regex.test(card._pureName!) || regex.test(card._pureHira!);
+                if (!searchMatch) return false;
+                for (const [key, selected] of Object.entries(categories)) {
+                    if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
+                    if (!activeCategories.includes(key)) continue; // Only apply active categories
+                    const val = (card as any)[key];
+                    if (val === undefined || val === null) return false;
+                    const match = Array.isArray(val) ? val.some(v => selected.includes(String(v))) : selected.includes(String(val));
+                    if (!match) return false;
+                }
+                return true;
             });
         }
-        else if (sharedState.pinnedCards.length < 1000) updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
-        else alert('ピン留めできるのは1000枚までです。');
-    }, []);
 
-    const resetPins = useCallback(() => updateShared({ pinnedCards: [] }), []);
-    const reorderPins = useCallback((startIndex: number, endIndex: number) => {
-        const result = Array.from(sharedState.pinnedCards);
-        const [removed] = result.splice(startIndex, 1);
-        result.splice(endIndex, 0, removed);
-        updateShared({ pinnedCards: result });
-    }, []);
-    const setSelectedCard = useCallback((card: Card | null) => updateShared({ selectedCard: card }), []);
-    const setOverlayForcedCard = useCallback((card: Card | null) => updateShared({ overlayForcedCard: card }), []);
-    const setOverlayDisplayMode = useCallback((mode: 'image' | 'text') => updateShared({ overlayDisplayMode: mode }), []);
-    const toggleOverlayMode = useCallback(() => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }), []);
-    const toggleOverlayDisplayMode = useCallback(() => updateShared({ overlayDisplayMode: sharedState.overlayDisplayMode === 'image' ? 'text' : 'image' }), []);
-    const toggleSPMarkerMode = useCallback(() => {
-        const modes: Array<'off' | 'follow' | 'independent'> = ['off', 'follow', 'independent'];
-        const nextIndex = (modes.indexOf(sharedState.spMarkerMode) + 1) % modes.length;
-        updateShared({ spMarkerMode: modes[nextIndex] });
-    }, []);
+        const folders: Card[] = [];
+        const files: Card[] = [];
+        const seenFolders = new Set<string>();
+        normalizedData.forEach(card => {
+            const path = card.path || '';
+            if (currentPath && !path.startsWith(currentPath + '/')) return;
+            const relative = currentPath ? path.slice(currentPath.length + 1) : path;
+            const parts = relative.split('/');
+            if (parts.length > 1) {
+                const folderName = parts[0];
+                if (!seenFolders.has(folderName)) {
+                    seenFolders.add(folderName);
+                    folders.push({
+                        id: `folder:${currentPath ? currentPath + '/' : ''}${folderName}`,
+                        name: folderName,
+                        imageUrl: '',
+                        isFolder: true,
+                        folderPath: currentPath ? `${currentPath}/${folderName}` : folderName,
+                        path: currentPath ? `${currentPath}/${folderName}` : folderName
+                    } as Card);
+                }
+            } else {
+                let match = true;
+                for (const [key, selected] of Object.entries(categories)) {
+                    if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
+                    if (!activeCategories.includes(key)) continue; // Only apply active categories
+                    const val = (card as any)[key];
+                    if (val === undefined || val === null || !(Array.isArray(val) ? val.some(v => selected.includes(String(v))) : selected.includes(String(val)))) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) files.push(card);
+            }
+        });
+        return [...folders, ...files];
+    }, [normalizedData, sharedState.currentPath, sharedState.filters, activeOrder]);
 
-    const toggleSPMarkerFace = useCallback(() => {
-        updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' });
-    }, []);
-
-    const toggleSPMarkerForceHidden = useCallback(() => {
-        updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden });
-    }, []);
-
-    const updateIndependentMarkerState = useCallback((s: any) => {
-        updateShared({ independentMarkerState: s });
-    }, []);
+    const dynamicFilterOptions = useMemo(() => {
+        const targetKeys = Object.keys(activeOrder);
+        if (targetKeys.length === 0) return {};
+        const options: Record<string, Set<string>> = {};
+        const relevant = sharedState.filters.keyword ? normalizedData : filteredCards;
+        relevant.forEach(c => {
+            if (c.isFolder) return;
+            Object.keys(c).forEach(key => {
+                if (excludeKeys.includes(key) || !targetKeys.includes(key)) return;
+                const val = (c as any)[key];
+                if (val === undefined || val === null || val === '') return;
+                if (!options[key]) options[key] = new Set<string>();
+                if (Array.isArray(val)) val.forEach(v => options[key].add(String(v)));
+                else options[key].add(String(val));
+            });
+        });
+        const sorted: Record<string, string[]> = {};
+        const cats = Object.keys(options);
+        const catOrder = Object.keys(activeOrder);
+        cats.sort((a, b) => {
+            const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+            if (ia !== -1 && ib !== -1) return ia - ib;
+            return ia !== -1 ? -1 : ib !== -1 ? 1 : a.localeCompare(b);
+        });
+        cats.forEach(cat => {
+            const items = Array.from(options[cat]), itemOrder = activeOrder[cat] || [];
+            items.sort((a, b) => {
+                const ia = itemOrder.indexOf(a), ib = itemOrder.indexOf(b);
+                if (ia !== -1 && ib !== -1) return ia - ib;
+                return ia !== -1 ? -1 : ib !== -1 ? 1 : a.localeCompare(b);
+            });
+            sorted[cat] = items;
+        });
+        return sorted;
+    }, [normalizedData, filteredCards, activeOrder, sharedState.filters.keyword]);
 
     return {
         filters: sharedState.filters,
+        currentPath: sharedState.currentPath,
+        setCurrentPath: (path: string) => updateShared({ currentPath: path }),
+        searchKey: `${sharedState.filters.keyword}-${JSON.stringify(sharedState.filters.categories)}-${sharedState.currentPath}`,
         filteredCards,
         pinnedCards: sharedState.pinnedCards,
         pinnedUniqueKeys: useMemo(() => new Set(sharedState.pinnedCards.map(c => `${c.id}-${c.imageUrl}`)), [sharedState.pinnedCards]),
@@ -297,23 +265,37 @@ export const useCardSearch = () => {
         overlayDisplayMode: sharedState.overlayDisplayMode,
         spMarkerMode: sharedState.spMarkerMode,
         spMarkerFace: sharedState.spMarkerFace,
-        independentMarkerState: sharedState.independentMarkerState,
-        overlayForcedCard: sharedState.overlayForcedCard,
-        updateFilter,
-        setKeyword,
-        togglePin,
-        resetPins,
-        reorderPins,
-        setSelectedCard,
-        setOverlayForcedCard,
-        setOverlayDisplayMode,
-        toggleOverlayMode,
-        toggleOverlayDisplayMode,
-        toggleSPMarkerMode,
-        toggleSPMarkerFace,
-        toggleSPMarkerForceHidden,
+        spMarkerState: sharedState.spMarkerMode === 'independent' ? sharedState.independentMarkerState : sharedState.remoteSPMarkerState,
         showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
-        updateIndependentMarkerState,
-        searchKey: `${sharedState.filters.keyword}-${sharedState.filters.color.join(',')}-${sharedState.filters.cardType.join(',')}-${sharedState.filters.bloomLevel.join(',')}`
+        dynamicFilterOptions,
+        setKeyword: (keyword: string) => updateShared({ filters: { ...sharedState.filters, keyword } }),
+        updateFilter: (category: FilterCategory, value: string) => {
+            const cur = sharedState.filters.categories[category] || ['all'];
+            let next = value === 'all' ? ['all'] : (cur.includes(value) ? cur.filter(v => v !== value) : [...cur.filter(v => v !== 'all'), value]);
+            if (!next.length) next = ['all'];
+            updateShared({ filters: { ...sharedState.filters, categories: { ...sharedState.filters.categories, [category]: next } } });
+        },
+        togglePin: (card: Card) => {
+            const exists = sharedState.pinnedCards.some(c => c.id === card.id && c.imageUrl === card.imageUrl);
+            if (exists) updateShared({ pinnedCards: sharedState.pinnedCards.filter(c => !(c.id === card.id && c.imageUrl === card.imageUrl)) });
+            else updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
+        },
+        resetPins: () => updateShared({ pinnedCards: [] }),
+        reorderPins: (s: number, e: number) => {
+            const r = [...sharedState.pinnedCards]; const [m] = r.splice(s, 1); r.splice(e, 0, m);
+            updateShared({ pinnedCards: r });
+        },
+        setSelectedCard: (card: Card | null) => updateShared({ selectedCard: card }),
+        setOverlayForcedCard: (card: Card | null) => updateShared({ overlayForcedCard: card }),
+        setOverlayDisplayMode: (mode: 'image' | 'text') => updateShared({ overlayDisplayMode: mode }),
+        toggleOverlayMode: () => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }),
+        toggleOverlayDisplayMode: () => updateShared({ overlayDisplayMode: sharedState.overlayDisplayMode === 'image' ? 'text' : 'image' }),
+        toggleSPMarkerMode: () => {
+            const modes: any[] = ['off', 'follow', 'independent'];
+            updateShared({ spMarkerMode: modes[(modes.indexOf(sharedState.spMarkerMode) + 1) % 3] });
+        },
+        toggleSPMarkerFace: () => updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' }),
+        toggleSPMarkerForceHidden: () => updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden }),
+        updateIndependentMarkerState: (s: any) => updateShared({ independentMarkerState: s })
     };
 };
