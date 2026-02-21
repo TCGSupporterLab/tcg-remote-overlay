@@ -119,6 +119,8 @@ export const useLocalCards = () => {
     const scanDirectory = async (handle: FileSystemDirectoryHandle) => {
         setIsScanning(true);
         setError(null);
+        setHasAccess(true);
+        setRootHandle(handle);
         try {
             const foundCards: LocalCard[] = [];
             const metadataFiles = new Map<string, File>();
@@ -220,8 +222,6 @@ export const useLocalCards = () => {
 
             cards.forEach(c => URL.revokeObjectURL(c.url));
             setCards(enrichedCards);
-            setRootHandle(handle);
-            setHasAccess(true);
             await set(TCG_REMOTE_DIRECTORY_KEY, handle);
 
         } catch (err: any) {

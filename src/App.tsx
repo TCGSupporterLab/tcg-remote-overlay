@@ -9,7 +9,7 @@ import { OverlayWidget } from './components/OverlayWidget';
 import { SPMarkerWidget } from './components/CardSearch/SPMarkerWidget';
 import { useLocalCards } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
-import { Layers } from 'lucide-react';
+import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
 
 type GameMode = 'yugioh' | 'hololive' | 'none';
@@ -23,6 +23,7 @@ function App() {
     metadataOrder,
     rootHandle,
     requestAccess,
+    verifyPermissionAndScan,
     mergeSameNameCards,
     toggleMergeSameNameCards,
     folderMetadataMap
@@ -254,18 +255,24 @@ function App() {
         <div className="flex-1 rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative">
           <CardSearchContainer localCards={cards} metadataOrder={metadataOrder} folderMetadataMap={folderMetadataMap} />
 
-          {/* Helper overlay for standalone mode if needed */}
+          {/* Helper overlay for standalone mode */}
           {!hasAccess && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center text-center p-6">
-              <div className="bg-[#1a1c2e] p-8 rounded-3xl border border-white/10 shadow-2xl max-w-sm">
-                <Layers size={48} className="text-blue-400 mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-bold mb-2">フォルダ接続が必要です</h3>
-                <p className="text-gray-400 text-sm mb-6">本体画面でフォルダを選択してスキャンを完了させてから利用してください。</p>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center text-center p-6 px-12">
+              <div className="bg-[#1a1c2e] p-8 rounded-3xl border border-white/20 shadow-2xl max-w-sm animate-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-500/20">
+                  <Layers size={32} className="text-blue-400" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">接続の再開が必要です</h3>
+                <p className="text-gray-400 text-sm mb-8 leading-relaxed">
+                  ブラウザのセキュリティ制限により、新しいウィンドウでは再度フォルダへのアクセス許可が必要です。<br />
+                  <span className="text-blue-400/80 text-xs text-center block mt-2">※許可後に自動でカードが読み込まれます</span>
+                </p>
                 <button
-                  onClick={() => window.location.reload()}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all"
+                  onClick={verifyPermissionAndScan}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-2xl font-bold transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
                 >
-                  再読み込み
+                  <RefreshCw size={20} className={isScanning ? "animate-spin" : ""} />
+                  {isScanning ? "スキャン中..." : "アクセスを許可する"}
                 </button>
               </div>
             </div>
