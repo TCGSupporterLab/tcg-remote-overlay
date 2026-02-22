@@ -10,7 +10,6 @@ interface PlayerState {
     isRotated?: boolean;
 }
 
-const INITIAL_LIFE = 8000;
 const CHANNEL_NAME = 'tcg_remote_sync_yugioh';
 
 interface YugiohToolsProps {
@@ -22,21 +21,32 @@ interface YugiohToolsProps {
     onDiceClick?: () => void;
     onCoinClick?: () => void;
     obsMode?: 'normal' | 'green';
+    // Widget Visibility & Settings
+    isDiceVisible?: boolean;
+    isCoinVisible?: boolean;
+    isLPVisible?: boolean;
+    initialLP?: number;
+    showLPHistory?: boolean;
 }
 
 export const YugiohTools: React.FC<YugiohToolsProps> = ({
     isOverlay = false,
     diceValue = 1, coinValue = '表', diceKey = 0, coinKey = 0,
     onDiceClick, onCoinClick,
-    obsMode = 'normal'
-}) => {
-    const [p1, setP1] = useState<PlayerState>({ life: INITIAL_LIFE, log: [INITIAL_LIFE], isRotated: false });
-    const [p2, setP2] = useState<PlayerState>({ life: INITIAL_LIFE, log: [INITIAL_LIFE], isRotated: false });
+    obsMode = 'normal',
+    isDiceVisible = true,
+    isCoinVisible = true,
+    isLPVisible = true,
+    initialLP = 8000,
+    showLPHistory = true
+}: YugiohToolsProps) => {
+    const [p1, setP1] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
+    const [p2, setP2] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [inputValue, setInputValue] = useState<string>('');
     const [targetPlayer, setTargetPlayer] = useState<'p1' | 'p2' | null>('p1');
 
     const [history, setHistory] = useState<{ p1: PlayerState, p2: PlayerState }[]>([
-        { p1: { life: INITIAL_LIFE, log: [INITIAL_LIFE], isRotated: false }, p2: { life: INITIAL_LIFE, log: [INITIAL_LIFE], isRotated: false } }
+        { p1: { life: initialLP, log: [initialLP], isRotated: false }, p2: { life: initialLP, log: [initialLP], isRotated: false } }
     ]);
     const [currentStep, setCurrentStep] = useState(0);
 
@@ -308,117 +318,133 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                     {isOverlay ? (
                         <>
                             {/* Player 2 (Opponent) - Always Rotated 180 in Overlay */}
-                            <div
-                                className={getPlayerCardClass(true)}
-                                style={{
-                                    transform: 'rotate(180deg)',
-                                    ...getTargetStyle(targetPlayer === 'p2', 'p2', true)
-                                }}
-                                onClick={() => handleSetTarget('p2')}
-                            >
-                                <div className="w-full flex justify-center items-center mb-1">
-                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
-                                        Player 2
+                            {isLPVisible && (
+                                <div
+                                    className={getPlayerCardClass(true)}
+                                    style={{
+                                        transform: 'rotate(180deg)',
+                                        ...getTargetStyle(targetPlayer === 'p2', 'p2', true)
+                                    }}
+                                    onClick={() => handleSetTarget('p2')}
+                                >
+                                    <div className="w-full flex justify-center items-center mb-1">
+                                        <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                            Player 2
+                                        </div>
+                                    </div>
+
+                                    <div className="relative w-full text-center">
+                                        <DigitalDisplay
+                                            value={p2.life}
+                                            color="blue"
+                                            obsMode={obsMode}
+                                            className={`transition-all duration-300 ${p2.life === 0 ? 'grayscale opacity-50' : ''}`}
+                                        />
                                     </div>
                                 </div>
-
-                                <div className="relative w-full text-center">
-                                    <DigitalDisplay
-                                        value={p2.life}
-                                        color="blue"
-                                        obsMode={obsMode}
-                                        className={`transition-all duration-300 ${p2.life === 0 ? 'grayscale opacity-50' : ''}`}
-                                    />
-                                </div>
-                            </div>
+                            )}
 
                             {/* Dice/Coin Center Display */}
-                            <OverlayDisplay
-                                diceValue={diceValue}
-                                coinValue={coinValue}
-                                diceKey={diceKey}
-                                coinKey={coinKey}
-                                onDiceClick={onDiceClick}
-                                onCoinClick={onCoinClick}
-                                compact={false}
-                                className="pointer-events-auto shrink-0 flex-none"
-                            />
+                            {(isDiceVisible || isCoinVisible) && (
+                                <OverlayDisplay
+                                    diceValue={diceValue}
+                                    coinValue={coinValue}
+                                    diceKey={diceKey}
+                                    coinKey={coinKey}
+                                    onDiceClick={onDiceClick}
+                                    onCoinClick={onCoinClick}
+                                    compact={false}
+                                    className="pointer-events-auto shrink-0 flex-none"
+                                    showDice={isDiceVisible}
+                                    showCoin={isCoinVisible}
+                                />
+                            )}
 
                             {/* Player 1 (You) */}
-                            <div
-                                className={getPlayerCardClass(true)}
-                                style={{
-                                    ...getTargetStyle(targetPlayer === 'p1', 'p1', true)
-                                }}
-                                onClick={() => handleSetTarget('p1')}
-                            >
-                                <div className="w-full flex justify-center items-center mb-1">
-                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
-                                        Player 1
+                            {isLPVisible && (
+                                <div
+                                    className={getPlayerCardClass(true)}
+                                    style={{
+                                        ...getTargetStyle(targetPlayer === 'p1', 'p1', true)
+                                    }}
+                                    onClick={() => handleSetTarget('p1')}
+                                >
+                                    <div className="w-full flex justify-center items-center mb-1">
+                                        <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                            Player 1
+                                        </div>
+                                    </div>
+
+                                    <div className="relative w-full text-center">
+                                        <DigitalDisplay
+                                            value={p1.life}
+                                            color="red"
+                                            obsMode={obsMode}
+                                            className={`transition-all duration-300 ${p1.life === 0 ? 'grayscale opacity-50' : ''}`}
+                                        />
                                     </div>
                                 </div>
-
-                                <div className="relative w-full text-center">
-                                    <DigitalDisplay
-                                        value={p1.life}
-                                        color="red"
-                                        obsMode={obsMode}
-                                        className={`transition-all duration-300 ${p1.life === 0 ? 'grayscale opacity-50' : ''}`}
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </>
                     ) : (
                         <>
                             {/* Player 1 (You) */}
-                            <div
-                                className={getPlayerCardClass(false)}
-                                style={getTargetStyle(targetPlayer === 'p1', 'p1', false)}
-                                onClick={() => handleSetTarget('p1')}
-                            >
-                                <div className="w-full flex justify-center items-center mb-1">
-                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
-                                        Player 1
+                            {isLPVisible && (
+                                <div
+                                    className={getPlayerCardClass(false)}
+                                    style={getTargetStyle(targetPlayer === 'p1', 'p1', false)}
+                                    onClick={() => handleSetTarget('p1')}
+                                >
+                                    <div className="w-full flex justify-center items-center mb-1">
+                                        <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-red-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                            Player 1
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="relative w-full text-center">
-                                    <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-red-400 ${p1.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p1' ? 'scale-110 drop-shadow-[0_0_10px_rgba(255,0,0,0.5)]' : ''} transition-all`}>
-                                        {p1.life}
+                                    <div className="relative w-full text-center">
+                                        <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-red-400 ${p1.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p1' ? 'scale-110 drop-shadow-[0_0_10px_rgba(255,0,0,0.5)]' : ''} transition-all`}>
+                                            {p1.life}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Dice/Coin Center Display */}
-                            <OverlayDisplay
-                                diceValue={diceValue}
-                                coinValue={coinValue}
-                                diceKey={diceKey}
-                                coinKey={coinKey}
-                                onDiceClick={onDiceClick}
-                                onCoinClick={onCoinClick}
-                                compact={true}
-                                className="pointer-events-auto shrink-0 flex-none"
-                            />
+                            {(isDiceVisible || isCoinVisible) && (
+                                <OverlayDisplay
+                                    diceValue={diceValue}
+                                    coinValue={coinValue}
+                                    diceKey={diceKey}
+                                    coinKey={coinKey}
+                                    onDiceClick={onDiceClick}
+                                    onCoinClick={onCoinClick}
+                                    compact={true}
+                                    className="pointer-events-auto shrink-0 flex-none"
+                                    showDice={isDiceVisible}
+                                    showCoin={isCoinVisible}
+                                />
+                            )}
 
                             {/* Player 2 (Opponent) */}
-                            <div
-                                className={getPlayerCardClass(false)}
-                                style={getTargetStyle(targetPlayer === 'p2', 'p2', false)}
-                                onClick={() => handleSetTarget('p2')}
-                            >
-                                <div className="w-full flex justify-center items-center mb-1">
-                                    <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
-                                        Player 2
+                            {isLPVisible && (
+                                <div
+                                    className={getPlayerCardClass(false)}
+                                    style={getTargetStyle(targetPlayer === 'p2', 'p2', false)}
+                                    onClick={() => handleSetTarget('p2')}
+                                >
+                                    <div className="w-full flex justify-center items-center mb-1">
+                                        <div className="text-sm opacity-80 uppercase tracking-widest font-bold flex items-center gap-2 text-blue-300 font-orbitron" style={{ paddingLeft: '8px' }}>
+                                            Player 2
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="relative w-full text-center">
-                                    <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-blue-400 ${p2.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p2' ? 'scale-110 drop-shadow-[0_0_10px_rgba(0,0,255,0.5)]' : ''} transition-all`}>
-                                        {p2.life}
+                                    <div className="relative w-full text-center">
+                                        <div className={`text-4xl font-bold font-mono tracking-tighter my-1 text-blue-400 ${p2.life === 0 ? 'opacity-50' : ''} ${targetPlayer === 'p2' ? 'scale-110 drop-shadow-[0_0_10px_rgba(0,0,255,0.5)]' : ''} transition-all`}>
+                                            {p2.life}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -488,16 +514,18 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                         </div>
 
                         {/* Log Display */}
-                        <div className="flex gap-4 opacity-50 text-[10px] justify-center mt-2 pb-8">
-                            <div>
-                                <History size={10} className="inline mr-1" />
-                                P1: {p1.log.slice(0, 3).join(' ← ')}...
+                        {showLPHistory && (
+                            <div className="flex gap-4 opacity-50 text-[10px] justify-center mt-2 pb-8">
+                                <div>
+                                    <History size={10} className="inline mr-1" />
+                                    P1: {p1.log.slice(0, 3).join(' ← ')}...
+                                </div>
+                                <div>
+                                    <History size={10} className="inline mr-1" />
+                                    P2: {p2.log.slice(0, 3).join(' ← ')}...
+                                </div>
                             </div>
-                            <div>
-                                <History size={10} className="inline mr-1" />
-                                P2: {p2.log.slice(0, 3).join(' ← ')}...
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -17,6 +17,9 @@ interface HololiveToolsProps {
     localCards?: LocalCard[];
     metadataOrder?: Record<string, Record<string, string[]>>;
     mergeSameFileCards?: boolean;
+    // Widget Visibility & Settings
+    isDiceVisible?: boolean;
+    isCoinVisible?: boolean;
 }
 
 export const HololiveTools: React.FC<HololiveToolsProps> = ({
@@ -29,7 +32,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     onCoinClick,
     localCards = [],
     metadataOrder = {},
-    mergeSameFileCards = false
+    mergeSameFileCards = false,
+    isDiceVisible = true,
+    isCoinVisible = false // Default false for Hololive as it's not commonly used?
 }) => {
     const {
         overlayMode,
@@ -82,6 +87,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
     // Overlay View: Only show dice and coin
     if (isOverlay) {
+        if (!isDiceVisible && !isCoinVisible) return null;
+
         return (
             <div className="relative w-fit h-fit min-w-[300px] pointer-events-auto flex flex-col items-center">
                 <OverlayDisplay
@@ -92,7 +99,8 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                     onDiceClick={onDiceClick}
                     onCoinClick={onCoinClick}
                     compact={false}
-                    showCoin={false}
+                    showDice={isDiceVisible}
+                    showCoin={isCoinVisible}
                     className="pointer-events-auto"
                 />
             </div>

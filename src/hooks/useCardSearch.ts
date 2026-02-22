@@ -43,6 +43,13 @@ interface SharedState {
     showSPMarkerForceHidden: boolean;
     userInteracted: boolean;
     displayCardNo: number;
+    // Widget Visibility & Settings
+    isDiceVisible: boolean;
+    isCoinVisible: boolean;
+    isLPVisible: boolean;
+    isCardWidgetVisible: boolean;
+    initialLP: number;
+    showLPHistory: boolean;
 }
 
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
@@ -51,6 +58,8 @@ const PINNED_STORAGE_KEY = 'tcg_remote_pinned_cards_v2';
 const PATH_STORAGE_KEY = 'tcg_remote_current_path_v2';
 const SELECTED_CARD_STORAGE_KEY = 'tcg_remote_selected_card_v2';
 const DISPLAY_NO_STORAGE_KEY = 'tcg_remote_display_card_no_v2';
+const WIDGET_SETTINGS_KEY = 'tcg_remote_widget_settings_v3';
+
 const channel = new BroadcastChannel(CHANNEL_NAME);
 
 const INITIAL_STATE: SharedState = {
@@ -67,7 +76,13 @@ const INITIAL_STATE: SharedState = {
     independentMarkerState: { x: 50, y: 50, scale: 1, rotation: 0 },
     showSPMarkerForceHidden: false,
     userInteracted: false,
-    displayCardNo: 0
+    displayCardNo: 0,
+    isDiceVisible: true,
+    isCoinVisible: true,
+    isLPVisible: true,
+    isCardWidgetVisible: true,
+    initialLP: 8000,
+    showLPHistory: true
 };
 
 let sharedState: SharedState = { ...INITIAL_STATE };
@@ -104,6 +119,28 @@ const updateShared = (patch: Partial<SharedState>) => {
         });
     }
 
+    // Widget settings persistence
+    const widgetUpdated = patch.isDiceVisible !== undefined ||
+        patch.isCoinVisible !== undefined ||
+        patch.isLPVisible !== undefined ||
+        patch.isCardWidgetVisible !== undefined ||
+        patch.initialLP !== undefined ||
+        patch.showLPHistory !== undefined;
+
+    if (widgetUpdated) {
+        const settings = {
+            isDiceVisible: sharedState.isDiceVisible,
+            isCoinVisible: sharedState.isCoinVisible,
+            isLPVisible: sharedState.isLPVisible,
+            isCardWidgetVisible: sharedState.isCardWidgetVisible,
+            initialLP: sharedState.initialLP,
+            showLPHistory: sharedState.showLPHistory
+        };
+        set(WIDGET_SETTINGS_KEY, settings).catch(err => {
+            console.error('[Sync] Failed to persist widget settings:', err);
+        });
+    }
+
     listeners.forEach(l => l());
 };
 
@@ -136,6 +173,13 @@ if (!IS_OVERLAY) {
             updateShared({ displayCardNo: saved });
         }
     }).catch(err => console.error('[Sync] Failed to load display card no:', err));
+
+    // ウィジェット設定
+    get(WIDGET_SETTINGS_KEY).then(saved => {
+        if (saved && typeof saved === 'object') {
+            updateShared(saved as Partial<SharedState>);
+        }
+    }).catch(err => console.error('[Sync] Failed to load widget settings:', err));
 }
 
 const normalizeText = (text: string) => {
@@ -691,6 +735,19 @@ export const useCardSearch = (
         updateIndependentMarkerState: (s: any) => updateShared({ independentMarkerState: s }),
         resetFilters: () => updateShared({ filters: { keyword: '', categories: {} } }),
         displayCardNo: sharedState.displayCardNo,
-        setDisplayCardNo: (no: number) => updateShared({ displayCardNo: no })
+        setDisplayCardNo: (no: number) => updateShared({ displayCardNo: no }),
+        // Widget Settings
+        isDiceVisible: sharedState.isDiceVisible,
+        setIsDiceVisible: (visible: boolean) => updateShared({ isDiceVisible: visible }),
+        isCoinVisible: sharedState.isCoinVisible,
+        setIsCoinVisible: (visible: boolean) => updateShared({ isCoinVisible: visible }),
+        isLPVisible: sharedState.isLPVisible,
+        setIsLPVisible: (visible: boolean) => updateShared({ isLPVisible: visible }),
+        isCardWidgetVisible: sharedState.isCardWidgetVisible,
+        setIsCardWidgetVisible: (visible: boolean) => updateShared({ isCardWidgetVisible: visible }),
+        initialLP: sharedState.initialLP,
+        setInitialLP: (lp: number) => updateShared({ initialLP: lp }),
+        showLPHistory: sharedState.showLPHistory,
+        setShowLPHistory: (show: boolean) => updateShared({ showLPHistory: show })
     };
 };

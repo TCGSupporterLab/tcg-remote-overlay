@@ -16,7 +16,8 @@ TCG Remote Overlayは、リモート環境でのカードゲーム対戦をサ�
 
 ### 2. [ホロライブOCGツール仕様 (Hololive Toolset)](./features/hololive_toolset.md)
 - カード検索エンジン（正規化、ひらがな対応、複数条件フィルタ）
-- ピン留め機能（最大1,000枚制限）
+- ピン留め機能（最大1,000枚制限）とドラッグ＆ドロップ並び替え
+- 独立カードウィジェットとShift+数字キーによる高速切替
 - ライフポイント管理とオーバーレイ同期
 
 ### 3. [遊戯王ツール仕様 (Yu-Gi-Oh! Toolset)](./features/yugioh_toolset.md)

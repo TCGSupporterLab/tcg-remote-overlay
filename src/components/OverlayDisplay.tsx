@@ -11,12 +11,14 @@ interface OverlayDisplayProps {
     onCoinClick?: () => void;
     className?: string;
     compact?: boolean;
+    showDice?: boolean;
     showCoin?: boolean;
 }
 
 export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
     diceValue, coinValue, diceKey, coinKey,
     onDiceClick, onCoinClick, className, compact = false,
+    showDice = true,
     showCoin = true
 }) => {
     const [isDiceRolling, setIsDiceRolling] = useState(false);
@@ -62,18 +64,20 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
         <div className={`${containerClass} ${className || ''}`}>
 
             {/* Dice Section */}
-            <div
-                className={itemWrapperClass}
-                onClick={onDiceClick}
-                title="クリックしてサイコロを振る"
-            >
-                <div className={itemSizeClass}>
-                    <ThreeDDice
-                        value={diceValue}
-                        rolling={isDiceRolling}
-                    />
+            {showDice && (
+                <div
+                    className={itemWrapperClass}
+                    onClick={onDiceClick}
+                    title="クリックしてサイコロを振る"
+                >
+                    <div className={itemSizeClass}>
+                        <ThreeDDice
+                            value={diceValue}
+                            rolling={isDiceRolling}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Coin Section */}
             {showCoin && (

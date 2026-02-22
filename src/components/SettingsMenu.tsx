@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Camera, Monitor, X, Settings, RefreshCw, Layers, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Camera, Monitor, X, Settings, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Activity, Sparkles } from 'lucide-react';
 import type { VideoSourceType } from './VideoBackground';
 import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import type { LocalCard } from '../hooks/useLocalCards';
@@ -36,6 +36,18 @@ interface SettingsMenuProps {
     metadataOrder?: Record<string, Record<string, string[]>>;
     isCardWidgetVisible: boolean;
     onToggleCardWidgetVisible: (val: boolean) => void;
+    // Widget Visibility & Detailed Settings
+    isDiceVisible: boolean;
+    onToggleDiceVisible: (val: boolean) => void;
+    isCoinVisible: boolean;
+    onToggleCoinVisible: (val: boolean) => void;
+    isLPVisible: boolean;
+    onToggleLPVisible: (val: boolean) => void;
+    initialLP: number;
+    onChangeInitialLP: (val: number) => void;
+    showLPHistory: boolean;
+    onToggleLPHistory: (val: boolean) => void;
+    // SP Marker
     spMarkerMode: 'off' | 'follow' | 'independent';
     onToggleSPMarkerMode: () => void;
     onVerifyPermission: () => void;
@@ -65,6 +77,16 @@ export const SettingsMenu = ({
     metadataOrder,
     isCardWidgetVisible,
     onToggleCardWidgetVisible,
+    isDiceVisible,
+    onToggleDiceVisible,
+    isCoinVisible,
+    onToggleCoinVisible,
+    isLPVisible,
+    onToggleLPVisible,
+    initialLP,
+    onChangeInitialLP,
+    showLPHistory,
+    onToggleLPHistory,
     spMarkerMode,
     onToggleSPMarkerMode,
     onVerifyPermission
@@ -72,6 +94,10 @@ export const SettingsMenu = ({
 
     const [isCardListOpen, setIsCardListOpen] = useState(false);
     const [isCardSectionOpen, setIsCardSectionOpen] = useState(true);
+    const [isDiceSectionOpen, setIsDiceSectionOpen] = useState(false);
+    const [isCoinSectionOpen, setIsCoinSectionOpen] = useState(false);
+    const [isLPSectionOpen, setIsLPSectionOpen] = useState(false);
+    const [isSPSectionOpen, setIsSPSectionOpen] = useState(false);
 
     // Escape key to close settings
     useEffect(() => {
@@ -292,7 +318,94 @@ export const SettingsMenu = ({
 
                             {/* WIDGETS TAB */}
                             {activeTab === 'widgets' && (
-                                <div className="space-y-[24px]">
+                                <div className="space-y-[32px] pb-[40px]">
+                                    {/* 1. Dice Widget */}
+                                    <section className="space-y-[0px]">
+                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px]">
+                                            <div
+                                                className="flex items-center gap-[8px] cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => setIsDiceSectionOpen(!isDiceSectionOpen)}
+                                            >
+                                                <Dices size={18} className="text-secondary" />
+                                                <h3 className="text-lg font-bold text-white">ダイスを表示</h3>
+                                                <ChevronRight
+                                                    size={18}
+                                                    className={`text-gray-500 transition-transform duration-300 ${isDiceSectionOpen ? 'rotate-90' : ''}`}
+                                                />
+                                            </div>
+
+                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={isDiceVisible}
+                                                    onChange={(e) => onToggleDiceVisible(e.target.checked)}
+                                                />
+                                                <div
+                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                    style={{
+                                                        backgroundColor: isDiceVisible ? '#2563eb' : '#1e293b',
+                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isDiceVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
+                                                    ></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        {isDiceSectionOpen && (
+                                            <div className="space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-white/5 p-[16px] rounded-xl border border-white/10">
+                                                <p className="text-xs text-gray-400">ダイスウィジェットの配置や透明度を設定できます（開発中）</p>
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    {/* 2. Coin Widget */}
+                                    <section className="space-y-[0px]">
+                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px]">
+                                            <div
+                                                className="flex items-center gap-[8px] cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => setIsCoinSectionOpen(!isCoinSectionOpen)}
+                                            >
+                                                <Coins size={18} className="text-secondary" />
+                                                <h3 className="text-lg font-bold text-white">コインを表示</h3>
+                                                <ChevronRight
+                                                    size={18}
+                                                    className={`text-gray-500 transition-transform duration-300 ${isCoinSectionOpen ? 'rotate-90' : ''}`}
+                                                />
+                                            </div>
+
+                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={isCoinVisible}
+                                                    onChange={(e) => onToggleCoinVisible(e.target.checked)}
+                                                />
+                                                <div
+                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                    style={{
+                                                        backgroundColor: isCoinVisible ? '#2563eb' : '#1e293b',
+                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isCoinVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
+                                                    ></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        {isCoinSectionOpen && (
+                                            <div className="space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-white/5 p-[16px] rounded-xl border border-white/10">
+                                                <p className="text-xs text-gray-400">コインウィジェットの配置や3D演出を設定できます（開発中）</p>
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    {/* 3. Card Widget (Integrated Existing Logic) */}
                                     <section className="space-y-[0px]">
                                         <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px]">
                                             <div
@@ -430,30 +543,6 @@ export const SettingsMenu = ({
                                                             </div>
                                                         </label>
                                                     </div>
-
-                                                    {/* SPマーカー設定 (Hololive限定) */}
-                                                    {gameMode === 'hololive' && (
-                                                        <div className="bg-white/5 p-[16px] rounded-xl border border-white/10 space-y-[12px] mt-[12px]">
-                                                            <div className="flex justify-between items-center">
-                                                                <div>
-                                                                    <h4 className="text-sm font-bold text-white mb-[4px]">SPマーカー</h4>
-                                                                    <p className="text-xs text-gray-400">
-                                                                        現在のモード: <span className="text-blue-400 font-bold uppercase">{spMarkerMode}</span>
-                                                                    </p>
-                                                                </div>
-                                                                <button
-                                                                    onClick={onToggleSPMarkerMode}
-                                                                    className={`px-[16px] py-[8px] rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50 shadow-md ${spMarkerMode === 'off' ? 'bg-gray-700 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-500'
-                                                                        }`}
-                                                                >
-                                                                    {spMarkerMode === 'off' ? '非表示' : spMarkerMode === 'follow' ? 'カード追従' : '独立表示'}
-                                                                </button>
-                                                            </div>
-                                                            <p className="text-[10px] text-gray-500 leading-tight">
-                                                                独立表示モードでは、マーカーを自由にドラッグして（オーバーレイ上で）配置できます。
-                                                            </p>
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 {/* カード選択画面の外部起動セクション（デザイン統一版） */}
@@ -491,6 +580,144 @@ export const SettingsMenu = ({
                                                         </div>
                                                     </div>
                                                 )}
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    {/* 4. Life Points Widget */}
+                                    <section className="space-y-[0px]">
+                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px]">
+                                            <div
+                                                className="flex items-center gap-[8px] cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => setIsLPSectionOpen(!isLPSectionOpen)}
+                                            >
+                                                <Activity size={18} className="text-secondary" />
+                                                <h3 className="text-lg font-bold text-white">ライフポイントを表示</h3>
+                                                <ChevronRight
+                                                    size={18}
+                                                    className={`text-gray-500 transition-transform duration-300 ${isLPSectionOpen ? 'rotate-90' : ''}`}
+                                                />
+                                            </div>
+
+                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={isLPVisible}
+                                                    onChange={(e) => onToggleLPVisible(e.target.checked)}
+                                                />
+                                                <div
+                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                    style={{
+                                                        backgroundColor: isLPVisible ? '#2563eb' : '#1e293b',
+                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isLPVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
+                                                    ></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        {isLPSectionOpen && (
+                                            <div className="space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-white/5 p-[16px] rounded-xl border border-white/10">
+                                                <div className="space-y-[12px]">
+                                                    <div className="flex justify-between items-center">
+                                                        <h4 className="text-sm font-bold text-white">初期ライフポイント</h4>
+                                                        <input
+                                                            type="number"
+                                                            value={initialLP}
+                                                            onChange={(e) => onChangeInitialLP(parseInt(e.target.value, 10) || 0)}
+                                                            className="w-[80px] bg-black/40 border border-white/10 rounded px-2 py-1 text-right text-sm text-blue-400 font-bold"
+                                                        />
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <h4 className="text-sm font-bold text-white">履歴の表示</h4>
+                                                        <label className="relative inline-flex items-center cursor-pointer pointer-events-auto z-50 shrink-0">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="sr-only"
+                                                                checked={showLPHistory}
+                                                                onChange={(e) => onToggleLPHistory(e.target.checked)}
+                                                            />
+                                                            <div
+                                                                className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                                style={{
+                                                                    backgroundColor: showLPHistory ? '#2563eb' : '#1e293b',
+                                                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${showLPHistory ? 'translate-x-[18px]' : 'translate-x-0'}`}
+                                                                ></div>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500">ライフポイントの計算式やログの保存期間を設定できます</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    {/* 5. SP Marker Widget */}
+                                    <section className="space-y-[0px]">
+                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px]">
+                                            <div
+                                                className="flex items-center gap-[8px] cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => setIsSPSectionOpen(!isSPSectionOpen)}
+                                            >
+                                                <Sparkles size={18} className="text-secondary" />
+                                                <h3 className="text-lg font-bold text-white">SP推しスキルマーカーを表示</h3>
+                                                <ChevronRight
+                                                    size={18}
+                                                    className={`text-gray-500 transition-transform duration-300 ${isSPSectionOpen ? 'rotate-90' : ''}`}
+                                                />
+                                            </div>
+
+                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={spMarkerMode !== 'off'}
+                                                    onChange={() => onToggleSPMarkerMode()}
+                                                />
+                                                <div
+                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                    style={{
+                                                        backgroundColor: spMarkerMode !== 'off' ? '#2563eb' : '#1e293b',
+                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${spMarkerMode !== 'off' ? 'translate-x-[22px]' : 'translate-x-0'}`}
+                                                    ></div>
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        {isSPSectionOpen && (
+                                            <div className="space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-white/5 p-[16px] rounded-xl border border-white/10">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-white mb-[4px]">マーカーの配置設定</h4>
+                                                        <p className="text-xs text-gray-400">
+                                                            現在のモード: <span className="text-blue-400 font-bold uppercase">{spMarkerMode}</span>
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={onToggleSPMarkerMode}
+                                                        className={`px-[16px] py-[8px] rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50 shadow-md ${spMarkerMode === 'off' ? 'bg-gray-700 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-500'
+                                                            }`}
+                                                    >
+                                                        {spMarkerMode === 'off' ? '非表示' : spMarkerMode === 'follow' ? 'カード追従' : '独立表示'}
+                                                    </button>
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 leading-tight">
+                                                    独立表示モードでは、マーカーを自由にドラッグして（オーバーレイ上で）配置できます。
+                                                </p>
                                             </div>
                                         )}
                                     </section>

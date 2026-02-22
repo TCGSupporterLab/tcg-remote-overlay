@@ -12,7 +12,8 @@
     - 背景表示モード（Normal / Green）
     - ビデオ背景設定（ソース・反転・クロップ情報）
     - ビデオ調整モードのON/OFF状態
-    - 選択中のカード情報（ホロライブモード時）
+    - 選択中のカード情報
+    - カードウィジェットの表示番号 (`displayCardNo`)
 
 ### オーバーレイ操作 (OverlayWidget)
 - **自由な配置と変形**: オーバーレイウィンドウ上のコンテンツは、マウス操作で自由に移動・拡大縮小・回転が可能です。
@@ -76,8 +77,10 @@
 - `hololive_pinned_cards`: ピン留めされたカードデータ
 - `hololive_selected_card`: 最後に選択したカード
 - `yugioh_p1_state` / `yugioh_p2_state`: 遊戯王のライフ・ログ
-- `overlay_widget_v4_yugioh`: 遊戯王オーバーレイの配置状態（位置・縮尺・回転）
-- `overlay_widget_v4_hololive`: ホロライブオーバーレイの配置状態（位置・縮尺・回転）
+- `overlay_widget_v4_yugioh`: 遊戯王オーバーレイの配置状態
+- `overlay_widget_v4_hololive`: ホロライブオーバーレイの配置状態
+- `overlay_widget_v4_card_widget`: カードウィジェットの配置状態
+- `tcg_remote_display_card_no`: カードウィジェットの表示番号
 - `tcg_remote_video_source`: ビデオソース選択（none / camera / screen）
 - `tcg_remote_video_crop`: ビデオの位置・ズーム・回転・反転・トリミング情報（JSON形式）
 

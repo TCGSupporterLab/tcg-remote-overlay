@@ -43,7 +43,19 @@ function App() {
     pinnedCards,
     selectedCard,
     displayCardNo,
-    setDisplayCardNo
+    setDisplayCardNo,
+    isDiceVisible,
+    setIsDiceVisible,
+    isCoinVisible,
+    setIsCoinVisible,
+    isLPVisible,
+    setIsLPVisible,
+    isCardWidgetVisible,
+    setIsCardWidgetVisible,
+    initialLP,
+    setInitialLP,
+    showLPHistory,
+    setShowLPHistory
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
   // Widget States
@@ -69,7 +81,6 @@ function App() {
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'guide' | 'general' | 'widgets' | 'video' | 'about'>('guide');
-  const [isCardWidgetVisible, setIsCardWidgetVisible] = useState(true);
 
 
   // Apply OBS mode class to body
@@ -472,6 +483,11 @@ function App() {
                   onDiceClick={handleRollDice}
                   onCoinClick={handleFlipCoin}
                   obsMode={obsMode}
+                  isDiceVisible={isDiceVisible}
+                  isCoinVisible={isCoinVisible}
+                  isLPVisible={isLPVisible}
+                  initialLP={initialLP}
+                  showLPHistory={showLPHistory}
                 />
               ) : (
                 <HololiveTools
@@ -487,6 +503,8 @@ function App() {
                   localCards={cards}
                   metadataOrder={metadataOrder}
                   mergeSameFileCards={mergeSameFileCards}
+                  isDiceVisible={isDiceVisible}
+                  isCoinVisible={isCoinVisible}
                 />
               )}
             </div>
@@ -538,6 +556,16 @@ function App() {
             metadataOrder={metadataOrder}
             isCardWidgetVisible={isCardWidgetVisible}
             onToggleCardWidgetVisible={setIsCardWidgetVisible}
+            isDiceVisible={isDiceVisible}
+            onToggleDiceVisible={setIsDiceVisible}
+            isCoinVisible={isCoinVisible}
+            onToggleCoinVisible={setIsCoinVisible}
+            isLPVisible={isLPVisible}
+            onToggleLPVisible={setIsLPVisible}
+            initialLP={initialLP}
+            onChangeInitialLP={setInitialLP}
+            showLPHistory={showLPHistory}
+            onToggleLPHistory={setShowLPHistory}
             spMarkerMode={spMarkerMode}
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}
