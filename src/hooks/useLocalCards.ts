@@ -340,6 +340,7 @@ export const useLocalCards = () => {
         mergeSameFileCards,
         toggleMergeSameFileCards,
         isLoading,
+        error,
         rescan: () => rootHandle && scanDirectory(rootHandle)
     };
 };

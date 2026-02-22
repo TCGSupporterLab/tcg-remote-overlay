@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Camera, Monitor, X, Settings, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Activity, Sparkles } from 'lucide-react';
+import { Camera, Monitor, X, Settings, Settings2, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Activity, Sparkles, RectangleVertical } from 'lucide-react';
 import type { VideoSourceType } from './VideoBackground';
 import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import type { LocalCard } from '../hooks/useLocalCards';
@@ -90,6 +90,8 @@ export const SettingsMenu = ({
 
     const [isCardListOpen, setIsCardListOpen] = useState(false);
     const [isCardSectionOpen, setIsCardSectionOpen] = useState(true);
+    const [isYugiohSectionOpen, setIsYugiohSectionOpen] = useState(false);
+    const [isHololiveSectionOpen, setIsHololiveSectionOpen] = useState(false);
     const [isLPSectionOpen, setIsLPSectionOpen] = useState(false);
 
     // Escape key to close settings
@@ -311,343 +313,421 @@ export const SettingsMenu = ({
 
                             {/* WIDGETS TAB */}
                             {activeTab === 'widgets' && (
-                                <div className="space-y-[8px] pb-[40px]">
-                                    {/* 1. Dice Widget */}
-                                    <section className="space-y-[0px]">
-                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px] pl-[40px] pr-[70px]">
-                                            <div
-                                                className="flex items-center gap-[8px]"
-                                            >
-                                                <Dices size={18} className="text-secondary" />
-                                                <h3 className="text-lg font-bold text-white">ダイスを表示</h3>
+                                <div className="space-y-[32px] pb-[40px]">
+
+                                    {/* 汎用ウィジェット */}
+                                    <div className="space-y-[16px]">
+                                        <div className="flex items-center gap-[12px] mb-[16px]">
+                                            <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
+                                                <Layers size={20} />
                                             </div>
-
-                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
-                                                <input
-                                                    type="checkbox"
-                                                    className="sr-only"
-                                                    checked={isDiceVisible}
-                                                    onChange={(e) => onToggleDiceVisible(e.target.checked)}
-                                                />
-                                                <div
-                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
-                                                    style={{
-                                                        backgroundColor: isDiceVisible ? '#2563eb' : '#1e293b',
-                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isDiceVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
-                                                        style={{ backgroundColor: '#ffffff' }}
-                                                    ></div>
-                                                </div>
-                                            </label>
+                                            <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">汎用ウィジェット</h2>
                                         </div>
-                                    </section>
+                                        <div className="space-y-[12px]">
 
-                                    {/* 2. Coin Widget */}
-                                    <section className="space-y-[0px]">
-                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px] pl-[40px] pr-[70px]">
-                                            <div
-                                                className="flex items-center gap-[8px]"
-                                            >
-                                                <Coins size={18} className="text-secondary" />
-                                                <h3 className="text-lg font-bold text-white">コインを表示</h3>
-                                            </div>
-
-                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
-                                                <input
-                                                    type="checkbox"
-                                                    className="sr-only"
-                                                    checked={isCoinVisible}
-                                                    onChange={(e) => onToggleCoinVisible(e.target.checked)}
-                                                />
-                                                <div
-                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
-                                                    style={{
-                                                        backgroundColor: isCoinVisible ? '#2563eb' : '#1e293b',
-                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isCoinVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
-                                                        style={{ backgroundColor: '#ffffff' }}
-                                                    ></div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </section>
-
-                                    {/* 3. Card Widget (Integrated Existing Logic) */}
-                                    <section className="space-y-[0px]">
-                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px] pl-[40px] pr-[70px]">
-                                            <div
-                                                className="flex items-center gap-[8px] cursor-pointer hover:opacity-80 transition-opacity"
-                                                onClick={() => setIsCardSectionOpen(!isCardSectionOpen)}
-                                            >
-                                                <Layers size={18} className="text-secondary" />
-                                                <h3 className="text-lg font-bold text-white">カードを表示</h3>
-                                                <ChevronRight
-                                                    size={18}
-                                                    className={`text-gray-500 transition-transform duration-300 ${isCardSectionOpen ? 'rotate-90' : ''}`}
-                                                />
-                                            </div>
-
-                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
-                                                <input
-                                                    type="checkbox"
-                                                    className="sr-only"
-                                                    checked={isCardWidgetVisible}
-                                                    onChange={(e) => onToggleCardWidgetVisible(e.target.checked)}
-                                                />
-                                                <div
-                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
-                                                    style={{
-                                                        backgroundColor: isCardWidgetVisible ? '#2563eb' : '#1e293b',
-                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isCardWidgetVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
-                                                        style={{ backgroundColor: '#ffffff' }}
-                                                    ></div>
-                                                </div>
-                                            </label>
-                                        </div>
-
-                                        {isCardSectionOpen && (
-                                            <div className="space-y-[12px] animate-in slide-in-from-top-2 duration-200">
-                                                {/* ローカルカード画像の読み込み (Simple UI) */}
-                                                <div className="bg-white/5 p-[16px] rounded-xl border border-white/10 space-y-[12px]">
-                                                    <div className="flex justify-between items-center">
-                                                        <div>
-                                                            <h4 className="text-sm font-bold text-white mb-[4px]">
-                                                                ローカルカード画像の読み込み
-                                                            </h4>
-                                                            {hasAccess ? (
-                                                                <p className="text-xs text-gray-400">
-                                                                    接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
-                                                                        {(() => {
-                                                                            if (!localCards) return 0;
-                                                                            // 1. 物理ファイルのみを抽出 (_linkedFrom がないもの)
-                                                                            let displayCards = localCards.filter(c => !c._linkedFrom);
-
-                                                                            // 2. 結合がONの場合は重複を除去
-                                                                            if (mergeSameFileCards) {
-                                                                                const seen = new Set<string>();
-                                                                                displayCards = displayCards.filter(c => {
-                                                                                    const name = c.name;
-                                                                                    if (seen.has(name)) return false;
-                                                                                    seen.add(name);
-                                                                                    return true;
-                                                                                });
-                                                                            }
-                                                                            return displayCards.length;
-                                                                        })()}枚</span>
-                                                                </p>
-                                                            ) : rootHandleName ? (
-                                                                <div className="space-y-[4px]">
-                                                                    <p className="text-xs text-red-400 font-bold flex items-center gap-[4px]">
-                                                                        <Info size={12} />
-                                                                        再接続が必要です
-                                                                    </p>
-                                                                    <p className="text-[10px] text-gray-400">
-                                                                        接続先: <span className="text-gray-200">{rootHandleName}</span>
-                                                                    </p>
-                                                                </div>
-                                                            ) : (
-                                                                <p className="text-xs text-gray-400">フォルダ未接続</p>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex gap-[8px] shrink-0">
-                                                            {(hasAccess || rootHandleName) && (
-                                                                <button
-                                                                    onClick={onDropAccess}
-                                                                    className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50"
-                                                                >
-                                                                    解除
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={hasAccess ? onRequestAccess : (rootHandleName ? onVerifyPermission : onRequestAccess)}
-                                                                disabled={isScanning}
-                                                                className={`px-[16px] py-[8px] rounded-lg font-bold text-sm transition-all disabled:opacity-50 flex items-center gap-[6px] shadow-lg cursor-pointer pointer-events-auto z-50 ${!hasAccess && rootHandleName ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : 'bg-primary hover:bg-primary/80 text-white'
-                                                                    }`}
-                                                            >
-                                                                {isScanning ? (
-                                                                    <><RefreshCw size={16} className="animate-spin" />スキャン中</>
-                                                                ) : hasAccess ? (
-                                                                    '再スキャン'
-                                                                ) : rootHandleName ? (
-                                                                    'アクセスを許可'
-                                                                ) : (
-                                                                    'フォルダを選択'
-                                                                )}
-                                                            </button>
-                                                        </div>
+                                            {/* ダイスウィジェット */}
+                                            <div className="flex items-center justify-between p-[12px] px-[16px] bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group outline-none">
+                                                <div className="flex items-center gap-[12px]">
+                                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
+                                                        <Dices size={18} />
                                                     </div>
+                                                    <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">ダイスを表示</h3>
+                                                </div>
 
-                                                    {/* 同名ファイルの扱い設定 */}
-                                                    <div className="pt-[12px] border-t border-white/10 flex items-center justify-between">
-                                                        <div>
-                                                            <h4 className="text-xs font-bold text-white/90 mb-[2px]">同名ファイルの結合 (階層順)</h4>
-                                                            <p className="text-[10px] text-gray-500">同名画像が複数ある場合、優先スキャン順の一つだけを使用します。</p>
+                                                <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50 ml-[16px]">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only"
+                                                        checked={isDiceVisible}
+                                                        onChange={(e) => onToggleDiceVisible(e.target.checked)}
+                                                    />
+                                                    <div
+                                                        className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                        style={{
+                                                            backgroundColor: isDiceVisible ? '#2563eb' : '#1e293b',
+                                                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <div
+                                                            className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isDiceVisible ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                                                            style={{ backgroundColor: '#ffffff' }}
+                                                        ></div>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            {/* コインウィジェット */}
+                                            <div className="flex items-center justify-between p-[12px] px-[16px] bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group outline-none">
+                                                <div className="flex items-center gap-[12px]">
+                                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
+                                                        <Coins size={18} />
+                                                    </div>
+                                                    <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">コインを表示</h3>
+                                                </div>
+
+                                                <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50 ml-[16px]">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only"
+                                                        checked={isCoinVisible}
+                                                        onChange={(e) => onToggleCoinVisible(e.target.checked)}
+                                                    />
+                                                    <div
+                                                        className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                        style={{
+                                                            backgroundColor: isCoinVisible ? '#2563eb' : '#1e293b',
+                                                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <div
+                                                            className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isCoinVisible ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                                                            style={{ backgroundColor: '#ffffff' }}
+                                                        ></div>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            {/* カードウィジェット */}
+                                            <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
+                                                <div className="flex items-center justify-between p-[12px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
+                                                    <div
+                                                        className="flex items-center gap-[12px] cursor-pointer flex-1"
+                                                        onClick={() => setIsCardSectionOpen(!isCardSectionOpen)}
+                                                    >
+                                                        <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
+                                                            <Layers size={18} />
                                                         </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer pointer-events-auto z-50 shrink-0">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="sr-only"
-                                                                checked={mergeSameFileCards}
-                                                                onChange={(e) => onToggleMergeSameFileCards(e.target.checked)}
+                                                        <div className="flex items-center gap-[8px]">
+                                                            <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">カードを表示</h3>
+                                                            <ChevronRight
+                                                                size={16}
+                                                                className={`text-gray-500 transition-transform duration-300 ${isCardSectionOpen ? 'rotate-90' : ''}`}
                                                             />
-                                                            <div
-                                                                className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
-                                                                style={{
-                                                                    backgroundColor: mergeSameFileCards ? '#2563eb' : '#1e293b',
-                                                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-                                                                    cursor: 'pointer'
-                                                                }}
-                                                            >
-                                                                <div
-                                                                    className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${mergeSameFileCards ? 'translate-x-[18px]' : 'translate-x-0'}`}
-                                                                    style={{ backgroundColor: '#ffffff' }}
-                                                                ></div>
-                                                            </div>
-                                                        </label>
+                                                        </div>
                                                     </div>
+
+                                                    <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50 ml-[16px]">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="sr-only"
+                                                            checked={isCardWidgetVisible}
+                                                            onChange={(e) => onToggleCardWidgetVisible(e.target.checked)}
+                                                        />
+                                                        <div
+                                                            className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                            style={{
+                                                                backgroundColor: isCardWidgetVisible ? '#2563eb' : '#1e293b',
+                                                                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            <div
+                                                                className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isCardWidgetVisible ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                                                                style={{ backgroundColor: '#ffffff' }}
+                                                            ></div>
+                                                        </div>
+                                                    </label>
                                                 </div>
 
-                                                {/* カード選択画面の外部起動セクション（デザイン統一版） */}
-                                                {hasAccess && cardCount > 0 && localCards && (
-                                                    <div className="pt-[8px] bg-white/5 p-[12px] rounded-xl border border-white/10 flex items-center justify-between gap-[10px]">
-                                                        <h4 className="text-sm font-bold text-white whitespace-nowrap">表示カード選択画面を開く</h4>
+                                                {isCardSectionOpen && (
+                                                    <div className="pl-[46px] pr-[16px] pt-[4px] pb-[8px] mt-[4px] animate-in slide-in-from-top-2 duration-200">
+                                                        {/* ローカルカード画像の読み込み */}
+                                                        <div className="py-[12px] flex flex-col gap-[12px]">
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h4 className="text-[14px] font-semibold text-gray-200">表示フォルダ選択</h4>
+                                                                    {hasAccess ? (
+                                                                        <p className="text-[11px] text-gray-400 mt-[4px]">
+                                                                            接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
+                                                                                {(() => {
+                                                                                    if (!localCards) return 0;
+                                                                                    let displayCards = localCards.filter(c => !c._linkedFrom && c.path.split('/').length === 3);
+                                                                                    if (mergeSameFileCards) {
+                                                                                        const seen = new Set<string>();
+                                                                                        displayCards = displayCards.filter(c => {
+                                                                                            if (seen.has(c.name)) return false;
+                                                                                            seen.add(c.name);
+                                                                                            return true;
+                                                                                        });
+                                                                                    }
+                                                                                    return displayCards.length;
+                                                                                })()}枚</span>
+                                                                        </p>
+                                                                    ) : rootHandleName ? (
+                                                                        <div className="space-y-[2px] mt-[4px]">
+                                                                            <p className="text-[11px] text-red-400 font-bold flex items-center gap-[4px]">
+                                                                                <Info size={12} />
+                                                                                再接続が必要です
+                                                                            </p>
+                                                                            <p className="text-[10px] text-gray-400">
+                                                                                接続先: <span className="text-gray-200">{rootHandleName}</span>
+                                                                            </p>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="text-[11px] text-gray-400 mt-[4px]">フォルダ未接続</p>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex gap-[8px] shrink-0">
+                                                                    {(hasAccess || rootHandleName) && (
+                                                                        <button
+                                                                            onClick={onDropAccess}
+                                                                            className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50"
+                                                                        >
+                                                                            解除
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        onClick={hasAccess ? onRequestAccess : (rootHandleName ? onVerifyPermission : onRequestAccess)}
+                                                                        disabled={isScanning}
+                                                                        className={`px-[16px] py-[8px] rounded-lg font-bold text-sm transition-all disabled:opacity-50 flex items-center gap-[6px] shadow-lg cursor-pointer pointer-events-auto z-50 ${!hasAccess && rootHandleName ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : 'bg-primary hover:bg-primary/80 text-white'}`}
+                                                                    >
+                                                                        {isScanning ? (
+                                                                            <><RefreshCw size={16} className="animate-spin" />スキャン中</>
+                                                                        ) : hasAccess ? (
+                                                                            '別フォルダを選択'
+                                                                        ) : rootHandleName ? (
+                                                                            'アクセスを許可'
+                                                                        ) : (
+                                                                            'フォルダを選択'
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
 
-                                                        <div className="flex gap-[8px] shrink-0">
-                                                            <button
-                                                                onClick={() => {
-                                                                    window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', '_blank');
-                                                                }}
-                                                                className="px-[16px] py-[8px] bg-primary hover:bg-primary/80 text-white rounded-lg font-bold text-sm transition-all shadow-lg cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px]"
-                                                            >
-                                                                <Monitor size={16} />
-                                                                別タブ
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    const width = 1200;
-                                                                    const height = 800;
-                                                                    const left = (window.screen.width - width) / 2;
-                                                                    const top = (window.screen.height - height) / 2;
-                                                                    window.open(
-                                                                        window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search',
-                                                                        'CardSearchWindow',
-                                                                        `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
-                                                                    );
-                                                                }}
-                                                                className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px]"
-                                                            >
-                                                                <Layers size={14} />
-                                                                別ウィンドウ
-                                                            </button>
+                                                        {/* 同名ファイルの結合 */}
+                                                        <div className="py-[12px] flex items-center justify-between">
+                                                            <div>
+                                                                <h4 className="text-[14px] font-semibold text-gray-200">同名ファイルの統合</h4>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto z-50 shrink-0 ml-[16px]">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="sr-only"
+                                                                    checked={mergeSameFileCards}
+                                                                    onChange={(e) => onToggleMergeSameFileCards(e.target.checked)}
+                                                                />
+                                                                <div
+                                                                    className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                                    style={{
+                                                                        backgroundColor: mergeSameFileCards ? '#2563eb' : '#1e293b',
+                                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    <div
+                                                                        className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${mergeSameFileCards ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                                                                        style={{ backgroundColor: '#ffffff' }}
+                                                                    ></div>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+
+                                                        {/* 表示カード選択画面を開く */}
+                                                        {hasAccess && cardCount > 0 && localCards && (
+                                                            <div className="py-[12px] flex items-center justify-between">
+                                                                <h4 className="text-[14px] font-semibold text-gray-200 whitespace-nowrap">表示カード選択画面を開く</h4>
+                                                                <div className="flex gap-[8px] shrink-0">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', '_blank');
+                                                                        }}
+                                                                        className="px-[16px] py-[8px] bg-primary hover:bg-primary/80 text-white rounded-lg font-bold text-sm transition-all shadow-lg cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px]"
+                                                                    >
+                                                                        <Monitor size={16} />
+                                                                        別タブ
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const width = 1200;
+                                                                            const height = 800;
+                                                                            const left = (window.screen.width - width) / 2;
+                                                                            const top = (window.screen.height - height) / 2;
+                                                                            window.open(
+                                                                                window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search',
+                                                                                'CardSearchWindow',
+                                                                                `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
+                                                                            );
+                                                                        }}
+                                                                        className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px]"
+                                                                    >
+                                                                        <Layers size={14} />
+                                                                        別ウィンドウ
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 専用ウィジェット */}
+                                    <div className="space-y-[16px]">
+                                        <div className="flex items-center gap-[12px] pt-[16px] border-t border-white/10 mt-[8px] mb-[16px]">
+                                            <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
+                                                <Activity size={20} />
+                                            </div>
+                                            <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">専用ウィジェット</h2>
+                                        </div>
+                                        <div className="space-y-[12px]">
+
+                                            {/* 遊戯王特化ウィジェット */}
+                                            <div className="relative flex flex-col transition-all outline-none">
+                                                <div className="flex items-center justify-between py-[8px] px-[8px] hover:bg-white/5 rounded-xl group transition-all cursor-pointer relative z-10" onClick={() => setIsYugiohSectionOpen(!isYugiohSectionOpen)}>
+                                                    <div className="flex items-center gap-[10px] flex-1">
+                                                        <RectangleVertical size={18} className="text-blue-400 group-hover:text-blue-300 transition-colors drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]" />
+                                                        <div className="flex items-center gap-[8px]">
+                                                            <h3 className="text-[15px] font-bold text-gray-300 group-hover:text-white tracking-wide uppercase">遊戯王</h3>
+                                                            <ChevronRight
+                                                                size={16}
+                                                                className={`text-gray-500 transition-transform duration-300 ${isYugiohSectionOpen ? 'rotate-90' : ''}`}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {isYugiohSectionOpen && (
+                                                    <div className="pl-[28px] pt-[8px] pb-[8px] space-y-[12px] animate-in slide-in-from-top-2 duration-200">
+                                                        {/* Life Points Widget */}
+                                                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
+                                                            <div className="flex items-center justify-between p-[12px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
+                                                                <div
+                                                                    className="flex items-center gap-[12px] cursor-pointer flex-1"
+                                                                    onClick={() => setIsLPSectionOpen(!isLPSectionOpen)}
+                                                                >
+                                                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-red-400 transition-colors">
+                                                                        <Activity size={18} />
+                                                                    </div>
+                                                                    <div className="flex items-center gap-[8px]">
+                                                                        <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">ライフポイントを表示</h3>
+                                                                        <ChevronRight
+                                                                            size={16}
+                                                                            className={`text-gray-500 transition-transform duration-300 ${isLPSectionOpen ? 'rotate-90' : ''}`}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50 ml-[16px]">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="sr-only"
+                                                                        checked={isLPVisible}
+                                                                        onChange={(e) => onToggleLPVisible(e.target.checked)}
+                                                                    />
+                                                                    <div
+                                                                        className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                                        style={{
+                                                                            backgroundColor: isLPVisible ? '#2563eb' : '#1e293b',
+                                                                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        <div
+                                                                            className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isLPVisible ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                                                                            style={{ backgroundColor: '#ffffff' }}
+                                                                        ></div>
+                                                                    </div>
+                                                                </label>
+                                                            </div>
+                                                            {isLPSectionOpen && (
+                                                                <div className="mt-[4px] ml-[16px] mr-[16px] mb-[16px] space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-black/20 p-[16px] rounded-xl border border-white/5">
+                                                                    <div className="space-y-[12px]">
+                                                                        <div className="flex justify-between items-center">
+                                                                            <h4 className="text-[14px] font-semibold text-gray-200">初期ライフポイント</h4>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={initialLP}
+                                                                                onChange={(e) => onChangeInitialLP(parseInt(e.target.value, 10) || 0)}
+                                                                                className="w-[80px] bg-black/40 border border-white/10 rounded px-2 py-1 text-right text-sm text-blue-400 font-bold"
+                                                                            />
+                                                                        </div>
+                                                                        <p className="text-[11px] text-gray-500">ライフポイントの計算式やログを設定できます</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>                                        {/* ホロライブ特化ウィジェット */}
+                                            <div className="relative flex flex-col transition-all outline-none">
+                                                <div className="flex items-center justify-between py-[8px] px-[8px] hover:bg-white/5 rounded-xl group transition-all cursor-pointer relative z-10" onClick={() => setIsHololiveSectionOpen(!isHololiveSectionOpen)}>
+                                                    <div className="flex items-center gap-[10px] flex-1">
+                                                        <RectangleVertical size={18} className="text-cyan-400 group-hover:text-cyan-300 transition-colors drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]" />
+                                                        <div className="flex items-center gap-[8px]">
+                                                            <h3 className="text-[15px] font-bold text-gray-300 group-hover:text-white tracking-wide uppercase">ホロライブ</h3>
+                                                            <ChevronRight
+                                                                size={16}
+                                                                className={`text-gray-500 transition-transform duration-300 ${isHololiveSectionOpen ? 'rotate-90' : ''}`}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {isHololiveSectionOpen && (
+                                                    <div className="pl-[28px] pt-[8px] pb-[8px] space-y-[12px] animate-in slide-in-from-top-2 duration-200">
+                                                        {/* SP Marker Toggle */}
+                                                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
+                                                            <div className="flex items-center justify-between p-[12px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
+                                                                <div className="flex items-center gap-[12px] flex-1">
+                                                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-yellow-400 transition-colors">
+                                                                        <Sparkles size={18} />
+                                                                    </div>
+                                                                    <div className="flex items-center gap-[8px]">
+                                                                        <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">SPマーカーを表示</h3>
+                                                                    </div>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50 ml-[16px]">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="sr-only"
+                                                                        checked={spMarkerMode !== 'off'}
+                                                                        onChange={onToggleSPMarkerMode}
+                                                                    />
+                                                                    <div
+                                                                        className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
+                                                                        style={{
+                                                                            backgroundColor: spMarkerMode !== 'off' ? '#2563eb' : '#1e293b',
+                                                                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        <div
+                                                                            className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${spMarkerMode !== 'off' ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                                                                            style={{ backgroundColor: '#ffffff' }}
+                                                                        ></div>
+                                                                    </div>
+                                                                </label>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </section>
-
-                                    {/* 4. Life Points Widget */}
-                                    <section className="space-y-[0px]">
-                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px] pl-[40px] pr-[70px]">
-                                            <div
-                                                className="flex items-center gap-[8px] cursor-pointer hover:opacity-80 transition-opacity"
-                                                onClick={() => setIsLPSectionOpen(!isLPSectionOpen)}
-                                            >
-                                                <Activity size={18} className="text-secondary" />
-                                                <h3 className="text-lg font-bold text-white">ライフポイントを表示</h3>
-                                                <ChevronRight
-                                                    size={18}
-                                                    className={`text-gray-500 transition-transform duration-300 ${isLPSectionOpen ? 'rotate-90' : ''}`}
-                                                />
-                                            </div>
-
-                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
-                                                <input
-                                                    type="checkbox"
-                                                    className="sr-only"
-                                                    checked={isLPVisible}
-                                                    onChange={(e) => onToggleLPVisible(e.target.checked)}
-                                                />
-                                                <div
-                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
-                                                    style={{
-                                                        backgroundColor: isLPVisible ? '#2563eb' : '#1e293b',
-                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${isLPVisible ? 'translate-x-[22px]' : 'translate-x-0'}`}
-                                                        style={{ backgroundColor: '#ffffff' }}
-                                                    ></div>
-                                                </div>
-                                            </label>
                                         </div>
-                                        {isLPSectionOpen && (
-                                            <div className="space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-white/5 p-[16px] rounded-xl border border-white/10">
-                                                <div className="space-y-[12px]">
-                                                    <div className="flex justify-between items-center">
-                                                        <h4 className="text-sm font-bold text-white">初期ライフポイント</h4>
-                                                        <input
-                                                            type="number"
-                                                            value={initialLP}
-                                                            onChange={(e) => onChangeInitialLP(parseInt(e.target.value, 10) || 0)}
-                                                            className="w-[80px] bg-black/40 border border-white/10 rounded px-2 py-1 text-right text-sm text-blue-400 font-bold"
-                                                        />
-                                                    </div>
-                                                    <p className="text-[10px] text-gray-500">ライフポイントの計算式やログの保存期間を設定できます</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </section>
+                                    </div>
 
-                                    {/* 5. SP Marker Widget */}
-                                    <section className="space-y-[0px]">
-                                        <div className="flex items-center justify-between border-b border-white/10 pb-[8px] mb-[12px] pl-[40px] pr-[70px]">
-                                            <div
-                                                className="flex items-center gap-[8px]"
-                                            >
-                                                <Sparkles size={18} className="text-secondary" />
-                                                <h3 className="text-lg font-bold text-white">SP推しスキルマーカーを表示</h3>
+                                    {/* 共通設定 */}
+                                    <div className="space-y-[16px]">
+                                        <div className="flex items-center gap-[12px] pt-[16px] border-t border-white/10 mt-[8px] mb-[16px]">
+                                            <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
+                                                <Settings2 size={20} />
                                             </div>
-
-                                            <label className="relative inline-flex items-center cursor-pointer pointer-events-auto shrink-0 z-50">
-                                                <input
-                                                    type="checkbox"
-                                                    className="sr-only"
-                                                    checked={spMarkerMode !== 'off'}
-                                                    onChange={() => onToggleSPMarkerMode()}
-                                                />
-                                                <div
-                                                    className="w-[44px] h-[22px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
-                                                    style={{
-                                                        backgroundColor: spMarkerMode !== 'off' ? '#2563eb' : '#1e293b',
-                                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={`bg-white rounded-full h-[18px] w-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${spMarkerMode !== 'off' ? 'translate-x-[22px]' : 'translate-x-0'}`}
-                                                        style={{ backgroundColor: '#ffffff' }}
-                                                    ></div>
-                                                </div>
-                                            </label>
+                                            <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">共通設定</h2>
                                         </div>
+                                        <div className="space-y-[12px]">
+                                            {/* 優先表示順 - Placeholder */}
+                                            <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none p-[16px]">
+                                                <label className="text-[15px] font-semibold text-gray-200 mb-[8px] flex items-center gap-[8px]">
+                                                    <Layers size={16} className="text-gray-400" />
+                                                    優先表示順
+                                                </label>
+                                                <div className="text-xs text-gray-500 bg-black/40 p-[12px] rounded-lg border border-white/10 flex items-center justify-center">
+                                                    準備中...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                    </section>
                                 </div>
                             )}
 
@@ -746,7 +826,7 @@ export const SettingsMenu = ({
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
