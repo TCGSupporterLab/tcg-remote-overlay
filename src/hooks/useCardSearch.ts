@@ -401,13 +401,22 @@ export const useCardSearch = (
 
     const setCurrentPath = (path: string, manual = true) => {
         const normalizedPath = path.replace(/\\/g, '/');
+        const patch: Partial<SharedState> = { currentPath: normalizedPath };
+
+        // 階層移動時はフィルタを常にリセット
+        patch.filters = { keyword: '', categories: {} };
+
         if (manual) {
             if (import.meta.env.DEV) console.log(`[Search] Manual path change: ${normalizedPath}`);
-            updateShared({ currentPath: normalizedPath, userInteracted: true });
-        } else {
-            updateShared({ currentPath: normalizedPath });
+            patch.userInteracted = true;
         }
+        updateShared(patch);
     };
+
+    // 初期化時（マウント時）にフィルタをリセット
+    useEffect(() => {
+        updateShared({ filters: { keyword: '', categories: {} } });
+    }, []);
 
     return {
         filters: sharedState.filters,
@@ -455,6 +464,7 @@ export const useCardSearch = (
         },
         toggleSPMarkerFace: () => updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' }),
         toggleSPMarkerForceHidden: () => updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden }),
-        updateIndependentMarkerState: (s: any) => updateShared({ independentMarkerState: s })
+        updateIndependentMarkerState: (s: any) => updateShared({ independentMarkerState: s }),
+        resetFilters: () => updateShared({ filters: { keyword: '', categories: {} } })
     };
 };
