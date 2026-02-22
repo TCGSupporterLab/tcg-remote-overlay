@@ -9,6 +9,7 @@ import { OverlayWidget } from './components/OverlayWidget';
 import { SPMarkerWidget } from './components/CardSearch/SPMarkerWidget';
 import { useLocalCards } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
+import { CardWidget } from './components/CardSearch/CardWidget';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
 
@@ -38,7 +39,11 @@ function App() {
     toggleSPMarkerFace,
     toggleSPMarkerForceHidden,
     showSPMarkerForceHidden,
-    isSyncing
+    isSyncing,
+    pinnedCards,
+    selectedCard,
+    displayCardNo,
+    setDisplayCardNo
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
   // Widget States
@@ -93,6 +98,8 @@ function App() {
   // Persistent Tool State
   const lastDotTapRef = useRef<number>(0);
   const dotTimerRef = useRef<number | null>(null);
+  const displayCardNoBufferRef = useRef<string>("");
+  const displayCardNoTimerRef = useRef<number | null>(null);
   // View mode detection
   const searchViewParam = new URLSearchParams(window.location.search).get('view');
   const isSearchView = searchViewParam === 'search';
@@ -268,6 +275,35 @@ function App() {
           }
         }
       }
+
+      // Shift + Number keys (Digit0-9 or Numpad0-9) for Display Card Number
+      // Support multi-digit input by buffering digits within a 200ms window
+      if (e.shiftKey) {
+        const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
+        if (digitMatch) {
+          e.preventDefault();
+          const digit = digitMatch[2];
+
+          if (displayCardNoTimerRef.current) {
+            window.clearTimeout(displayCardNoTimerRef.current);
+          } else {
+            // If No timer exists, it's a fresh start, so clear buffer just in case
+            displayCardNoBufferRef.current = "";
+          }
+
+          displayCardNoBufferRef.current += digit;
+
+          const num = parseInt(displayCardNoBufferRef.current, 10);
+          if (!isNaN(num)) {
+            setDisplayCardNo(num);
+          }
+
+          displayCardNoTimerRef.current = window.setTimeout(() => {
+            displayCardNoBufferRef.current = "";
+            displayCardNoTimerRef.current = null;
+          }, 200); // Match Hololive card selection window (200ms)
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -275,9 +311,8 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
-      if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
     };
-  }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo]);
+  }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo]);
 
 
   if (import.meta.env.DEV) {
@@ -399,11 +434,18 @@ function App() {
       {/* 2 & 3. GB and Widgets Layer */}
       <main className="absolute inset-0 flex flex-col overflow-hidden pointer-events-none z-10">
 
-        {/* We keep overlayMode variables inside tool props to ensure they behave consistently without controllers */}
-        <OverlayWidget gameMode={gameMode}>
-          <div className="pointer-events-auto">
-            {gameMode !== 'none' && (
-              gameMode === 'yugioh' ? (
+        {/* Independent Card Widget */}
+        {isCardWidgetVisible && (
+          <OverlayWidget gameMode="card_widget">
+            <CardWidget />
+          </OverlayWidget>
+        )}
+
+        {/* Game Mode Widgets (Dice, LP, etc.) */}
+        {gameMode !== 'none' && (
+          <OverlayWidget gameMode={gameMode}>
+            <div className="pointer-events-auto">
+              {gameMode === 'yugioh' ? (
                 <YugiohTools
                   key="yugioh-tools"
                   isOverlay={true}
@@ -416,26 +458,24 @@ function App() {
                   obsMode={obsMode}
                 />
               ) : (
-                isCardWidgetVisible ? (
-                  <HololiveTools
-                    key="hololive-tools"
-                    isOverlay={true}
-                    diceValue={diceValue}
-                    coinValue={coinValue === 1 ? '表' : '裏'}
-                    diceKey={diceKey}
-                    coinKey={coinKey}
-                    onDiceClick={handleRollDice}
-                    onCoinClick={handleFlipCoin}
-                    obsMode={obsMode}
-                    localCards={cards}
-                    metadataOrder={metadataOrder}
-                    mergeSameFileCards={mergeSameFileCards}
-                  />
-                ) : null
-              )
-            )}
-          </div>
-        </OverlayWidget>
+                <HololiveTools
+                  key="hololive-tools"
+                  isOverlay={true}
+                  diceValue={diceValue}
+                  coinValue={coinValue === 1 ? '表' : '裏'}
+                  diceKey={diceKey}
+                  coinKey={coinKey}
+                  onDiceClick={handleRollDice}
+                  onCoinClick={handleFlipCoin}
+                  obsMode={obsMode}
+                  localCards={cards}
+                  metadataOrder={metadataOrder}
+                  mergeSameFileCards={mergeSameFileCards}
+                />
+              )}
+            </div>
+          </OverlayWidget>
+        )}
 
         {/* Independent SP Marker Widget */}
         {gameMode === 'hololive' && spMarkerMode === 'independent' && !showSPMarkerForceHidden && (
@@ -454,80 +494,102 @@ function App() {
       {/* 4. Removed Initial Help Screen (now in Settings Guide tab) */}
 
       {/* 5. Settings Menu Layer (Front) */}
-      {showSettings && (
-        <SettingsMenu
-          onClose={() => setShowSettings(false)}
-          videoSource={videoSource}
-          onVideoSourceChange={setVideoSource}
-          isAdjustingVideo={isAdjustingVideo}
-          onToggleVideoAdjust={toggleAdjustmentMode}
-          gameMode={gameMode}
-          onGameModeChange={handleGameModeChange}
-          obsMode={obsMode}
-          onObsModeChange={setObsMode}
-          // Tab State Props (Lifted)
-          activeTab={activeSettingsTab}
-          onTabChange={setActiveSettingsTab}
-          // File System Access Props
-          hasAccess={hasAccess}
-          rootHandleName={savedRootName || rootHandle?.name}
-          cardCount={cards.length}
-          isScanning={isScanning}
-          onRequestAccess={requestAccess}
-          onDropAccess={dropAccess}
-          mergeSameFileCards={mergeSameFileCards}
-          onToggleMergeSameFileCards={toggleMergeSameFileCards}
-          localCards={cards}
-          metadataOrder={metadataOrder}
-          isCardWidgetVisible={isCardWidgetVisible}
-          onToggleCardWidgetVisible={setIsCardWidgetVisible}
-          spMarkerMode={spMarkerMode}
-          onToggleSPMarkerMode={toggleSPMarkerMode}
-          onVerifyPermission={verifyPermissionAndScan}
-        />
-      )}
+      {
+        showSettings && (
+          <SettingsMenu
+            onClose={() => setShowSettings(false)}
+            videoSource={videoSource}
+            onVideoSourceChange={setVideoSource}
+            isAdjustingVideo={isAdjustingVideo}
+            onToggleVideoAdjust={toggleAdjustmentMode}
+            gameMode={gameMode}
+            onGameModeChange={handleGameModeChange}
+            obsMode={obsMode}
+            onObsModeChange={setObsMode}
+            // Tab State Props (Lifted)
+            activeTab={activeSettingsTab}
+            onTabChange={setActiveSettingsTab}
+            // File System Access Props
+            hasAccess={hasAccess}
+            rootHandleName={savedRootName || rootHandle?.name}
+            cardCount={cards.length}
+            isScanning={isScanning}
+            onRequestAccess={requestAccess}
+            onDropAccess={dropAccess}
+            mergeSameFileCards={mergeSameFileCards}
+            onToggleMergeSameFileCards={toggleMergeSameFileCards}
+            localCards={cards}
+            metadataOrder={metadataOrder}
+            isCardWidgetVisible={isCardWidgetVisible}
+            onToggleCardWidgetVisible={setIsCardWidgetVisible}
+            spMarkerMode={spMarkerMode}
+            onToggleSPMarkerMode={toggleSPMarkerMode}
+            onVerifyPermission={verifyPermissionAndScan}
+          />
+        )
+      }
 
       {/* 6. Session Resume Overlay (Global) - Appears when we have a saved handle but no current access */}
-      {!isSearchView && !hasAccess && !isScanning && !isLoading && savedRootName && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[5000] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
-          <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-w-[600px] w-full text-center animate-in zoom-in-95 duration-300 overflow-hidden">
+      {
+        !isSearchView && !hasAccess && !isScanning && !isLoading && savedRootName && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[5000] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+            <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-w-[600px] w-full text-center animate-in zoom-in-95 duration-300 overflow-hidden">
 
-            <h2 className="text-2xl font-black mb-3 text-white tracking-tight">セッションを再開しますか？</h2>
-            <p className="text-gray-400 text-sm mb-10 leading-relaxed px-4">
-              セキュリティ保護のため、前回接続したカード画像フォルダ<br />
-              <span className="text-blue-400 font-bold px-2 py-1 bg-blue-400/10 rounded-md mt-2 inline-block">「{savedRootName}」</span><br />
-              へのアクセスをあらためて許可してください。
-            </p>
+              <h2 className="text-2xl font-black mb-3 text-white tracking-tight">セッションを再開しますか？</h2>
+              <p className="text-gray-400 text-sm mb-10 leading-relaxed px-4">
+                セキュリティ保護のため、前回接続したカード画像フォルダ<br />
+                <span className="text-blue-400 font-bold px-2 py-1 bg-blue-400/10 rounded-md mt-2 inline-block">「{savedRootName}」</span><br />
+                へのアクセスをあらためて許可してください。
+              </p>
 
-            <div className="space-y-4">
-              <button
-                onClick={verifyPermissionAndScan}
-                className="w-full py-5 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-blue-900/30 flex items-center justify-center gap-3 group"
-              >
-                <Layers size={22} className="group-hover:rotate-12 transition-transform" />
-                アクセスを許可して開始
-              </button>
-
-              <div className="flex flex-row items-center gap-3">
+              <div className="space-y-4">
                 <button
-                  onClick={requestAccess}
-                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold text-xs transition-all border border-white/10 whitespace-nowrap"
+                  onClick={verifyPermissionAndScan}
+                  className="w-full py-5 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-blue-900/30 flex items-center justify-center gap-3 group"
                 >
-                  別のフォルダに接続
+                  <Layers size={22} className="group-hover:rotate-12 transition-transform" />
+                  アクセスを許可して開始
                 </button>
-                <div className="w-px h-6 bg-black flex-shrink-0" />
-                <button
-                  onClick={dropAccess}
-                  className="flex-1 py-2.5 bg-red-900/10 hover:bg-red-900/20 text-red-400 rounded-xl font-bold text-xs transition-all border border-red-900/20 whitespace-nowrap"
-                >
-                  拒否する
-                </button>
+
+                <div className="flex flex-row items-center gap-3">
+                  <button
+                    onClick={requestAccess}
+                    className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold text-xs transition-all border border-white/10 whitespace-nowrap"
+                  >
+                    別のフォルダに接続
+                  </button>
+                  <div className="w-px h-6 bg-black flex-shrink-0" />
+                  <button
+                    onClick={dropAccess}
+                    className="flex-1 py-2.5 bg-red-900/10 hover:bg-red-900/20 text-red-400 rounded-xl font-bold text-xs transition-all border border-red-900/20 whitespace-nowrap"
+                  >
+                    拒否する
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+        )
+      }
+
+      {/* Debug Info (DEV only) */}
+      {import.meta.env.DEV && !isSearchView && (
+        <div className="fixed bottom-4 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-white/70 pointer-events-none space-y-1">
+          <div className="flex justify-between gap-4">
+            <span>selectedCard:</span>
+            <span className="text-blue-400">{selectedCard ? selectedCard.name : 'null'}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>pinnedCards:</span>
+            <span className="text-purple-400">{pinnedCards.length} cards</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>displayCardNo:</span>
+            <span className="text-yellow-400 font-bold">{displayCardNo}</span>
+          </div>
         </div>
       )}
-    </div>
+    </div >
   );
 }
 

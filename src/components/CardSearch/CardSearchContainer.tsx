@@ -5,7 +5,7 @@ import { PinnedTab } from './PinnedTab';
 import { FilterPanel } from './FilterPanel';
 import { PinBadge } from './PinBadge';
 import { Search, Pin } from 'lucide-react';
-import { OVERLAY_CARD_RADIUS } from '../HololiveTools';
+import { OVERLAY_CARD_RADIUS } from './CardWidget';
 import type { LocalCard } from '../../hooks/useLocalCards';
 
 export interface CardSearchContainerProps {

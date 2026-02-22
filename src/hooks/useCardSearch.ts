@@ -35,7 +35,6 @@ interface SharedState {
     selectedCard: Card | null;
     remoteCard: Card | null;
     overlayMode: 'on' | 'off';
-    overlayDisplayMode: 'image' | 'text';
     overlayForcedCard: Card | null;
     spMarkerMode: 'off' | 'follow' | 'independent';
     spMarkerFace: 'front' | 'back';
@@ -43,6 +42,7 @@ interface SharedState {
     independentMarkerState: any;
     showSPMarkerForceHidden: boolean;
     userInteracted: boolean;
+    displayCardNo: number;
 }
 
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
@@ -50,6 +50,7 @@ const CHANNEL_NAME = 'tcg_remote_search_sync';
 const PINNED_STORAGE_KEY = 'tcg_remote_pinned_cards_v2';
 const PATH_STORAGE_KEY = 'tcg_remote_current_path_v2';
 const SELECTED_CARD_STORAGE_KEY = 'tcg_remote_selected_card_v2';
+const DISPLAY_NO_STORAGE_KEY = 'tcg_remote_display_card_no_v2';
 const channel = new BroadcastChannel(CHANNEL_NAME);
 
 const INITIAL_STATE: SharedState = {
@@ -59,14 +60,14 @@ const INITIAL_STATE: SharedState = {
     selectedCard: null,
     remoteCard: null,
     overlayMode: 'on',
-    overlayDisplayMode: 'image',
     overlayForcedCard: null,
     spMarkerMode: 'off',
     spMarkerFace: 'front',
     remoteSPMarkerState: null,
     independentMarkerState: { x: 50, y: 50, scale: 1, rotation: 0 },
     showSPMarkerForceHidden: false,
-    userInteracted: false
+    userInteracted: false,
+    displayCardNo: 0
 };
 
 let sharedState: SharedState = { ...INITIAL_STATE };
@@ -97,6 +98,11 @@ const updateShared = (patch: Partial<SharedState>) => {
             console.error('[Sync] Failed to persist selected card:', err);
         });
     }
+    if (patch.displayCardNo !== undefined) {
+        set(DISPLAY_NO_STORAGE_KEY, patch.displayCardNo).catch(err => {
+            console.error('[Sync] Failed to persist display card no:', err);
+        });
+    }
 
     listeners.forEach(l => l());
 };
@@ -123,6 +129,13 @@ if (!IS_OVERLAY) {
             updateShared({ selectedCard: saved as Card });
         }
     }).catch(err => console.error('[Sync] Failed to load selected card:', err));
+
+    // 表示番号
+    get(DISPLAY_NO_STORAGE_KEY).then(saved => {
+        if (typeof saved === 'number') {
+            updateShared({ displayCardNo: saved });
+        }
+    }).catch(err => console.error('[Sync] Failed to load display card no:', err));
 }
 
 const normalizeText = (text: string) => {
@@ -603,7 +616,6 @@ export const useCardSearch = (
         selectedCard: sharedState.selectedCard,
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayForcedCard || sharedState.selectedCard),
         overlayMode: sharedState.overlayMode,
-        overlayDisplayMode: sharedState.overlayDisplayMode,
         spMarkerMode: sharedState.spMarkerMode,
         spMarkerFace: sharedState.spMarkerFace,
         spMarkerState: sharedState.spMarkerMode === 'independent' ? sharedState.independentMarkerState : sharedState.remoteSPMarkerState,
@@ -669,9 +681,7 @@ export const useCardSearch = (
         },
         setSelectedCard: (card: Card | null) => updateShared({ selectedCard: card }),
         setOverlayForcedCard: (card: Card | null) => updateShared({ overlayForcedCard: card }),
-        setOverlayDisplayMode: (mode: 'image' | 'text') => updateShared({ overlayDisplayMode: mode }),
         toggleOverlayMode: () => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }),
-        toggleOverlayDisplayMode: () => updateShared({ overlayDisplayMode: sharedState.overlayDisplayMode === 'image' ? 'text' : 'image' }),
         toggleSPMarkerMode: () => {
             const modes: any[] = ['off', 'follow', 'independent'];
             updateShared({ spMarkerMode: modes[(modes.indexOf(sharedState.spMarkerMode) + 1) % 3] });
@@ -679,6 +689,8 @@ export const useCardSearch = (
         toggleSPMarkerFace: () => updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' }),
         toggleSPMarkerForceHidden: () => updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden }),
         updateIndependentMarkerState: (s: any) => updateShared({ independentMarkerState: s }),
-        resetFilters: () => updateShared({ filters: { keyword: '', categories: {} } })
+        resetFilters: () => updateShared({ filters: { keyword: '', categories: {} } }),
+        displayCardNo: sharedState.displayCardNo,
+        setDisplayCardNo: (no: number) => updateShared({ displayCardNo: no })
     };
 };
