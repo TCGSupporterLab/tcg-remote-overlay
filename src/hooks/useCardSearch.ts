@@ -569,15 +569,37 @@ export const useCardSearch = (
         pinnedUniqueKeys: useMemo(() => {
             if (sharedState.pinnedCards.length === 0) return new Set<string>();
             const keys = new Set<string>();
-            // 全ての表示候補（normalizedData）に対して、ピン留めリスト内のいずれかのカードと同一判定されるかチェック
+
+            // 仮想カード（フォルダ）の状態判定用に、全正規化データをスキャン
+            // filteredCards に含まれるフォルダの状態をチェックするための準備
+            const isCardPinned = (card: Card) => sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+
+            // 1. 通常のカードのピン留めを記録
             normalizedData.forEach(card => {
-                const isPinned = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
-                if (isPinned) {
+                if (isCardPinned(card)) {
                     keys.add(`${card.id}-${card.imageUrl}`);
                 }
             });
+
+            // 2. フォルダのピン留め（中身が全てピン留めされているか）を記録
+            filteredCards.filter(c => c.isFolder).forEach(folder => {
+                const folderPathPrefix = (folder.folderPath || folder.path) + '/';
+                // フォルダ配下の「有効なカード」（実体 / 第2階層）を抽出
+                const children = normalizedData.filter(d => {
+                    const dPath = d.path || '';
+                    if (!dPath.startsWith(folderPathPrefix)) return false;
+                    // 第3階層以降は無視
+                    const relative = dPath.slice(folderPathPrefix.length);
+                    return !relative.includes('/');
+                });
+
+                if (children.length > 0 && children.every(isCardPinned)) {
+                    keys.add(`${folder.id}-${folder.imageUrl}`);
+                }
+            });
+
             return keys;
-        }, [sharedState.pinnedCards, normalizedData, mergeSameFileCards]),
+        }, [sharedState.pinnedCards, normalizedData, filteredCards, mergeSameFileCards]),
         selectedCard: sharedState.selectedCard,
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayForcedCard || sharedState.selectedCard),
         overlayMode: sharedState.overlayMode,
@@ -595,19 +617,48 @@ export const useCardSearch = (
             updateShared({ filters: { ...sharedState.filters, categories: { ...sharedState.filters.categories, [category]: next } } });
         },
         togglePin: (card: Card) => {
-            // 現在の「同一グループ」が既にピン留めされているか確認
-            const isCurrentlyPinned = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+            if (card.isFolder) {
+                // フォルダの一括操作
+                const folderPathPrefix = (card.folderPath || card.path) + '/';
+                const children = normalizedData.filter(d => {
+                    const dPath = d.path || '';
+                    if (!dPath.startsWith(folderPathPrefix)) return false;
+                    const relative = dPath.slice(folderPathPrefix.length);
+                    return !relative.includes('/');
+                });
 
-            if (isCurrentlyPinned) {
-                // 解除：同一グループに属するすべてのエントリを削除
-                const nextPinned = sharedState.pinnedCards.filter(p => !isSameCard(card, p, mergeSameFileCards));
-                updateShared({ pinnedCards: nextPinned });
+                if (children.length === 0) return;
+
+                // フォルダ内の全カードが既にピン留めされているかチェック
+                const allPinned = children.every(c => sharedState.pinnedCards.some(p => isSameCard(c, p, mergeSameFileCards)));
+
+                if (allPinned) {
+                    // 全解除：フォルダ配下のすべてのカードを除去
+                    const nextPinned = sharedState.pinnedCards.filter(p => !children.some(c => isSameCard(c, p, mergeSameFileCards)));
+                    updateShared({ pinnedCards: nextPinned });
+                } else {
+                    // 一括追加：未登録のグループのみを追加
+                    let nextPinned = [...sharedState.pinnedCards];
+                    children.forEach(c => {
+                        const exists = nextPinned.some(p => isSameCard(c, p, mergeSameFileCards));
+                        if (!exists) {
+                            nextPinned.push(c);
+                        }
+                    });
+                    updateShared({ pinnedCards: nextPinned });
+                }
             } else {
-                // 追加：現在のリストに重複がないように追加（基本は1枚だけ追加される）
-                // リンクカードや同名ファイルなどの「既にリストにあるグループ」は skip する
-                const alreadyHasGroup = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
-                if (!alreadyHasGroup) {
-                    updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
+                // 通常のカード操作
+                const isCurrentlyPinned = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+
+                if (isCurrentlyPinned) {
+                    const nextPinned = sharedState.pinnedCards.filter(p => !isSameCard(card, p, mergeSameFileCards));
+                    updateShared({ pinnedCards: nextPinned });
+                } else {
+                    const alreadyHasGroup = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+                    if (!alreadyHasGroup) {
+                        updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
+                    }
                 }
             }
         },

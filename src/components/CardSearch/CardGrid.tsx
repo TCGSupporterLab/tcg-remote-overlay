@@ -97,12 +97,10 @@ const CardItem = React.memo(({
                     />
                 )}
 
-                {!card.isFolder && (
-                    <PinBadge
-                        isPinned={isPinned}
-                        onToggle={() => onPin(card)}
-                    />
-                )}
+                <PinBadge
+                    isPinned={isPinned}
+                    onToggle={() => onPin(card)}
+                />
             </div>
         </div>
     );
