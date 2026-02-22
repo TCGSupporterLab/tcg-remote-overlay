@@ -146,7 +146,12 @@ export const useCardSearch = (
         const options: Record<string, Set<string>> = {};
         const currentPath = sharedState.currentPath;
 
-        // 1. 現在のパス、または親フォルダの _meta_filter.json の定義を遡って探す
+        // 1. ROOT 階層（パスが空）の場合はフィルタリング項目を表示しない
+        if (!currentPath) {
+            return {};
+        }
+
+        // 2. 現在のパス、または親フォルダの _meta_filter.json の定義を遡って探す
         let matchedPath = currentPath;
         let effectiveOrder = metadataOrder[matchedPath];
 
@@ -163,7 +168,7 @@ export const useCardSearch = (
             values.forEach(v => options[key].add(String(v)));
         });
 
-        // 2. カードデータからも属性を抽出（現在のパス配下のカードのみを対象にする）
+        // 3. カードデータからも属性を抽出（現在のパス配下のカードのみを対象にする）
         normalizedData.forEach(card => {
             const path = card.path || '';
             // 現在のパス配下のカードのみを対象にすることで、他のTCGの属性が混ざるのを防ぐ

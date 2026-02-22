@@ -111,59 +111,63 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             </div>
 
             {/* Dynamic Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #374151', overflowX: 'auto' }} className="scrollbar-none">
-                {optionKeys.map(cat => (
-                    <div
-                        key={cat}
-                        onClick={() => setActiveTab(cat)}
-                        style={tabStyle(activeTab === cat)}
-                    >
-                        <div style={{ position: 'relative', display: 'inline-block', padding: '0 8px' }}>
-                            {cat}
-                            {hasActiveFilters(cat) && (
-                                <span style={{
-                                    position: 'absolute',
-                                    top: '-2px',
-                                    right: '-2px',
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#22d3ee',
-                                    boxShadow: '0 0 6px #22d3ee'
-                                }} />
-                            )}
+            {optionKeys.length > 0 && (
+                <div style={{ display: 'flex', borderBottom: '1px solid #374151', overflowX: 'auto' }} className="scrollbar-none">
+                    {optionKeys.map(cat => (
+                        <div
+                            key={cat}
+                            onClick={() => setActiveTab(cat)}
+                            style={tabStyle(activeTab === cat)}
+                        >
+                            <div style={{ position: 'relative', display: 'inline-block', padding: '0 8px' }}>
+                                {cat}
+                                {hasActiveFilters(cat) && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: '-2px',
+                                        right: '-2px',
+                                        width: '6px',
+                                        height: '6px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#22d3ee',
+                                        boxShadow: '0 0 6px #22d3ee'
+                                    }} />
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {/* Filter Buttons */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', paddingTop: '8px' }}>
-                <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {activeTab && options[activeTab] && (
-                        <>
-                            <button
-                                style={buttonStyle((filters.categories[activeTab] || ['all']).includes('all'))}
-                                onClick={() => onUpdate(activeTab, 'all')}
-                            >
-                                すべて
-                            </button>
-                            {options[activeTab].map(val => {
-                                const isSelected = (filters.categories[activeTab] || []).includes(val);
-                                return (
-                                    <button
-                                        key={val}
-                                        style={buttonStyle(isSelected)}
-                                        onClick={() => onUpdate(activeTab, val)}
-                                    >
-                                        {val}
-                                    </button>
-                                );
-                            })}
-                        </>
-                    )}
+            {optionKeys.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', paddingTop: '8px' }}>
+                    <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {activeTab && options[activeTab] && (
+                            <>
+                                <button
+                                    style={buttonStyle((filters.categories[activeTab] || ['all']).includes('all'))}
+                                    onClick={() => onUpdate(activeTab, 'all')}
+                                >
+                                    すべて
+                                </button>
+                                {options[activeTab].map(val => {
+                                    const isSelected = (filters.categories[activeTab] || []).includes(val);
+                                    return (
+                                        <button
+                                            key={val}
+                                            style={buttonStyle(isSelected)}
+                                            onClick={() => onUpdate(activeTab, val)}
+                                        >
+                                            {val}
+                                        </button>
+                                    );
+                                })}
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
