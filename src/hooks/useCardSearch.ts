@@ -138,6 +138,25 @@ const toHiragana = (text: string) => text.replace(/[\u30a1-\u30f6]/g, m => Strin
 const removeSymbols = (text: string) => text.replace(/[^\p{L}\p{N}]/gu, '');
 const excludeKeys = ['name', 'yomi'];
 
+/**
+ * 2つのカードが同一（ピン留めを同期すべきグループ）かどうかを判定する
+ */
+const isSameCard = (a: Card, b: Card, mergeOn: boolean) => {
+    // 1. 実体パスの一致 (リンクカード対応)
+    // どちらかの path または _linkedFrom が、相手のいずれかと一致すれば同一実体
+    const aPaths = [a.path, a._linkedFrom].filter(Boolean);
+    const bPaths = [b.path, b._linkedFrom].filter(Boolean);
+    const isSameEntity = aPaths.some(ap => bPaths.includes(ap));
+    if (isSameEntity) return true;
+
+    // 2. 同名ファイルの一致 (設定依存)
+    if (mergeOn && a._fileName && b._fileName) {
+        return a._fileName === b._fileName;
+    }
+
+    return false;
+};
+
 export const useCardSearch = (
     localCards: LocalCard[] = [],
     metadataOrder: Record<string, Record<string, string[]>> = {},
@@ -497,6 +516,48 @@ export const useCardSearch = (
         }
     }, [normalizedData]);
 
+    // 設定変更時のピン留め属性の変換
+    useEffect(() => {
+        if (!normalizedData || normalizedData.length === 0) return;
+
+        const currentPinned = sharedState.pinnedCards;
+        if (mergeSameFileCards) {
+            // OFF -> ON (結合)：同名ファイルによる重複を排除
+            const seenFileNames = new Set<string>();
+            const nextPinned = currentPinned.filter(p => {
+                const fileName = p._fileName || p.name;
+                if (seenFileNames.has(fileName)) return false;
+                seenFileNames.add(fileName);
+                return true;
+            });
+            if (nextPinned.length !== currentPinned.length) {
+                if (import.meta.env.DEV) console.log(`[Sync] Setting change (Merge ON): Deduplicating pinned cards from ${currentPinned.length} to ${nextPinned.length}`);
+                updateShared({ pinnedCards: nextPinned });
+            }
+        } else {
+            // ON -> OFF (展開)：代表1枚から同名ファイルをすべて明示的なピン留めに展開
+            const expandedPinned: Card[] = [];
+            const seenIds = new Set<string>();
+
+            currentPinned.forEach(p => {
+                const fileName = p._fileName || p.name;
+                // 全データから同名ファイルをすべて抽出
+                const siblings = normalizedData.filter(d => (d._fileName || d.name) === fileName);
+                siblings.forEach(s => {
+                    if (!seenIds.has(s.id)) {
+                        seenIds.add(s.id);
+                        expandedPinned.push(s);
+                    }
+                });
+            });
+
+            if (expandedPinned.length !== currentPinned.length) {
+                if (import.meta.env.DEV) console.log(`[Sync] Setting change (Merge OFF): Expanding pinned cards from ${currentPinned.length} to ${expandedPinned.length}`);
+                updateShared({ pinnedCards: expandedPinned });
+            }
+        }
+    }, [mergeSameFileCards]);
+
     return {
         filters: sharedState.filters,
         currentPath: sharedState.currentPath,
@@ -505,7 +566,18 @@ export const useCardSearch = (
         filteredCards,
         isSyncing: false,
         pinnedCards: sharedState.pinnedCards,
-        pinnedUniqueKeys: useMemo(() => new Set(sharedState.pinnedCards.map(c => `${c.id}-${c.imageUrl}`)), [sharedState.pinnedCards]),
+        pinnedUniqueKeys: useMemo(() => {
+            if (sharedState.pinnedCards.length === 0) return new Set<string>();
+            const keys = new Set<string>();
+            // 全ての表示候補（normalizedData）に対して、ピン留めリスト内のいずれかのカードと同一判定されるかチェック
+            normalizedData.forEach(card => {
+                const isPinned = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+                if (isPinned) {
+                    keys.add(`${card.id}-${card.imageUrl}`);
+                }
+            });
+            return keys;
+        }, [sharedState.pinnedCards, normalizedData, mergeSameFileCards]),
         selectedCard: sharedState.selectedCard,
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayForcedCard || sharedState.selectedCard),
         overlayMode: sharedState.overlayMode,
@@ -523,9 +595,21 @@ export const useCardSearch = (
             updateShared({ filters: { ...sharedState.filters, categories: { ...sharedState.filters.categories, [category]: next } } });
         },
         togglePin: (card: Card) => {
-            const exists = sharedState.pinnedCards.some(c => c.id === card.id && c.imageUrl === card.imageUrl);
-            if (exists) updateShared({ pinnedCards: sharedState.pinnedCards.filter(c => !(c.id === card.id && c.imageUrl === card.imageUrl)) });
-            else updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
+            // 現在の「同一グループ」が既にピン留めされているか確認
+            const isCurrentlyPinned = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+
+            if (isCurrentlyPinned) {
+                // 解除：同一グループに属するすべてのエントリを削除
+                const nextPinned = sharedState.pinnedCards.filter(p => !isSameCard(card, p, mergeSameFileCards));
+                updateShared({ pinnedCards: nextPinned });
+            } else {
+                // 追加：現在のリストに重複がないように追加（基本は1枚だけ追加される）
+                // リンクカードや同名ファイルなどの「既にリストにあるグループ」は skip する
+                const alreadyHasGroup = sharedState.pinnedCards.some(p => isSameCard(card, p, mergeSameFileCards));
+                if (!alreadyHasGroup) {
+                    updateShared({ pinnedCards: [...sharedState.pinnedCards, card] });
+                }
+            }
         },
         resetPins: () => updateShared({ pinnedCards: [] }),
         reorderPins: (s: number, e: number) => {
