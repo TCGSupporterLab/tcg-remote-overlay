@@ -139,6 +139,7 @@ export const useCardSearch = (
                     _hiraName: toHiragana(combined),
                     _pureName: removeSymbols(combined),
                     _pureHira: removeSymbols(toHiragana(combined)),
+                    _linkedFrom: lc._linkedFrom,
                     _metadata: m
                 } as Card;
             });
@@ -270,6 +271,8 @@ export const useCardSearch = (
             // 階層に基づいた検索範囲の判定（表示上の現在地 depth に依存）
             if (depth === 1) {
                 if (!path.startsWith(currentPath + '/')) return;
+                // 第1階層では _link.txt 経由のカードは表示しない
+                if (card._linkedFrom) return;
             } else if (depth >= 2) {
                 if (!path.startsWith(currentPath + '/')) return;
                 const relativePath = path.slice(currentPath.length + 1);
