@@ -723,8 +723,7 @@ export const useCardSearch = (
         setOverlayForcedCard: (card: Card | null) => updateShared({ overlayForcedCard: card }),
         toggleOverlayMode: () => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }),
         toggleSPMarkerMode: () => {
-            const modes: any[] = ['off', 'follow', 'independent'];
-            updateShared({ spMarkerMode: modes[(modes.indexOf(sharedState.spMarkerMode) + 1) % 3] });
+            updateShared({ spMarkerMode: sharedState.spMarkerMode !== 'off' ? 'off' : 'independent' });
         },
         toggleSPMarkerFace: () => updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' }),
         toggleSPMarkerForceHidden: () => updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden }),

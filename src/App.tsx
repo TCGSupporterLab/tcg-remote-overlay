@@ -467,44 +467,49 @@ function App() {
           </OverlayWidget>
         )}
 
-        {/* Game Mode Widgets (Dice, LP, etc.) */}
-        {gameMode !== 'none' && (
-          <OverlayWidget gameMode={gameMode}>
+        {/* Game Mode Widgets: Hololive */}
+        {gameMode === 'hololive' && (
+          <OverlayWidget gameMode="hololive">
             <div className="pointer-events-auto">
-              {gameMode === 'yugioh' ? (
-                <YugiohTools
-                  key="yugioh-tools"
-                  isOverlay={true}
-                  diceValue={diceValue}
-                  coinValue={coinValue === 1 ? '表' : '裏'}
-                  diceKey={diceKey}
-                  coinKey={coinKey}
-                  onDiceClick={handleRollDice}
-                  onCoinClick={handleFlipCoin}
-                  obsMode={obsMode}
-                  isDiceVisible={false}
-                  isCoinVisible={false}
-                  isLPVisible={isLPVisible}
-                  initialLP={initialLP}
-                />
-              ) : (
-                <HololiveTools
-                  key="hololive-tools"
-                  isOverlay={true}
-                  diceValue={diceValue}
-                  coinValue={coinValue === 1 ? '表' : '裏'}
-                  diceKey={diceKey}
-                  coinKey={coinKey}
-                  onDiceClick={handleRollDice}
-                  onCoinClick={handleFlipCoin}
-                  obsMode={obsMode}
-                  localCards={cards}
-                  metadataOrder={metadataOrder}
-                  mergeSameFileCards={mergeSameFileCards}
-                  isDiceVisible={false}
-                  isCoinVisible={false}
-                />
-              )}
+              <HololiveTools
+                key="hololive-tools"
+                isOverlay={true}
+                diceValue={diceValue}
+                coinValue={coinValue === 1 ? '表' : '裏'}
+                diceKey={diceKey}
+                coinKey={coinKey}
+                onDiceClick={handleRollDice}
+                onCoinClick={handleFlipCoin}
+                obsMode={obsMode}
+                localCards={cards}
+                metadataOrder={metadataOrder}
+                mergeSameFileCards={mergeSameFileCards}
+                isDiceVisible={false}
+                isCoinVisible={false}
+              />
+            </div>
+          </OverlayWidget>
+        )}
+
+        {/* Life Points Widget (YugiohTools) */}
+        {isLPVisible && (
+          <OverlayWidget gameMode="yugioh">
+            <div className="pointer-events-auto">
+              <YugiohTools
+                key="yugioh-tools"
+                isOverlay={true}
+                diceValue={diceValue}
+                coinValue={coinValue === 1 ? '表' : '裏'}
+                diceKey={diceKey}
+                coinKey={coinKey}
+                onDiceClick={handleRollDice}
+                onCoinClick={handleFlipCoin}
+                obsMode={obsMode}
+                isDiceVisible={false}
+                isCoinVisible={false}
+                isLPVisible={true}
+                initialLP={initialLP}
+              />
             </div>
           </OverlayWidget>
         )}

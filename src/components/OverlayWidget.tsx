@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { Move, Maximize2, RotateCw } from 'lucide-react';
+import { Move, Maximize2, RotateCw, Undo2 } from 'lucide-react';
 
 interface WidgetState {
     px: number; // Position X as fraction of window (-0.5 to 0.5)
@@ -290,6 +290,19 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
                         title="ドラッグで拡大縮小"
                     >
                         <Maximize2 size={17} className="rotate-90" />
+                    </div>
+
+                    {/* Reset Handle */}
+                    <div
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setState({ px: 0, py: 0, scale: 1, rotation: 0 });
+                        }}
+                        className="bg-red-600/80 hover:bg-red-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-2"
+                        title="初期状態にリセット"
+                    >
+                        <Undo2 size={17} />
                     </div>
                 </div>
             </div>
