@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Camera, Monitor, X, Settings, Settings2, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Activity, Sparkles, RectangleVertical } from 'lucide-react';
+import { Camera, Monitor, X, Settings, Settings2, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Sparkles, RectangleVertical, Heart } from 'lucide-react';
 import type { VideoSourceType } from './VideoBackground';
 import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import type { LocalCard } from '../hooks/useLocalCards';
@@ -319,7 +319,7 @@ export const SettingsMenu = ({
                                     <div className="space-y-[16px]">
                                         <div className="flex items-center gap-[12px] mb-[16px]">
                                             <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
-                                                <Layers size={20} />
+                                                <Settings2 size={20} />
                                             </div>
                                             <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">汎用ウィジェット</h2>
                                         </div>
@@ -397,7 +397,7 @@ export const SettingsMenu = ({
                                                         onClick={() => setIsCardSectionOpen(!isCardSectionOpen)}
                                                     >
                                                         <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
-                                                            <Layers size={18} />
+                                                            <RectangleVertical size={18} />
                                                         </div>
                                                         <div className="flex items-center gap-[8px]">
                                                             <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">カードを表示</h3>
@@ -569,7 +569,7 @@ export const SettingsMenu = ({
                                     <div className="space-y-[16px]">
                                         <div className="flex items-center gap-[12px] pt-[16px] border-t border-white/10 mt-[8px] mb-[16px]">
                                             <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
-                                                <Activity size={20} />
+                                                <Settings2 size={20} />
                                             </div>
                                             <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">専用ウィジェット</h2>
                                         </div>
@@ -599,7 +599,7 @@ export const SettingsMenu = ({
                                                                     onClick={() => setIsLPSectionOpen(!isLPSectionOpen)}
                                                                 >
                                                                     <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-red-400 transition-colors">
-                                                                        <Activity size={18} />
+                                                                        <Heart size={18} />
                                                                     </div>
                                                                     <div className="flex items-center gap-[8px]">
                                                                         <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">ライフポイントを表示</h3>
@@ -710,7 +710,7 @@ export const SettingsMenu = ({
                                     <div className="space-y-[16px]">
                                         <div className="flex items-center gap-[12px] pt-[16px] border-t border-white/10 mt-[8px] mb-[16px]">
                                             <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
-                                                <Settings2 size={20} />
+                                                <Settings size={20} />
                                             </div>
                                             <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">共通設定</h2>
                                         </div>
