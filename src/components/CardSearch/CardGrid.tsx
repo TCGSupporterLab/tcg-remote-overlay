@@ -43,21 +43,21 @@ const CardItem = React.memo(({
     return (
         <div
             className={`group card-hover-group relative flex flex-col items-center transition-opacity ${isDragging ? 'opacity-30' : 'opacity-100'}`}
-            onClick={() => onSelect(card)}
-            onDoubleClick={() => onPin(card)}
-            draggable={!!onDragStart}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onDragEnd={onDragEnd}
         >
             <div
-                className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-75 active:scale-95 border-2 w-full aspect-[7/10] bg-gray-800/30
+                className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-75 active:scale-95 border-2 aspect-[7/10] bg-gray-800/30 w-[150px]
                     ${isSelected
                         ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
                         : 'border-transparent hover:border-gray-500'
                     }
                 `}
+                onClick={() => onSelect(card)}
+                onDoubleClick={() => onPin(card)}
+                draggable={!!onDragStart}
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                onDragEnd={onDragEnd}
             >
                 {indexLabel && (
                     <div
