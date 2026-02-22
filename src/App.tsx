@@ -278,16 +278,32 @@ function App() {
 
       // Shift + Number keys (Digit0-9 or Numpad0-9) for Display Card Number
       // Support multi-digit input by buffering digits within a 200ms window
-      if (e.shiftKey) {
-        const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
-        if (digitMatch) {
+      const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
+      if (digitMatch) {
+        const isNumpad = digitMatch[1] === 'Numpad';
+        const isNumLock = e.getModifierState('NumLock');
+        const isShift = e.shiftKey || e.getModifierState('Shift');
+
+        // Check if this is a "Shift + Digit" combination
+        let isShiftedDigit = false;
+        if (!isNumpad) {
+          isShiftedDigit = isShift;
+        } else {
+          // For Numpad, only allow shortcuts if NumLock is ON.
+          // Note: On Windows, Shift + Numpad (NumLock ON) often clears e.shiftKey and changes e.key to "End", etc.
+          // We detect this by checking if e.key is NOT a digit when the code is a Numpad digit.
+          if (isNumLock) {
+            isShiftedDigit = isShift || !/^\d$/.test(e.key);
+          }
+        }
+
+        if (isShiftedDigit) {
           e.preventDefault();
           const digit = digitMatch[2];
 
           if (displayCardNoTimerRef.current) {
             window.clearTimeout(displayCardNoTimerRef.current);
           } else {
-            // If No timer exists, it's a fresh start, so clear buffer just in case
             displayCardNoBufferRef.current = "";
           }
 
