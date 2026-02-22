@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Camera, Monitor, X, Settings, Settings2, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Sparkles, RectangleVertical, Heart } from 'lucide-react';
+import { Camera, Monitor, X, Settings, Settings2, RefreshCw, Layers, Info, ChevronLeft, ChevronRight, Dices, Coins, Sparkles, RectangleVertical, Heart, ExternalLink } from 'lucide-react';
 import type { VideoSourceType } from './VideoBackground';
 import { CardSearchContainer } from './CardSearch/CardSearchContainer';
 import type { LocalCard } from '../hooks/useLocalCards';
@@ -93,10 +93,39 @@ export const SettingsMenu = ({
 }: SettingsMenuProps) => {
 
     const [isCardListOpen, setIsCardListOpen] = useState(false);
-    const [isCardSectionOpen, setIsCardSectionOpen] = useState(true);
-    const [isYugiohSectionOpen, setIsYugiohSectionOpen] = useState(false);
-    const [isHololiveSectionOpen, setIsHololiveSectionOpen] = useState(false);
-    const [isLPSectionOpen, setIsLPSectionOpen] = useState(false);
+    const [isCardSectionOpen, setIsCardSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isCardSectionOpen');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [isYugiohSectionOpen, setIsYugiohSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isYugiohSectionOpen');
+        return saved !== null ? saved === 'true' : false;
+    });
+    const [isHololiveSectionOpen, setIsHololiveSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isHololiveSectionOpen');
+        return saved !== null ? saved === 'true' : false;
+    });
+    const [isLPSectionOpen, setIsLPSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isLPSectionOpen');
+        return saved !== null ? saved === 'true' : false;
+    });
+
+    // Persistence Effects
+    useEffect(() => {
+        localStorage.setItem('settings_isCardSectionOpen', String(isCardSectionOpen));
+    }, [isCardSectionOpen]);
+
+    useEffect(() => {
+        localStorage.setItem('settings_isYugiohSectionOpen', String(isYugiohSectionOpen));
+    }, [isYugiohSectionOpen]);
+
+    useEffect(() => {
+        localStorage.setItem('settings_isHololiveSectionOpen', String(isHololiveSectionOpen));
+    }, [isHololiveSectionOpen]);
+
+    useEffect(() => {
+        localStorage.setItem('settings_isLPSectionOpen', String(isLPSectionOpen));
+    }, [isLPSectionOpen]);
 
     // Escape key to close settings
     useEffect(() => {
@@ -560,7 +589,7 @@ export const SettingsMenu = ({
                                                                         }}
                                                                         className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm"
                                                                     >
-                                                                        <Layers size={14} />
+                                                                        <ExternalLink size={14} />
                                                                         別ウィンドウ
                                                                     </button>
                                                                 </div>
@@ -746,11 +775,13 @@ export const SettingsMenu = ({
                                         </div>
                                         <div className="space-y-[4px]">
                                             {/* 優先表示順 - Placeholder */}
-                                            <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none p-[12px]">
-                                                <label className="text-[15px] font-semibold text-gray-200 mb-[8px] flex items-center gap-[8px]">
-                                                    <Layers size={16} className="text-gray-400" />
-                                                    優先表示順
-                                                </label>
+                                            <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none p-[6px] px-[16px] py-[10px]">
+                                                <div className="flex items-center gap-[12px] mb-[8px]">
+                                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 transition-colors">
+                                                        <Layers size={18} />
+                                                    </div>
+                                                    <h3 className="text-[15px] font-semibold text-gray-200">優先表示順</h3>
+                                                </div>
                                                 <div className="text-xs text-gray-500 bg-black/40 p-[12px] rounded-lg border border-white/10 flex items-center justify-center">
                                                     準備中...
                                                 </div>
