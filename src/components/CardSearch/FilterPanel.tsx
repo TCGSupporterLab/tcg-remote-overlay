@@ -89,7 +89,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {/* Search Input */}
-            <div style={{ position: 'relative', marginBottom: '4px', maxWidth: '500px' }}>
+            <div style={{ position: 'relative', marginBottom: optionKeys.length > 0 ? '8px' : '4px', maxWidth: '500px' }}>
                 <input
                     type="text"
                     placeholder="カード名で検索..."
@@ -109,6 +109,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     className="focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
                 />
             </div>
+
+            {/* Separator between Search and Tabs */}
+            {optionKeys.length > 0 && (
+                <div style={{ borderBottom: '1px solid #374151', margin: '0 -8px 4px -8px' }} />
+            )}
 
             {/* Dynamic Tabs */}
             {optionKeys.length > 0 && (
