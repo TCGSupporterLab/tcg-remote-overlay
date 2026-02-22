@@ -439,7 +439,7 @@ export const SettingsMenu = ({
                                                                 <div>
                                                                     <h4 className="text-[14px] font-semibold text-gray-200">表示フォルダ選択</h4>
                                                                     {hasAccess ? (
-                                                                        <p className="text-[11px] text-gray-400 mt-[4px]">
+                                                                        <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">
                                                                             接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
                                                                                 {(() => {
                                                                                     if (!localCards) return 0;
@@ -456,7 +456,7 @@ export const SettingsMenu = ({
                                                                                 })()}枚</span>
                                                                         </p>
                                                                     ) : rootHandleName ? (
-                                                                        <div className="space-y-[2px] mt-[4px]">
+                                                                        <div className="space-y-[2px] mt-[4px] ml-[12px]">
                                                                             <p className="text-[11px] text-red-400 font-bold flex items-center gap-[4px]">
                                                                                 <Info size={12} />
                                                                                 再接続が必要です
@@ -466,7 +466,7 @@ export const SettingsMenu = ({
                                                                             </p>
                                                                         </div>
                                                                     ) : (
-                                                                        <p className="text-[11px] text-gray-400 mt-[4px]">フォルダ未接続</p>
+                                                                        <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">フォルダ未接続</p>
                                                                     )}
                                                                 </div>
                                                                 <div className="flex gap-[8px] shrink-0">
