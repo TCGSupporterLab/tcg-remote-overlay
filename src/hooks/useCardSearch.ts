@@ -49,6 +49,7 @@ interface SharedState {
     isLPVisible: boolean;
     isCardWidgetVisible: boolean;
     initialLP: number;
+    onlyShowPlayer1: boolean;
 }
 
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
@@ -80,7 +81,8 @@ const INITIAL_STATE: SharedState = {
     isCoinVisible: true,
     isLPVisible: true,
     isCardWidgetVisible: true,
-    initialLP: 8000
+    initialLP: 8000,
+    onlyShowPlayer1: false
 };
 
 let sharedState: SharedState = { ...INITIAL_STATE };
@@ -122,7 +124,8 @@ const updateShared = (patch: Partial<SharedState>) => {
         patch.isCoinVisible !== undefined ||
         patch.isLPVisible !== undefined ||
         patch.isCardWidgetVisible !== undefined ||
-        patch.initialLP !== undefined;
+        patch.initialLP !== undefined ||
+        patch.onlyShowPlayer1 !== undefined;
 
     if (widgetUpdated) {
         const settings = {
@@ -130,7 +133,8 @@ const updateShared = (patch: Partial<SharedState>) => {
             isCoinVisible: sharedState.isCoinVisible,
             isLPVisible: sharedState.isLPVisible,
             isCardWidgetVisible: sharedState.isCardWidgetVisible,
-            initialLP: sharedState.initialLP
+            initialLP: sharedState.initialLP,
+            onlyShowPlayer1: sharedState.onlyShowPlayer1
         };
         set(WIDGET_SETTINGS_KEY, settings).catch(err => {
             console.error('[Sync] Failed to persist widget settings:', err);
@@ -741,6 +745,8 @@ export const useCardSearch = (
         isCardWidgetVisible: sharedState.isCardWidgetVisible,
         setIsCardWidgetVisible: (visible: boolean) => updateShared({ isCardWidgetVisible: visible }),
         initialLP: sharedState.initialLP,
-        setInitialLP: (lp: number) => updateShared({ initialLP: lp })
+        setInitialLP: (lp: number) => updateShared({ initialLP: lp }),
+        onlyShowPlayer1: sharedState.onlyShowPlayer1,
+        setOnlyShowPlayer1: (visible: boolean) => updateShared({ onlyShowPlayer1: visible })
     };
 };

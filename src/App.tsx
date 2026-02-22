@@ -54,7 +54,9 @@ function App() {
     isCardWidgetVisible,
     setIsCardWidgetVisible,
     initialLP,
-    setInitialLP
+    setInitialLP,
+    onlyShowPlayer1,
+    setOnlyShowPlayer1
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
   // Widget States
@@ -509,6 +511,7 @@ function App() {
                 isCoinVisible={false}
                 isLPVisible={true}
                 initialLP={initialLP}
+                onlyShowPlayer1={onlyShowPlayer1}
               />
             </div>
           </OverlayWidget>
@@ -603,6 +606,8 @@ function App() {
             onToggleLPVisible={setIsLPVisible}
             initialLP={initialLP}
             onChangeInitialLP={setInitialLP}
+            onlyShowPlayer1={onlyShowPlayer1}
+            onToggleOnlyShowPlayer1={setOnlyShowPlayer1}
             spMarkerMode={spMarkerMode}
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}

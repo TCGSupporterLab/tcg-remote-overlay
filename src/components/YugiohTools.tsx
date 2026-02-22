@@ -26,6 +26,7 @@ interface YugiohToolsProps {
     isCoinVisible?: boolean;
     isLPVisible?: boolean;
     initialLP?: number;
+    onlyShowPlayer1?: boolean;
 }
 
 export const YugiohTools: React.FC<YugiohToolsProps> = ({
@@ -36,7 +37,8 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
     isDiceVisible = true,
     isCoinVisible = true,
     isLPVisible = true,
-    initialLP = 8000
+    initialLP = 8000,
+    onlyShowPlayer1 = false
 }: YugiohToolsProps) => {
     const [p1, setP1] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [p2, setP2] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
@@ -61,6 +63,14 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
         return () => channel.close();
     }, []);
 
+    // Force P1 if onlyShowPlayer1 is on
+    useEffect(() => {
+        if (onlyShowPlayer1 && targetPlayer === 'p2') {
+            setTargetPlayer('p1');
+            broadcastSync({ target: 'p1' });
+        }
+    }, [onlyShowPlayer1, targetPlayer]);
+
     const broadcastSync = (data: { p1?: PlayerState, p2?: PlayerState, target?: 'p1' | 'p2' | null, input?: string }) => {
         const channel = new BroadcastChannel(CHANNEL_NAME);
         channel.postMessage(data);
@@ -81,6 +91,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
     };
 
     const handleSetTarget = (player: 'p1' | 'p2' | null) => {
+        if (onlyShowPlayer1 && player === 'p2') return;
         if (player === targetPlayer) return;
         setTargetPlayer(player);
         broadcastSync({ target: player });
@@ -272,7 +283,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOverlay, handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo, p1, p2, targetPlayer]);
+    }, [isOverlay, onlyShowPlayer1, handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo, handleSetTarget, handleToggleTarget, p1, p2, targetPlayer]);
 
     const getPlayerCardClass = (isOverlay: boolean) => {
         if (isOverlay) return "flex flex-col items-center justify-center relative p-3 rounded-2xl transition-all duration-500 transform";
@@ -316,7 +327,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                     {isOverlay ? (
                         <>
                             {/* Player 2 (Opponent) - Always Rotated 180 in Overlay */}
-                            {isLPVisible && (
+                            {isLPVisible && !onlyShowPlayer1 && (
                                 <div
                                     className={getPlayerCardClass(true)}
                                     style={{
@@ -424,7 +435,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                             )}
 
                             {/* Player 2 (Opponent) */}
-                            {isLPVisible && (
+                            {isLPVisible && !onlyShowPlayer1 && (
                                 <div
                                     className={getPlayerCardClass(false)}
                                     style={getTargetStyle(targetPlayer === 'p2', 'p2', false)}
