@@ -301,16 +301,34 @@ body.obs-green {
 
 /* Scrollbar Customization */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 16px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: #111827;
+  /* bg-gray-900 */
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #4b5563;
-  border-radius: 4px;
+  background-color: #374151;
+  /* gray-700 */
+  border-radius: 6px;
+  border: 3px solid #111827;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #22d3ee;
+  /* cyan-400 (Highly visible!) */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Pin Badge Hover Logic */

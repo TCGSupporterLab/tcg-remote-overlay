@@ -84,7 +84,7 @@ export const SearchTab = React.forwardRef<SearchTabHandle, SearchTabProps>(({
         <div
             key={searchKey}
             ref={scrollRef}
-            className="flex-1 overflow-y-auto bg-gray-900 p-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+            className="absolute inset-0 overflow-y-auto bg-gray-900 p-4"
         >
             <CardGrid
                 cards={visibleCards}

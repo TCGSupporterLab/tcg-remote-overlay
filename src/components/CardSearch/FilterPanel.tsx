@@ -1,23 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import type { FilterCategory, Filters } from '../../hooks/useCardSearch';
-import { ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 
 interface FilterPanelProps {
     filters: Filters;
     options: Record<string, string[]>;
     onUpdate: (category: FilterCategory, value: string) => void;
     onKeywordChange: (text: string) => void;
-    onScrollTop: () => void;
-    onScrollBottom: () => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
     filters,
     options,
     onUpdate,
-    onKeywordChange,
-    onScrollTop,
-    onScrollBottom
+    onKeywordChange
 }) => {
     const [activeTab, setActiveTab] = useState<string>('');
 
@@ -142,7 +137,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 ))}
             </div>
 
-            {/* Filter Buttons & Scroll Controls */}
+            {/* Filter Buttons */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', paddingTop: '8px' }}>
                 <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {activeTab && options[activeTab] && (
@@ -167,26 +162,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                             })}
                         </>
                     )}
-                </div>
-
-                {/* Scroll Buttons */}
-                <div className="flex flex-none gap-1">
-                    <button
-                        onClick={onScrollTop}
-                        style={{ ...buttonStyle(false), padding: '6px 10px' }}
-                        className="hover:border-cyan-500 hover:text-cyan-400 transition-colors"
-                        title="一番上へ"
-                    >
-                        <ArrowUpToLine size={16} />
-                    </button>
-                    <button
-                        onClick={onScrollBottom}
-                        style={{ ...buttonStyle(false), padding: '6px 10px' }}
-                        className="hover:border-cyan-500 hover:text-cyan-400 transition-colors"
-                        title="一番下へ"
-                    >
-                        <ArrowDownToLine size={16} />
-                    </button>
                 </div>
             </div>
         </div>

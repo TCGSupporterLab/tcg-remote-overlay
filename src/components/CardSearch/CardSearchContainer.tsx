@@ -42,14 +42,6 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
     const searchTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
     const pinnedTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
 
-    const handleScrollTop = () => {
-        if (activeTab === 'search') searchTabRef.current?.scrollToTop();
-        else pinnedTabRef.current?.scrollToTop();
-    };
-    const handleScrollBottom = () => {
-        if (activeTab === 'search') searchTabRef.current?.scrollToBottom();
-        else pinnedTabRef.current?.scrollToBottom();
-    };
 
     // Keyboard Navigation
     useEffect(() => {
@@ -184,8 +176,6 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
                                 options={dynamicFilterOptions}
                                 onUpdate={updateFilter}
                                 onKeywordChange={setKeyword}
-                                onScrollTop={handleScrollTop}
-                                onScrollBottom={handleScrollBottom}
                             />
                         </div>
                     )}

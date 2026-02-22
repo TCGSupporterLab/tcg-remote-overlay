@@ -82,7 +82,7 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
             <div className="flex-1 relative min-h-0">
                 <div
                     ref={scrollRef}
-                    className="absolute inset-0 overflow-y-auto bg-gray-900 p-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+                    className="absolute inset-0 overflow-y-auto bg-gray-900 p-4"
                 >
                     {pinnedCards.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
