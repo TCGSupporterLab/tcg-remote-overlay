@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
 import type { FilterCategory, Filters } from '../../hooks/useCardSearch';
 
 interface FilterPanelProps {
@@ -90,6 +91,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {/* Search Input */}
             <div style={{ position: 'relative', marginBottom: optionKeys.length > 0 ? '8px' : '4px', maxWidth: '500px' }}>
+                <div style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#9ca3af',
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center'
+                }}>
+                    <Search size={16} />
+                </div>
                 <input
                     type="text"
                     placeholder="カード名で検索..."
@@ -101,7 +114,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                         border: '1px solid #374151',
                         color: '#fff',
                         borderRadius: '9999px',
-                        padding: '8px 16px',
+                        padding: '8px 16px 8px 36px',
                         fontSize: '14px',
                         outline: 'none',
                         boxSizing: 'border-box',
