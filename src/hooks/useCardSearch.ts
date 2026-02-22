@@ -111,10 +111,14 @@ export const useCardSearch = (
         const results = localCards.map(lc => {
             const m = lc.metadata || {};
             const name = m.name || lc.name || '';
-            const yomi = lc.yomi || name;
+            const yomi = m.yomi || lc.yomi || name;
+
             const norm = normalizeText(name);
             const normYomi = normalizeText(yomi);
-            const combined = norm !== normYomi ? norm + ' ' + normYomi : norm;
+
+            // 【限定】カード名と読み（yomi）のみを検索対象にする
+            const combined = [norm, normYomi].filter(Boolean).join(' ');
+
             return {
                 ...m,
                 id: lc.id,
@@ -207,6 +211,17 @@ export const useCardSearch = (
         const pureKeyword = removeSymbols(normKeyword);
         const pureHira = removeSymbols(hiraKeyword);
 
+        if (import.meta.env.DEV && keyword) {
+            if (normalizedData.length > 0) {
+                const sample = normalizedData.find(d => d.path.toLowerCase().includes('hbd24-001') || d.path.toLowerCase().includes('korone')) || normalizedData[0];
+                console.log(`[Search] Keyword: "${keyword}", Data Check ("${sample.name}"):`, {
+                    path: sample.path,
+                    norm: sample._normName,
+                    hasMetadata: Object.keys(sample._metadata || {}).length > 0
+                });
+            }
+        }
+
         let results = normalizedData.filter(card => {
             if (normKeyword) {
                 const match =
@@ -219,6 +234,17 @@ export const useCardSearch = (
             return true;
         });
 
+        if (import.meta.env.DEV && keyword) {
+            console.log(`[Search] Keyword matching finished. Results: ${results.length}`);
+            if (results.length > 0 && results.length < 10) {
+                results.forEach(r => {
+                    console.log(` - Match: "${r.name}" (kana: "${r.kana}")`);
+                    console.log(`   Path: ${r.path}`);
+                    console.log(`   Metadata:`, r._metadata);
+                });
+            }
+        }
+
         const pathParts = currentPath.split('/').filter(Boolean);
         const depth = pathParts.length;
 
@@ -228,11 +254,30 @@ export const useCardSearch = (
 
         results.forEach(card => {
             const path = card.path || '';
-            if (currentPath && !path.startsWith(currentPath + '/')) return;
-            const relative = currentPath ? path.slice(currentPath.length + 1) : path;
+
+            // キーワードがある場合は、現在のパスに関わらず全件対象とする（グローバル検索）
+            // キーワードがない場合は、現在のパス配下のみを対象とする
+            if (!keyword && currentPath && !path.startsWith(currentPath + '/')) return;
+
+            const relative = currentPath ? (path.startsWith(currentPath + '/') ? path.slice(currentPath.length + 1) : path) : path;
             const parts = relative.split('/');
 
-            if (parts.length > 1) {
+            // キーワードがある場合は、階層を無視してファイルを直接表示する（フラット表示）
+            if (keyword && parts.length > 0) {
+                let match = true;
+                for (const [key, selected] of Object.entries(categories)) {
+                    if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
+                    if (!activeCategories.includes(key)) continue;
+                    const val = card._metadata?.[key];
+                    if (val === undefined || val === null || !(Array.isArray(val) ? val.some(v => selected.includes(String(v))) : selected.includes(String(val)))) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) files.push(card);
+            }
+            else if (parts.length > 1) {
+                // フォルダ表示（キーワードなしの場合のみ。設計通り depth < 2 制限を適用）
                 if (depth < 2) {
                     const folderName = parts[0];
                     if (!seenFolders.has(folderName)) {
@@ -247,7 +292,8 @@ export const useCardSearch = (
                         } as Card);
                     }
                 }
-            } else {
+            } else if (parts.length === 1 && parts[0] !== '') {
+                // 直接のファイル
                 let match = true;
                 for (const [key, selected] of Object.entries(categories)) {
                     if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
@@ -275,7 +321,7 @@ export const useCardSearch = (
         const combined = [...folders, ...files];
         if (import.meta.env.DEV) {
             console.timeEnd('[Search] Filtering');
-            console.log(`[Search] Filtered results: ${combined.length} items (Folders: ${folders.length}, Files: ${files.length}). isSyncing will be: ${localCards.length > 0 && combined.length === 0}`);
+            console.log(`[Search] Filtered results: ${combined.length} items (Folders: ${folders.length}, Files: ${files.length}).`);
         }
         return combined;
     }, [normalizedData, sharedState.filters, sharedState.currentPath, mergeSameFileCards, activeCategories]);

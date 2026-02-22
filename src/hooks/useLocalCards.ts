@@ -62,8 +62,19 @@ export const useLocalCards = () => {
             if (path.endsWith('_meta_filter.json')) {
                 filterMetadataMap.set(dirPath, json);
             } else if (path.endsWith('_meta_card.json')) {
-                Object.entries(json).forEach(([fileName, data]) => {
-                    cardMetadataMap.set(`${dirPath}/${fileName}`, data as any);
+                const dirPrefix = dirPath ? `${dirPath}/` : '';
+                const entries = Object.entries(json);
+                if (import.meta.env.DEV) {
+                    console.log(`[Sync] Loading ${path}: Found ${entries.length} entries. DirPrefix: "${dirPrefix}"`);
+                }
+                entries.forEach(([fileName, data]) => {
+                    const fullKey = `${dirPrefix}${fileName.toLowerCase()}`;
+                    cardMetadataMap.set(fullKey, data as any);
+
+                    // 特定のカードが登録されたかチェック
+                    if (import.meta.env.DEV && (fullKey.includes('hbd24-001') || fullKey.includes('korone'))) {
+                        console.log(`[Sync] Registered metaKey: "${fullKey}"`);
+                    }
                 });
             }
         }
@@ -171,7 +182,11 @@ export const useLocalCards = () => {
                     else continue;
 
                     if (targetPath.startsWith(linkObj.folderPath + '/')) continue;
-                    const targetCard = foundCards.find(c => c.path === targetPath);
+
+                    // 【修正】大文字小文字を区別せずにターゲットカードを検索
+                    const targetPathLower = targetPath.toLowerCase();
+                    const targetCard = foundCards.find(c => c.path.toLowerCase() === targetPathLower);
+
                     if (targetCard) {
                         foundCards.push({
                             ...targetCard,
@@ -195,9 +210,35 @@ export const useLocalCards = () => {
             }
 
             const finalCards: LocalCard[] = foundCards.sort((a, b) => a.path.split('/').length - b.path.split('/').length).map(card => {
-                const metaKey = card._linkedFrom || card.path;
-                const data = cardMetadataMap.get(metaKey) || {};
-                return { ...card, metadata: data, yomi: data.yomi || '' };
+                const pathLower = card.path.toLowerCase();
+                const pathParts = pathLower.split('/');
+                const fileName = pathParts[pathParts.length - 1];
+                const ocgName = pathParts[0];
+
+                // 1. まずはフルパスで照合
+                let data = cardMetadataMap.get(pathLower);
+
+                // 2. 失敗した場合、OCG直下のファイル名としてフォールバック (all/, test/ などの階層を無視)
+                if (!data && pathParts.length > 2) {
+                    const fallbackKey = `${ocgName}/${fileName}`;
+                    data = cardMetadataMap.get(fallbackKey);
+                }
+
+                // 3. リンク元のパスでも同様に試行
+                if (!data && card._linkedFrom) {
+                    const linkLower = card._linkedFrom.toLowerCase();
+                    const linkParts = linkLower.split('/');
+                    const linkFileName = linkParts[linkParts.length - 1];
+                    data = cardMetadataMap.get(linkLower) || cardMetadataMap.get(`${ocgName}/${linkFileName}`);
+                }
+
+                const finalData = data || {};
+
+                if (import.meta.env.DEV && (pathLower.includes('hbd24-001') || pathLower.includes('korone'))) {
+                    console.log(`[Sync] Mapping for ${card.path}: found=${!!data}, metaKey="${ocgName}/${fileName}"`);
+                }
+
+                return { ...card, metadata: finalData, yomi: finalData.yomi || '' };
             });
 
             if (signal.aborted) {
