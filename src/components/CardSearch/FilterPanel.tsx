@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import { useCardSearch } from '../../hooks/useCardSearch';
 import type { FilterCategory, Filters } from '../../hooks/useCardSearch';
 
 interface FilterPanelProps {
@@ -15,6 +16,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     onUpdate,
     onKeywordChange
 }) => {
+    const { currentPath } = useCardSearch();
+    const isLevel1 = currentPath.split('/').filter(Boolean).length === 1;
     const [activeTab, setActiveTab] = useState<string>('');
 
     // Initialize activeTab when options are loaded or current tab becomes invalid
@@ -163,12 +166,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {activeTab && options[activeTab] && (
                             <>
-                                <button
-                                    style={buttonStyle((filters.categories[activeTab] || ['all']).includes('all'))}
-                                    onClick={() => onUpdate(activeTab, 'all')}
-                                >
-                                    すべて
-                                </button>
+                                {!isLevel1 && (
+                                    <button
+                                        style={buttonStyle((filters.categories[activeTab] || ['all']).includes('all'))}
+                                        onClick={() => onUpdate(activeTab, 'all')}
+                                    >
+                                        すべて
+                                    </button>
+                                )}
                                 {options[activeTab].map(val => {
                                     const isSelected = (filters.categories[activeTab] || []).includes(val);
                                     return (

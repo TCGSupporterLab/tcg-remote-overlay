@@ -268,9 +268,6 @@ export const useCardSearch = (
             const path = card.path || '';
 
             // 階層に基づいた検索範囲の判定（表示上の現在地 depth に依存）
-            // 0階層目 (depth=0): 全カード対象（物理階層ルールにより正規化時点で第2階層以降のみに絞られている）
-            // 1階層目 (depth=1): currentPath 配下の全カード対象
-            // 2階層目 (depth=2): currentPath 直下のカードのみ対象
             if (depth === 1) {
                 if (!path.startsWith(currentPath + '/')) return;
             } else if (depth >= 2) {
@@ -283,11 +280,21 @@ export const useCardSearch = (
             const relative = currentPath ? (path.startsWith(currentPath + '/') ? path.slice(currentPath.length + 1) : path) : path;
             const parts = relative.split('/');
 
-            // キーワードがある場合は、フラット表示。フォルダ表示は無視。
-            if (keyword && parts.length > 0) {
-                // ファイルのみを表示対象にする
-                // (depth が 1 の場合、配下の深いカードも含まれる可能性があるが、
-                // 上記の depth 判定により depth 1 では配下全件、depth 2 では直下のみとなる)
+            // 属性フィルタが選択されているかチェック
+            const hasSelectedCategories = Object.entries(categories).some(([key, selected]) => {
+                return !excludeKeys.includes(key) && selected?.length > 0 && !selected.includes('all') && activeCategories.includes(key);
+            });
+
+            // フラット表示モードの判定（キーワード検索中、または属性フィルタ選択中）
+            const isFlatMode = !!keyword || hasSelectedCategories;
+
+            // 第0階層（ROOT）では常にファイルを表示しないルール
+            if (depth === 0) {
+                // フォルダ表示のみ継続
+            }
+            else if (isFlatMode) {
+                // 【フラット表示】キーワードまたは属性フィルタがある場合
+                // 第1階層からはサブフォルダ内のファイルも、第2階層からは直下のファイルを表示
                 let match = true;
                 for (const [key, selected] of Object.entries(categories)) {
                     if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
@@ -298,10 +305,26 @@ export const useCardSearch = (
                         break;
                     }
                 }
+
+                if (match) {
+                    // キーワードがある場合は名前・かな等のキーワードマッチも確認
+                    if (keyword) {
+                        const normKeyword = normalizeText(keyword);
+                        const hiraKeyword = toHiragana(normKeyword);
+                        const matchKw =
+                            card._normName?.includes(normKeyword) ||
+                            card._hiraName?.includes(hiraKeyword);
+                        if (!matchKw) match = false;
+                    }
+                }
+
                 if (match) files.push(card);
+                return; // フラットモード時はフォルダ表示をスキップ
             }
-            else if (parts.length > 1) {
-                // フォルダ表示（キーワードなしの場合のみ。設計通り depth < 2 制限を適用）
+
+            // 【通常表示】階層構造に従って表示
+            if (parts.length > 1) {
+                // フォルダ表示
                 if (depth < 2) {
                     const folderName = parts[0];
                     if (!seenFolders.has(folderName)) {
@@ -317,49 +340,10 @@ export const useCardSearch = (
                     }
                 }
             } else if (parts.length === 1 && parts[0] !== '') {
-                // 直接のファイル
-
-                // 属性フィルタが選択されているかチェック
-                const hasSelectedCategories = Object.entries(categories).some(([key, selected]) => {
-                    return !excludeKeys.includes(key) && selected?.length > 0 && !selected.includes('all') && activeCategories.includes(key);
-                });
-
-                if (import.meta.env.DEV && depth === 1 && hasSelectedCategories) {
-                    // 調査ログ: 第1階層でフィルタありの場合
-                    if (files.length < 5) {
-                        console.log(`[Search:Debug] Depth 1 Evaluation - Card: "${card.name}", Path: "${card.path}", Match logic starts...`);
-                    }
+                // 直接のファイル（depth 2限定: depth 0, 1 では isFlatMode でない限りここには到達させない）
+                if (depth >= 2) {
+                    files.push(card);
                 }
-
-                // 第0階層: 常にファイルは表示しない
-                if (depth === 0) return;
-
-                // 第1階層: 検索キーワードがあるか、属性フィルタが選択されている場合のみ表示
-                if (depth === 1 && !keyword && !hasSelectedCategories) {
-                    return;
-                }
-
-                // 2階層目以上: 常に表示（キーワードも属性フィルタも無い場合は全件表示）
-
-                let match = true;
-                for (const [key, selected] of Object.entries(categories)) {
-                    if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
-                    if (!activeCategories.includes(key)) continue;
-                    const val = card._metadata?.[key];
-                    if (val === undefined || val === null || !(Array.isArray(val) ? val.some(v => selected.includes(String(v))) : selected.includes(String(val)))) {
-                        match = false;
-                        if (import.meta.env.DEV && depth === 1 && hasSelectedCategories && files.length < 5) {
-                            console.log(`[Search:Debug] Depth 1 Card "${card.name}" failed filter "${key}" (value: ${JSON.stringify(val)}, selected: ${JSON.stringify(selected)})`);
-                        }
-                        break;
-                    }
-                }
-
-                if (import.meta.env.DEV && depth === 1 && hasSelectedCategories && match && files.length < 5) {
-                    console.log(`[Search:Debug] Depth 1 Match Found: "${card.name}"`);
-                }
-
-                if (match) files.push(card);
             }
         });
 
