@@ -79,10 +79,9 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
                 </div>
             )}
 
-            {/* Coin Section */}
             {showCoin && (
                 <div
-                    className={`${itemWrapperClass} ${!compact ? 'translate-x-8' : ''}`}
+                    className={`${itemWrapperClass} ${!compact && showDice ? 'translate-x-8' : ''}`}
                     onClick={onCoinClick}
                     title="クリックしてコイントス"
                 >

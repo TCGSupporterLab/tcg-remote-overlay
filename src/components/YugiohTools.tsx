@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, Undo2, Redo2 } from 'lucide-react';
+import { Undo2, Redo2 } from 'lucide-react';
 
 import { OverlayDisplay } from './OverlayDisplay';
 import { DigitalDisplay } from './DigitalDisplay';
@@ -26,7 +26,6 @@ interface YugiohToolsProps {
     isCoinVisible?: boolean;
     isLPVisible?: boolean;
     initialLP?: number;
-    showLPHistory?: boolean;
 }
 
 export const YugiohTools: React.FC<YugiohToolsProps> = ({
@@ -37,8 +36,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
     isDiceVisible = true,
     isCoinVisible = true,
     isLPVisible = true,
-    initialLP = 8000,
-    showLPHistory = true
+    initialLP = 8000
 }: YugiohToolsProps) => {
     const [p1, setP1] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [p2, setP2] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
@@ -514,18 +512,6 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
                         </div>
 
                         {/* Log Display */}
-                        {showLPHistory && (
-                            <div className="flex gap-4 opacity-50 text-[10px] justify-center mt-2 pb-8">
-                                <div>
-                                    <History size={10} className="inline mr-1" />
-                                    P1: {p1.log.slice(0, 3).join(' ← ')}...
-                                </div>
-                                <div>
-                                    <History size={10} className="inline mr-1" />
-                                    P2: {p2.log.slice(0, 3).join(' ← ')}...
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}

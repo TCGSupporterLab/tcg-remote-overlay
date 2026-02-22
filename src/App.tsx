@@ -10,6 +10,7 @@ import { SPMarkerWidget } from './components/CardSearch/SPMarkerWidget';
 import { useLocalCards } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
 import { CardWidget } from './components/CardSearch/CardWidget';
+import { OverlayDisplay } from './components/OverlayDisplay';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
 
@@ -53,9 +54,7 @@ function App() {
     isCardWidgetVisible,
     setIsCardWidgetVisible,
     initialLP,
-    setInitialLP,
-    showLPHistory,
-    setShowLPHistory
+    setInitialLP
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
   // Widget States
@@ -483,11 +482,10 @@ function App() {
                   onDiceClick={handleRollDice}
                   onCoinClick={handleFlipCoin}
                   obsMode={obsMode}
-                  isDiceVisible={isDiceVisible}
-                  isCoinVisible={isCoinVisible}
+                  isDiceVisible={false}
+                  isCoinVisible={false}
                   isLPVisible={isLPVisible}
                   initialLP={initialLP}
-                  showLPHistory={showLPHistory}
                 />
               ) : (
                 <HololiveTools
@@ -503,8 +501,8 @@ function App() {
                   localCards={cards}
                   metadataOrder={metadataOrder}
                   mergeSameFileCards={mergeSameFileCards}
-                  isDiceVisible={isDiceVisible}
-                  isCoinVisible={isCoinVisible}
+                  isDiceVisible={false}
+                  isCoinVisible={false}
                 />
               )}
             </div>
@@ -519,6 +517,42 @@ function App() {
                 face={spMarkerFace}
                 onToggle={toggleSPMarkerFace}
                 isFollowMode={false}
+              />
+            </div>
+          </OverlayWidget>
+        )}
+
+        {/* 4. Independent Dice Widget */}
+        {isDiceVisible && (
+          <OverlayWidget gameMode="dice">
+            <div className="pointer-events-auto">
+              <OverlayDisplay
+                diceValue={diceValue}
+                coinValue={coinValue === 1 ? '表' : '裏'}
+                diceKey={diceKey}
+                coinKey={coinKey}
+                onDiceClick={handleRollDice}
+                showDice={true}
+                showCoin={false}
+                compact={false}
+              />
+            </div>
+          </OverlayWidget>
+        )}
+
+        {/* 5. Independent Coin Widget */}
+        {isCoinVisible && (
+          <OverlayWidget gameMode="coin">
+            <div className="pointer-events-auto">
+              <OverlayDisplay
+                diceValue={diceValue}
+                coinValue={coinValue === 1 ? '表' : '裏'}
+                diceKey={diceKey}
+                coinKey={coinKey}
+                onCoinClick={handleFlipCoin}
+                showDice={false}
+                showCoin={true}
+                compact={false}
               />
             </div>
           </OverlayWidget>
@@ -564,8 +598,6 @@ function App() {
             onToggleLPVisible={setIsLPVisible}
             initialLP={initialLP}
             onChangeInitialLP={setInitialLP}
-            showLPHistory={showLPHistory}
-            onToggleLPHistory={setShowLPHistory}
             spMarkerMode={spMarkerMode}
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}
