@@ -89,7 +89,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {/* Search Input */}
-            <div style={{ position: 'relative', marginBottom: '4px' }}>
+            <div style={{ position: 'relative', marginBottom: '4px', maxWidth: '500px' }}>
                 <input
                     type="text"
                     placeholder="カード名で検索..."
