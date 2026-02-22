@@ -15,15 +15,13 @@ function generateMetadata() {
         const data = fs.readFileSync(inputPath, 'utf8');
         const cards = JSON.parse(data);
 
-        const metadata = {};
-
-        // Define order for tabs and items
-        metadata["__order"] = {
+        const filters = {
             "色": ["白", "緑", "赤", "青", "紫", "黄", "無", "多色"],
             "タイプ": ["推しホロメン", "ホロメン", "Buzzホロメン", "サポート", "ファン", "マスコット", "ツール", "アイテム", "イベント", "スタッフ", "LIMITED", "エール"],
             "Bloom": ["Debut", "1st", "2nd", "Spot"]
         };
 
+        const cardsTable = {};
         const standardColors = ["白", "緑", "赤", "青", "紫", "黄", "無"];
 
         cards.forEach(card => {
@@ -48,25 +46,18 @@ function generateMetadata() {
             const rawColor = card.color === "◇" ? "無" : (card.color || "");
 
             if (rawColor) {
-                // Split multi-colors (e.g. "白緑" -> ["白", "緑"])
                 standardColors.forEach(c => {
-                    if (rawColor.includes(c)) {
-                        colors.push(c);
-                    }
+                    if (rawColor.includes(c)) colors.push(c);
                 });
-
-                // If it contains "multi" or specifically marked as multi in raw
                 if (rawColor.includes("multi") || colors.length >= 2) {
                     if (!colors.includes("多色")) colors.push("多色");
                 }
-
-                // If it's empty after standard check but had rawColor, just push rawColor
                 if (colors.length === 0 && rawColor) {
                     colors.push(rawColor);
                 }
             }
 
-            metadata[filename] = {
+            cardsTable[filename] = {
                 "name": card.name,
                 "タイプ": types,
                 "Bloom": blooms,
@@ -75,11 +66,21 @@ function generateMetadata() {
             };
         });
 
-        console.log(`Writing metadata to: ${outputPath}`);
-        fs.writeFileSync(outputPath, JSON.stringify(metadata, null, 2), 'utf8');
+        const baseDir = path.dirname(outputPath);
+        if (!fs.existsSync(baseDir)) {
+            fs.mkdirSync(baseDir, { recursive: true });
+        }
 
-        const count = Object.keys(metadata).length;
-        console.log(`Successfully generated metadata for ${count} cards.`);
+        const filterPath = path.join(baseDir, '_meta_filter.json');
+        const cardPath = path.join(baseDir, '_meta_card.json');
+
+        console.log(`Writing filter metadata to: ${filterPath}`);
+        fs.writeFileSync(filterPath, JSON.stringify(filters, null, 2), 'utf8');
+
+        console.log(`Writing card metadata to: ${cardPath}`);
+        fs.writeFileSync(cardPath, JSON.stringify(cardsTable, null, 2), 'utf8');
+
+        console.log(`Successfully generated metadata files.`);
 
     } catch (error) {
         console.error('Error generating metadata:', error);

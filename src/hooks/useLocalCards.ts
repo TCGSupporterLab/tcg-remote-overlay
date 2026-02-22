@@ -1,52 +1,36 @@
-﻿import { useState, useCallback, useEffect } from 'react';
-import { get, set } from 'idb-keyval';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { get, set, del } from 'idb-keyval';
 
 export interface LocalCard {
-    id: string; // Unique ID (usually paths)
-    name: string; // File name without extension
-    path: string; // Relative path from root
-    fullPath: string; // Full path including root
-    url: string; // Object URL for rendering
-    folderName: string; // The immediate parent folder name
-    ocgName?: string; // Level 1 folder (if applicable)
-    deckName?: string; // Level 2 folder (if applicable)
-    metadata: Record<string, any>;
-    yomi: string;
+    id: string;
+    name: string;
+    path: string;
+    fullPath: string;
+    url: string;
+    folderName: string;
+    ocgName: string;
+    deckName: string;
+    metadata?: Record<string, any>;
+    yomi?: string;
+    _linkedFrom?: string;
 }
 
-const TCG_REMOTE_DIRECTORY_KEY = 'tcg_remote_root_directory_handle';
+const ROOT_HANDLE_KEY = 'tcg_remote_root_handle';
+const ROOT_NAME_KEY = 'tcg_remote_root_name';
 
-const MAX_METADATA_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_TOTAL_METADATA_ENTRIES = 10000;
-const MAX_STRING_LENGTH = 3000;
-const MAX_ARRAY_SIZE = 200;
+const safeJsonParse = (text: string) => {
+    try { return JSON.parse(text); }
+    catch (e) { return null; }
+};
 
-// Helper to sanitize any metadata value
-const sanitizeMetadataValue = (val: any): any => {
-    if (typeof val === 'string') {
-        // Block dangerous protocols
-        if (val.toLowerCase().trim().startsWith('javascript:')) {
-            console.warn('Blocked potentially malicious javascript: protocol in metadata');
-            return '';
-        }
-        // Limit string length
-        return val.slice(0, MAX_STRING_LENGTH);
-    }
-    if (Array.isArray(val)) {
-        return val.slice(0, MAX_ARRAY_SIZE).map(sanitizeMetadataValue);
-    }
-    if (typeof val === 'object' && val !== null) {
-        const sanitized: Record<string, any> = {};
-        const entries = Object.entries(val);
-        // Limit number of properties in an object
-        for (const [k, v] of entries.slice(0, MAX_ARRAY_SIZE)) {
-            const safeKey = k.slice(0, 100).replace(/[$\.]/g, '_'); // Basic key sanitization
-            sanitized[safeKey] = sanitizeMetadataValue(v);
-        }
-        return sanitized;
-    }
+const getInStorage = async (key: string) => {
+    const val = await get(key);
     return val;
 };
+
+// Simple path helpers for browser
+const getBasename = (p: string) => p.split('/').pop() || '';
+const getExtStripped = (p: string) => getBasename(p).replace(/\.[^/.]+$/, "");
 
 export const useLocalCards = () => {
     const [cards, setCards] = useState<LocalCard[]>([]);
@@ -55,247 +39,249 @@ export const useLocalCards = () => {
     const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [mergeSameNameCards, setMergeSameNameCards] = useState<boolean>(() => {
+    const [mergeSameFileCards, setMergeSameFileCards] = useState<boolean>(() => {
         return localStorage.getItem('tcg_remote_merge_cards') !== 'false';
     });
-    const [metadataOrder, setMetadataOrder] = useState<Record<string, string[]>>({});
+    const [savedRootName, setSavedRootName] = useState<string | null>(() => {
+        return localStorage.getItem(ROOT_NAME_KEY);
+    });
+    const [metadataOrder, setMetadataOrder] = useState<Record<string, Record<string, string[]>>>({});
     const [folderMetadataMap, setFolderMetadataMap] = useState<Map<string, any>>(new Map());
+    const scanAbortControllerRef = useRef<AbortController | null>(null);
 
-    // Parse metadata from found json files
-    const parseMetadata = async (metadataFiles: Map<string, File>): Promise<{ cards: Map<string, Record<string, any>>, folders: Map<string, any> }> => {
-        const metadataMap = new Map<string, Record<string, any>>();
-        const folderMetadataMap = new Map<string, any>();
-        let totalEntries = 0;
+    const loadMetadata = useCallback(async (metadataFiles: Map<string, File>) => {
+        const cardMetadataMap = new Map<string, Record<string, any>>();
+        const filterMetadataMap = new Map<string, Record<string, string[]>>();
 
-        // Sort so root metadata is parsed first, then subfolders (subfolders override root)
-        const sortedFiles = Array.from(metadataFiles.entries()).sort((a, b) => {
-            const depthA = a[0].split('/').length;
-            const depthB = b[0].split('/').length;
-            return depthA - depthB;
-        });
+        for (const [path, file] of metadataFiles) {
+            const dirPath = path.substring(0, path.lastIndexOf('/'));
+            const text = await file.text();
+            const json = safeJsonParse(text);
+            if (!json) continue;
 
-        for (const [path, file] of sortedFiles) {
-            if (totalEntries >= MAX_TOTAL_METADATA_ENTRIES) {
-                console.warn(`Reached maximum metadata entry limit (${MAX_TOTAL_METADATA_ENTRIES}). Skipping ${path}`);
-                continue;
-            }
-
-            if (file.size > MAX_METADATA_FILE_SIZE) {
-                console.warn(`Metadata file too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Skipping ${path}`);
-                continue;
-            }
-
-            try {
-                const text = await file.text();
-                const json = JSON.parse(text);
-
-                if (typeof json !== 'object' || json === null) continue;
-
-                // Store as folder metadata
-                const folderPath = path.replace(/\/metadata\.json$/i, '');
-                folderMetadataMap.set(folderPath === 'metadata.json' ? '' : folderPath, json);
-
-                for (const [targetPath, data] of Object.entries(json)) {
-                    if (totalEntries >= MAX_TOTAL_METADATA_ENTRIES) break;
-
-                    // Sanitize path key (remove backslashes and prevent directory traversal patterns)
-                    const normalizedTargetPath = targetPath
-                        .replace(/\\/g, '/')
-                        .replace(/\.\.+\//g, ''); // Simple path traversal blocking
-
-                    const existing = metadataMap.get(normalizedTargetPath) || {};
-                    const sanitizedData = sanitizeMetadataValue(data);
-
-                    metadataMap.set(normalizedTargetPath, { ...existing, ...sanitizedData });
-                    totalEntries++;
-                }
-            } catch (e) {
-                console.warn(`Failed to parse metadata file at ${path}`, e);
+            if (path.endsWith('_meta_filter.json')) {
+                filterMetadataMap.set(dirPath, json);
+            } else if (path.endsWith('_meta_card.json')) {
+                Object.entries(json).forEach(([fileName, data]) => {
+                    cardMetadataMap.set(`${dirPath}/${fileName}`, data as any);
+                });
             }
         }
-        return { cards: metadataMap, folders: folderMetadataMap };
-    };
+        return { cardMetadataMap, filterMetadataMap };
+    }, []);
 
-    const scanDirectory = async (handle: FileSystemDirectoryHandle) => {
+    const scanDirectory = useCallback(async (handle: FileSystemDirectoryHandle) => {
+        if (scanAbortControllerRef.current) {
+            scanAbortControllerRef.current.abort();
+        }
+
+        const aborter = new AbortController();
+        scanAbortControllerRef.current = aborter;
+        const signal = aborter.signal;
+
+        if (import.meta.env.DEV) console.log(`[Sync] Scanning started for: ${handle.name}`);
         setIsScanning(true);
+        setIsLoading(true);
         setError(null);
         setHasAccess(true);
         setRootHandle(handle);
+
+        const foundCards: LocalCard[] = [];
+        const metadataFiles = new Map<string, File>();
+        const linkFiles: { ocg: string, folder: string, file: File, folderPath: string }[] = [];
+
         try {
-            const foundCards: LocalCard[] = [];
-            const metadataFiles = new Map<string, File>();
+            const recursiveScan = async (entry: FileSystemHandle, currentPath: string, depth: number) => {
+                if (signal.aborted) return;
 
-            const scanLevel = async (dirHandle: FileSystemDirectoryHandle, currentPath: string, depth: number) => {
-                if (depth > 5) return;
+                if (entry.kind === 'file') {
+                    const name = entry.name.toLowerCase();
+                    const isImage = name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp');
+                    const isJson = name.endsWith('.json');
+                    const isLink = name.endsWith('.link');
 
-                for await (const entry of (dirHandle as any).values()) {
-                    const entryPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
+                    if (isImage || isJson || isLink) {
+                        const file = await (entry as any).getFile();
+                        if (!file) return;
 
-                    if (entry.kind === 'file') {
-                        if (entry.name.toLowerCase() === 'metadata.json') {
-                            const file = await entry.getFile();
-                            metadataFiles.set(entryPath, file);
-                        } else if (entry.name.match(/\.(png|jpe?g|webp|gif|bmp|svg|avif)$/i)) {
-                            const file = await entry.getFile();
-                            const url = URL.createObjectURL(file);
+                        const parts = currentPath.split('/');
+                        const ocg = parts[0];
+                        const folder = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+                        const folderPath = currentPath.substring(0, Math.max(0, currentPath.lastIndexOf('/')));
 
-                            const parts = entryPath.split('/');
-                            let folderName = handle.name;
-                            let ocgName = undefined;
-                            let deckName = undefined;
-
-                            if (parts.length === 2) {
-                                folderName = parts[0];
-                                ocgName = parts[0];
-                            } else if (parts.length === 3) {
-                                folderName = parts[1];
-                                ocgName = parts[0];
-                                deckName = parts[1];
-                            }
-
+                        if (isJson) {
+                            metadataFiles.set(currentPath, file);
+                        }
+                        else if (isLink) {
+                            linkFiles.push({ ocg, folder, file, folderPath });
+                        }
+                        else if (isImage) {
                             foundCards.push({
-                                id: `${handle.name}/${entryPath}`,
-                                name: entry.name.replace(/\.[^/.]+$/, ""),
-                                path: entryPath,
-                                fullPath: `${handle.name}/${entryPath}`,
-                                url,
-                                folderName,
-                                ocgName,
-                                deckName,
+                                id: `${handle.name}/${currentPath}`,
+                                name: getExtStripped(name),
+                                path: currentPath,
+                                fullPath: `${handle.name}/${currentPath}`,
+                                url: URL.createObjectURL(file),
+                                folderName: folder,
+                                ocgName: ocg,
+                                deckName: folder,
                                 metadata: {},
                                 yomi: ''
                             });
                         }
-                    } else if (entry.kind === 'directory') {
-                        await scanLevel(entry, entryPath, depth + 1);
+                    }
+                }
+                else if (entry.kind === 'directory') {
+                    const entries = (entry as any).values();
+                    for await (const childEntry of entries) {
+                        if (signal.aborted) break;
+                        const childPath = currentPath ? `${currentPath}/${childEntry.name}` : childEntry.name;
+                        await recursiveScan(childEntry, childPath, depth + 1);
                     }
                 }
             };
 
-            await scanLevel(handle, '', 0);
+            await recursiveScan(handle, '', 0);
 
-            const { cards: metadataMap, folders: newFolderMetadataMap } = await parseMetadata(metadataFiles);
+            if (signal.aborted) {
+                foundCards.forEach(c => URL.revokeObjectURL(c.url));
+                return;
+            }
 
-            // Extract global order info (fallback/legacy)
-            const globalOrder = metadataMap.get('__order') as Record<string, string[]> | undefined;
-            setMetadataOrder(globalOrder || {});
-            setFolderMetadataMap(newFolderMetadataMap);
+            const { cardMetadataMap, filterMetadataMap } = await loadMetadata(metadataFiles);
+            if (signal.aborted) {
+                foundCards.forEach(c => URL.revokeObjectURL(c.url));
+                return;
+            }
 
-            foundCards.sort((a, b) => a.path.split('/').length - b.path.split('/').length);
+            // Resolve Links
+            for (const linkObj of linkFiles) {
+                if (signal.aborted) break;
+                const text = await linkObj.file.text();
+                const lines = text.split(/\r?\n/);
+                for (const line of lines) {
+                    const rawLine = line.trim().replace(/^['"]|['"]$/g, '').replace(/\\/g, '/');
+                    if (!rawLine || !rawLine.includes('/')) continue;
+                    const parts = rawLine.split('/');
+                    let targetPath = '';
+                    if (parts.length === 2) targetPath = `${linkObj.ocg}/${rawLine}`;
+                    else if (parts.length === 3) targetPath = rawLine;
+                    else continue;
 
-            const uniqueCardsMap = new Map<string, LocalCard>();
-            const enrichedCards: LocalCard[] = [];
-
-            for (const card of foundCards) {
-                const fileNameWithExt = card.path.split('/').pop() || card.name;
-                let data = metadataMap.get(fileNameWithExt);
-
-                if (!data) {
-                    data = metadataMap.get(card.path) || metadataMap.get(card.name);
-                }
-
-                const enrichedCard = {
-                    ...card,
-                    metadata: data || {},
-                    yomi: data?.yomi || ''
-                };
-
-                const isStandalone = data?.standalone === true || data?.別カード扱い === true || data?.separateCard === true;
-                const shouldMerge = localStorage.getItem('tcg_remote_merge_cards') !== 'false';
-                const dedupeKey = (!shouldMerge || isStandalone) ? card.path : card.name;
-
-                if (!uniqueCardsMap.has(dedupeKey)) {
-                    uniqueCardsMap.set(dedupeKey, enrichedCard);
-                    enrichedCards.push(enrichedCard);
-                } else if (shouldMerge && !isStandalone) {
-                    const existing = uniqueCardsMap.get(dedupeKey)!;
-                    const existingPriority = existing.metadata?.priority || 0;
-                    const currentPriority = data?.priority || 0;
-
-                    if (currentPriority > existingPriority) {
-                        uniqueCardsMap.set(dedupeKey, enrichedCard);
-                        const index = enrichedCards.findIndex(c => c.id === existing.id);
-                        if (index !== -1) enrichedCards[index] = enrichedCard;
+                    if (targetPath.startsWith(linkObj.folderPath + '/')) continue;
+                    const targetCard = foundCards.find(c => c.path === targetPath);
+                    if (targetCard) {
+                        foundCards.push({
+                            ...targetCard,
+                            id: `${handle.name}/${linkObj.folderPath}/${getBasename(targetPath)}`,
+                            path: `${linkObj.folderPath}/${getBasename(targetPath)}`,
+                            fullPath: `${handle.name}/${linkObj.folderPath}/${getBasename(targetPath)}`,
+                            folderName: linkObj.folder,
+                            ocgName: linkObj.ocg,
+                            deckName: linkObj.folder,
+                            _linkedFrom: targetPath
+                        });
                     }
                 }
             }
 
-            cards.forEach(c => URL.revokeObjectURL(c.url));
-            setCards(enrichedCards);
-            await set(TCG_REMOTE_DIRECTORY_KEY, handle);
+            if (signal.aborted) {
+                foundCards.forEach(c => URL.revokeObjectURL(c.url));
+                return;
+            }
+
+            const finalCards: LocalCard[] = foundCards.sort((a, b) => a.path.split('/').length - b.path.split('/').length).map(card => {
+                const metaFileName = card._linkedFrom ? getBasename(card._linkedFrom) : getBasename(card.path);
+                const metaOcg = card._linkedFrom ? card._linkedFrom.split('/')[0] : card.ocgName!;
+                const metaKey = `${metaOcg}/${metaFileName}`;
+                const data = cardMetadataMap.get(metaKey) || {};
+                return { ...card, metadata: data, yomi: data.yomi || '' };
+            });
+
+            if (signal.aborted) {
+                foundCards.forEach(c => URL.revokeObjectURL(c.url));
+                return;
+            }
+
+            if (import.meta.env.DEV) console.log(`[Sync] Scanning finished. Found ${foundCards.length} raw cards. Status: Success`);
+            setCards(prev => {
+                prev.forEach(c => URL.revokeObjectURL(c.url));
+                return finalCards;
+            });
+            setMetadataOrder(Object.fromEntries(filterMetadataMap) as Record<string, Record<string, string[]>>);
+            setFolderMetadataMap(filterMetadataMap);
+            localStorage.setItem(ROOT_NAME_KEY, handle.name);
+            setSavedRootName(handle.name);
+
+            setIsScanning(false);
+            setIsLoading(false);
+            if (import.meta.env.DEV) console.log(`[Sync] All data set and flags lowered`);
 
         } catch (err: any) {
-            console.error(err);
-            setError(err.message || 'Error scanning directory');
-            setHasAccess(false);
+            if (err.name === 'AbortError') return;
+            console.error('Scan error:', err);
+            foundCards.forEach(c => URL.revokeObjectURL(c.url));
+            setError(err instanceof Error ? err.message : String(err));
         } finally {
-            setIsScanning(false);
-        }
-    };
-
-    const requestAccess = async () => {
-        try {
-            if (!('showDirectoryPicker' in window)) {
-                throw new Error('Your browser does not support the File System Access API. Please use a modern Chrome or Edge browser.');
+            if (scanAbortControllerRef.current === aborter) {
+                scanAbortControllerRef.current = null;
             }
-            const handle = await (window as any).showDirectoryPicker({
-                id: 'tcg_remote_card_directory',
-                mode: 'read'
-            });
+        }
+    }, [loadMetadata]);
+
+    const requestAccess = useCallback(async () => {
+        try {
+            const handle = await (window as any).showDirectoryPicker();
+            if (!handle) return;
+            await set(ROOT_HANDLE_KEY, handle);
             await scanDirectory(handle);
         } catch (err: any) {
-            if (err.name !== 'AbortError') {
-                setError(err.message || 'Failed to select directory');
-            }
+            console.error('Directory Picker Error:', err);
+            if (err.name !== 'AbortError') setError('Could not access folder.');
         }
-    };
+    }, [scanDirectory]);
 
-    const reloadLastSession = useCallback(async () => {
+    const verifyPermissionAndScan = useCallback(async () => {
         try {
-            const handle = await get(TCG_REMOTE_DIRECTORY_KEY);
-            if (handle) {
-                const permission = await (handle as any).queryPermission({ mode: 'read' });
-                if (permission === 'granted') {
-                    await scanDirectory(handle);
-                } else {
-                    setRootHandle(handle);
-                    setHasAccess(false);
-                }
+            setIsLoading(true);
+            const handle = await getInStorage(ROOT_HANDLE_KEY);
+            if (!handle) {
+                setIsLoading(false);
+                return;
+            }
+            const opts: any = { mode: 'read' };
+            if (await handle.queryPermission(opts) === 'granted') {
+                await scanDirectory(handle);
+            } else if (await handle.requestPermission(opts) === 'granted') {
+                await scanDirectory(handle);
+            } else {
+                setHasAccess(false);
+                setIsLoading(false);
             }
         } catch (err) {
-            console.log('No previous session found or permission lost');
-        } finally {
+            console.error('Permission Error:', err);
+            setHasAccess(false);
             setIsLoading(false);
         }
+    }, [scanDirectory]);
+
+    const dropAccess = useCallback(async () => {
+        await del(ROOT_HANDLE_KEY);
+        localStorage.removeItem(ROOT_NAME_KEY);
+        setCards([]);
+        setHasAccess(false);
+        setRootHandle(null);
+        setSavedRootName(null);
     }, []);
 
-    const verifyPermissionAndScan = async () => {
-        if (!rootHandle) return requestAccess();
-        try {
-            const permission = await (rootHandle as any).requestPermission({ mode: 'read' });
-            if (permission === 'granted') {
-                await scanDirectory(rootHandle);
-            }
-        } catch (err) {
-            console.error('Permission denied', err);
-            setError('Permission denied to access the folder.');
-        }
-    };
+    const toggleMergeSameFileCards = useCallback((val: boolean) => {
+        setMergeSameFileCards(val);
+        localStorage.setItem('tcg_remote_merge_cards', String(val));
+    }, []);
 
     useEffect(() => {
-        reloadLastSession();
-        return () => {
-            cards.forEach(c => URL.revokeObjectURL(c.url));
-        };
+        verifyPermissionAndScan();
     }, []);
-
-    const toggleMergeSameNameCards = (value: boolean) => {
-        setMergeSameNameCards(value);
-        localStorage.setItem('tcg_remote_merge_cards', String(value));
-        if (rootHandle) {
-            scanDirectory(rootHandle);
-        }
-    };
 
     return {
         cards,
@@ -303,13 +289,14 @@ export const useLocalCards = () => {
         hasAccess,
         metadataOrder,
         folderMetadataMap,
-        isLoading,
-        error,
         rootHandle,
+        savedRootName,
         requestAccess,
         verifyPermissionAndScan,
-        rescan: () => rootHandle && scanDirectory(rootHandle),
-        mergeSameNameCards,
-        toggleMergeSameNameCards
+        dropAccess,
+        mergeSameFileCards,
+        toggleMergeSameFileCards,
+        isLoading,
+        rescan: () => rootHandle && scanDirectory(rootHandle)
     };
 };

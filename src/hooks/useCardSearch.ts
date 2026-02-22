@@ -1,109 +1,99 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { LocalCard } from './useLocalCards';
 
-const IS_OVERLAY = typeof window !== 'undefined' && (window.location.pathname.includes('/overlay') || new URLSearchParams(window.location.search).get('mode') === 'overlay');
-const CHANNEL_NAME = 'tcg_remote_overlay_sync';
-
-// --- TYPES ---
-export type FilterCategory = string;
-export interface Filters {
-    keyword: string;
-    categories: Record<FilterCategory, string[]>;
-}
+// Types from the original file
+export type FilterCategory = 'color' | 'type' | 'level' | 'bloom' | 'pack' | 'rarity' | 'oshi';
 
 export interface Card {
     id: string;
     name: string;
-    path: string;
     imageUrl: string;
     resolvedImageUrl?: string;
-    expansion?: string;
-    rarity?: string;
-    tags?: string;
+    path: string;
+    isFolder?: boolean;
+    folderPath?: string;
     kana?: string;
+    _fileName?: string;
     _normName?: string;
     _hiraName?: string;
     _pureName?: string;
     _pureHira?: string;
-    isFolder?: boolean;
-    folderPath?: string;
+    _metadata?: Record<string, any>;
     [key: string]: any;
 }
 
-export interface SharedState {
-    filters: Filters;
-    currentPath: string; // Move to shared state
-    pinnedCards: Card[];
-    selectedCard: Card | null;
-    overlayForcedCard: Card | null;
-    overlayMode: 'on' | 'off';
-    overlayDisplayMode: 'image' | 'text';
-    remoteCard: Card | null;
-    spMarkerMode: 'off' | 'follow' | 'independent';
-    spMarkerFace: 'front' | 'back';
-    showSPMarkerForceHidden: boolean;
-    remoteSPMarkerState: any;
-    independentMarkerState: any;
+interface SearchFilters {
+    keyword: string;
+    categories: Record<string, string[]>;
 }
 
-// --- STATE (SINGLETON) ---
-let sharedState: SharedState = {
+interface SharedState {
+    filters: SearchFilters;
+    currentPath: string;
+    pinnedCards: Card[];
+    selectedCard: Card | null;
+    remoteCard: Card | null;
+    overlayMode: 'on' | 'off';
+    overlayDisplayMode: 'image' | 'text';
+    overlayForcedCard: Card | null;
+    spMarkerMode: 'off' | 'follow' | 'independent';
+    spMarkerFace: 'front' | 'back';
+    remoteSPMarkerState: any;
+    independentMarkerState: any;
+    showSPMarkerForceHidden: boolean;
+}
+
+const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
+const CHANNEL_NAME = 'tcg_remote_search_sync';
+const channel = new BroadcastChannel(CHANNEL_NAME);
+
+const INITIAL_STATE: SharedState = {
     filters: { keyword: '', categories: {} },
     currentPath: '',
     pinnedCards: [],
     selectedCard: null,
-    overlayForcedCard: null,
+    remoteCard: null,
     overlayMode: 'on',
     overlayDisplayMode: 'image',
-    remoteCard: null,
-    spMarkerMode: 'follow',
+    overlayForcedCard: null,
+    spMarkerMode: 'off',
     spMarkerFace: 'front',
-    showSPMarkerForceHidden: false,
     remoteSPMarkerState: null,
-    independentMarkerState: null
+    independentMarkerState: { x: 50, y: 50, scale: 1, rotation: 0 },
+    showSPMarkerForceHidden: false
 };
 
-// --- SYNC ---
+let sharedState: SharedState = { ...INITIAL_STATE };
 const listeners = new Set<() => void>();
-let syncChannel: BroadcastChannel | null = null;
 
-if (typeof window !== 'undefined') {
-    syncChannel = new BroadcastChannel(CHANNEL_NAME);
-    syncChannel.onmessage = (e) => {
-        if (e.data.type === 'UPDATE_STATE') {
-            sharedState = { ...sharedState, ...e.data.state };
-            listeners.forEach(l => l());
-        } else if (e.data.type === 'REQ_STATE') {
-            const reply = new BroadcastChannel(CHANNEL_NAME);
-            reply.postMessage({ type: 'UPDATE_STATE', state: sharedState });
-            reply.close();
-        }
-    };
-    syncChannel.postMessage({ type: 'REQ_STATE' });
-}
-
-export const updateShared = (updates: Partial<SharedState>) => {
-    if (updates.spMarkerMode !== undefined && updates.spMarkerMode !== sharedState.spMarkerMode) {
-        updates.showSPMarkerForceHidden = false;
-    }
-    sharedState = { ...sharedState, ...updates };
-    if (syncChannel) syncChannel.postMessage({ type: 'UPDATE_STATE', state: sharedState });
+channel.onmessage = (event: MessageEvent<SharedState>) => {
+    sharedState = event.data;
     listeners.forEach(l => l());
 };
 
-// --- HELPERS ---
+const updateShared = (patch: Partial<SharedState>) => {
+    sharedState = { ...sharedState, ...patch };
+    channel.postMessage(sharedState);
+    listeners.forEach(l => l());
+};
+
 const normalizeText = (text: string) => {
     if (!text) return '';
-    return text.toLowerCase().normalize('NFKC').replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
+    return text.toLowerCase()
+        .replace(/[ぁ-ん]/g, m => String.fromCharCode(m.charCodeAt(0) + 0x60))
+        .replace(/[ァ-ン]/g, m => m)
+        .replace(/[Ａ-Ｚａ-ｚ０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0))
+        .trim();
 };
+
 const toHiragana = (text: string) => text.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
 const removeSymbols = (text: string) => text.replace(/[^\p{L}\p{N}]/gu, '');
-const excludeKeys = ['name', 'yomi', 'imageUrl', 'resolvedImageUrl', 'id', 'path', 'kana', '_normName', '_hiraName', '_pureName', '_pureHira', 'isFolder', 'folderPath'];
+const excludeKeys = ['name', 'yomi'];
 
-// --- HOOK ---
 export const useCardSearch = (
     localCards: LocalCard[] = [],
-    folderMetadataMap: Map<string, any> = new Map()
+    metadataOrder: Record<string, Record<string, string[]>> = {},
+    mergeSameFileCards: boolean = false
 ) => {
     const [, setTick] = useState(0);
     const forceUpdate = useCallback(() => setTick(t => t + 1), []);
@@ -113,25 +103,10 @@ export const useCardSearch = (
         return () => { listeners.delete(forceUpdate); };
     }, [forceUpdate]);
 
-
-
-    const activeFolderMetadata = useMemo(() => {
-        let path = sharedState.currentPath;
-        while (true) {
-            const meta = folderMetadataMap.get(path);
-            if (meta) return meta;
-            if (!path) break;
-            const lastSlash = path.lastIndexOf('/');
-            path = lastSlash === -1 ? '' : path.substring(0, lastSlash);
-        }
-        return null;
-    }, [sharedState.currentPath, folderMetadataMap]);
-
-    const activeOrder = useMemo(() => activeFolderMetadata?.__order || {}, [activeFolderMetadata]);
-
     const normalizedData = useMemo(() => {
         if (!localCards || localCards.length === 0) return [];
-        return localCards.map(lc => {
+        if (import.meta.env.DEV) console.time('[Search] Normalization');
+        const results = localCards.map(lc => {
             const m = lc.metadata || {};
             const name = m.name || lc.name || '';
             const yomi = lc.yomi || name;
@@ -146,101 +121,113 @@ export const useCardSearch = (
                 imageUrl: lc.url || '',
                 resolvedImageUrl: lc.url || '',
                 kana: yomi,
+                _fileName: lc.path ? lc.path.split('/').pop() : lc.name,
                 _normName: combined,
                 _hiraName: toHiragana(combined),
                 _pureName: removeSymbols(combined),
-                _pureHira: removeSymbols(toHiragana(combined))
+                _pureHira: removeSymbols(toHiragana(combined)),
+                _metadata: m
             } as Card;
         });
+        if (import.meta.env.DEV) {
+            console.timeEnd('[Search] Normalization');
+            console.log(`[Search] Normalized ${results.length} cards`);
+        }
+        return results;
     }, [localCards]);
 
-    // Refresh pinned and selected cards when local data changes (due to Blob URL expiration)
-    useEffect(() => {
-        if (normalizedData.length === 0) return;
-
-        let needsUpdate = false;
-        const updates: Partial<SharedState> = {};
-
-        // Refresh Selected Card
-        if (sharedState.selectedCard) {
-            const fresh = normalizedData.find(c => c.id === sharedState.selectedCard?.id);
-            if (fresh && fresh.imageUrl !== sharedState.selectedCard.imageUrl) {
-                updates.selectedCard = fresh;
-                needsUpdate = true;
+    const dynamicFilterOptions = useMemo(() => {
+        const options: Record<string, Set<string>> = {};
+        normalizedData.forEach(card => {
+            if (card._metadata) {
+                Object.entries(card._metadata).forEach(([key, val]) => {
+                    if (excludeKeys.includes(key)) return;
+                    if (!options[key]) options[key] = new Set();
+                    if (Array.isArray(val)) val.forEach(v => options[key].add(String(v)));
+                    else if (val !== undefined && val !== null) options[key].add(String(val));
+                });
             }
-        }
-
-        // Refresh Pinned Cards
-        const nextPins = sharedState.pinnedCards.map(p => {
-            const fresh = normalizedData.find(c => c.id === p.id);
-            if (fresh && fresh.imageUrl !== p.imageUrl) {
-                needsUpdate = true;
-                return fresh;
-            }
-            return p;
         });
 
-        if (needsUpdate) {
-            if (updates.selectedCard) {
-                updateShared({ ...updates, pinnedCards: nextPins });
+        const sorted: Record<string, string[]> = {};
+        Object.entries(options).forEach(([key, values]) => {
+            const order = metadataOrder[key];
+            if (order) {
+                const orderArray = Object.values(order).flat();
+                sorted[key] = Array.from(values).sort((a, b) => {
+                    const idxA = orderArray.indexOf(a);
+                    const idxB = orderArray.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
             } else {
-                updateShared({ pinnedCards: nextPins });
+                sorted[key] = Array.from(values).sort();
             }
-        }
-    }, [normalizedData]);
+        });
+        return sorted;
+    }, [normalizedData, metadataOrder]);
+
+    const activeCategories = useMemo(() => {
+        return Object.keys(dynamicFilterOptions).filter(k => !excludeKeys.includes(k));
+    }, [dynamicFilterOptions]);
 
     const filteredCards = useMemo(() => {
-        if (normalizedData.length === 0) return [];
+        if (import.meta.env.DEV) console.time('[Search] Filtering');
         const { keyword, categories } = sharedState.filters;
         const currentPath = sharedState.currentPath;
         const normKeyword = normalizeText(keyword);
-        const activeCategories = Object.keys(activeOrder);
+        const hiraKeyword = toHiragana(normKeyword);
+        const pureKeyword = removeSymbols(normKeyword);
+        const pureHira = removeSymbols(hiraKeyword);
 
-        if (normKeyword) {
-            const escaped = normKeyword.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(escaped.replace(/\*/g, '.*'), 'i');
-            return normalizedData.filter(card => {
-                const searchMatch = regex.test(card._normName!) || regex.test(card._hiraName!) || regex.test(card._pureName!) || regex.test(card._pureHira!);
-                if (!searchMatch) return false;
-                for (const [key, selected] of Object.entries(categories)) {
-                    if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
-                    if (!activeCategories.includes(key)) continue; // Only apply active categories
-                    const val = (card as any)[key];
-                    if (val === undefined || val === null) return false;
-                    const match = Array.isArray(val) ? val.some(v => selected.includes(String(v))) : selected.includes(String(val));
-                    if (!match) return false;
-                }
-                return true;
-            });
-        }
+        let results = normalizedData.filter(card => {
+            if (normKeyword) {
+                const match =
+                    card._normName?.includes(normKeyword) ||
+                    card._hiraName?.includes(hiraKeyword) ||
+                    card._pureName?.includes(pureKeyword) ||
+                    card._pureHira?.includes(pureHira);
+                if (!match) return false;
+            }
+            return true;
+        });
+
+        const pathParts = currentPath.split('/').filter(Boolean);
+        const depth = pathParts.length;
 
         const folders: Card[] = [];
-        const files: Card[] = [];
+        let files: Card[] = [];
         const seenFolders = new Set<string>();
-        normalizedData.forEach(card => {
+
+        results.forEach(card => {
             const path = card.path || '';
             if (currentPath && !path.startsWith(currentPath + '/')) return;
             const relative = currentPath ? path.slice(currentPath.length + 1) : path;
             const parts = relative.split('/');
+
             if (parts.length > 1) {
-                const folderName = parts[0];
-                if (!seenFolders.has(folderName)) {
-                    seenFolders.add(folderName);
-                    folders.push({
-                        id: `folder:${currentPath ? currentPath + '/' : ''}${folderName}`,
-                        name: folderName,
-                        imageUrl: '',
-                        isFolder: true,
-                        folderPath: currentPath ? `${currentPath}/${folderName}` : folderName,
-                        path: currentPath ? `${currentPath}/${folderName}` : folderName
-                    } as Card);
+                if (depth < 2) {
+                    const folderName = parts[0];
+                    if (!seenFolders.has(folderName)) {
+                        seenFolders.add(folderName);
+                        folders.push({
+                            id: `folder:${currentPath ? currentPath + '/' : ''}${folderName}`,
+                            name: folderName,
+                            imageUrl: '',
+                            isFolder: true,
+                            folderPath: currentPath ? `${currentPath}/${folderName}` : folderName,
+                            path: currentPath ? `${currentPath}/${folderName}` : folderName
+                        } as Card);
+                    }
                 }
             } else {
                 let match = true;
                 for (const [key, selected] of Object.entries(categories)) {
                     if (excludeKeys.includes(key) || !selected?.length || selected.includes('all')) continue;
-                    if (!activeCategories.includes(key)) continue; // Only apply active categories
-                    const val = (card as any)[key];
+                    if (!activeCategories.includes(key)) continue;
+                    const val = card._metadata?.[key];
                     if (val === undefined || val === null || !(Array.isArray(val) ? val.some(v => selected.includes(String(v))) : selected.includes(String(val)))) {
                         match = false;
                         break;
@@ -249,58 +236,47 @@ export const useCardSearch = (
                 if (match) files.push(card);
             }
         });
-        return [...folders, ...files];
-    }, [normalizedData, sharedState.currentPath, sharedState.filters, activeOrder]);
 
-    const dynamicFilterOptions = useMemo(() => {
-        const targetKeys = Object.keys(activeOrder);
-        if (targetKeys.length === 0) return {};
-        const options: Record<string, Set<string>> = {};
-
-        // フィルタ（キーワード以外）によって選択肢が消えないよう、
-        // キーワード検索時は全データから、そうでない時は「現在の階層の全カード」から抽出する
-        let sourceCards = normalizedData;
-        if (!sharedState.filters.keyword && sharedState.currentPath) {
-            sourceCards = normalizedData.filter(c => c.path?.startsWith(sharedState.currentPath + '/'));
+        if (mergeSameFileCards) {
+            const seen = new Set<string>();
+            files = files.filter(card => {
+                const key = card._fileName || card.id;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
         }
 
-        sourceCards.forEach(c => {
-            if (c.isFolder) return;
-            Object.keys(c).forEach(key => {
-                if (excludeKeys.includes(key) || !targetKeys.includes(key)) return;
-                const val = (c as any)[key];
-                if (val === undefined || val === null || val === '') return;
-                if (!options[key]) options[key] = new Set<string>();
-                if (Array.isArray(val)) val.forEach(v => options[key].add(String(v)));
-                else options[key].add(String(val));
-            });
-        });
-        const sorted: Record<string, string[]> = {};
-        const cats = Object.keys(options);
-        const catOrder = Object.keys(activeOrder);
-        cats.sort((a, b) => {
-            const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
-            if (ia !== -1 && ib !== -1) return ia - ib;
-            return ia !== -1 ? -1 : ib !== -1 ? 1 : a.localeCompare(b);
-        });
-        cats.forEach(cat => {
-            const items = Array.from(options[cat]), itemOrder = activeOrder[cat] || [];
-            items.sort((a, b) => {
-                const ia = itemOrder.indexOf(a), ib = itemOrder.indexOf(b);
-                if (ia !== -1 && ib !== -1) return ia - ib;
-                return ia !== -1 ? -1 : ib !== -1 ? 1 : a.localeCompare(b);
-            });
-            sorted[cat] = items;
-        });
-        return sorted;
-    }, [normalizedData, filteredCards, activeOrder, sharedState.filters.keyword]);
+        const combined = [...folders, ...files];
+        if (import.meta.env.DEV) {
+            console.timeEnd('[Search] Filtering');
+            console.log(`[Search] Filtered results: ${combined.length} items (Folders: ${folders.length}, Files: ${files.length}). isSyncing will be: ${localCards.length > 0 && combined.length === 0}`);
+        }
+        return combined;
+    }, [normalizedData, sharedState.filters, sharedState.currentPath, mergeSameFileCards, activeCategories]);
+
+    const [hasAutoNavigated, setHasAutoNavigated] = useState(false);
+    useEffect(() => {
+        if (!hasAutoNavigated && !sharedState.filters.keyword && filteredCards.length === 1 && filteredCards[0].isFolder) {
+            const pathParts = filteredCards[0].folderPath?.split('/').filter(Boolean) || [];
+            const depth = pathParts.length;
+            if (depth > 2) {
+                setHasAutoNavigated(true);
+                return;
+            }
+            setCurrentPath(filteredCards[0].folderPath || '');
+        }
+    }, [filteredCards, hasAutoNavigated, sharedState.filters.keyword]);
+
+    const setCurrentPath = (path: string) => updateShared({ currentPath: path });
 
     return {
         filters: sharedState.filters,
         currentPath: sharedState.currentPath,
-        setCurrentPath: (path: string) => updateShared({ currentPath: path }),
+        setCurrentPath,
         searchKey: `${sharedState.filters.keyword}-${JSON.stringify(sharedState.filters.categories)}-${sharedState.currentPath}`,
         filteredCards,
+        isSyncing: localCards.length > 0 && filteredCards.length === 0,
         pinnedCards: sharedState.pinnedCards,
         pinnedUniqueKeys: useMemo(() => new Set(sharedState.pinnedCards.map(c => `${c.id}-${c.imageUrl}`)), [sharedState.pinnedCards]),
         selectedCard: sharedState.selectedCard,

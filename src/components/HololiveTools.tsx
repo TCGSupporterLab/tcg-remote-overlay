@@ -16,6 +16,8 @@ interface HololiveToolsProps {
     onCoinClick?: () => void;
     obsMode?: 'normal' | 'green';
     localCards?: LocalCard[];
+    metadataOrder?: Record<string, Record<string, string[]>>;
+    mergeSameFileCards?: boolean;
 }
 const EnergyIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 20 }) => {
     const base = import.meta.env.BASE_URL;
@@ -106,7 +108,9 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
     coinKey = 0,
     onDiceClick,
     onCoinClick,
-    localCards = []
+    localCards = [],
+    metadataOrder = {},
+    mergeSameFileCards = false
 }) => {
     const {
         overlayCard,
@@ -292,7 +296,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                                         {overlayCard.oshiSkills && overlayCard.oshiSkills.length > 0 && (
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                                                {overlayCard.oshiSkills.map((skill, i) => (
+                                                                {overlayCard.oshiSkills.map((skill: any, i: number) => (
                                                                     <div key={i} style={{ backgroundColor: 'rgba(30, 58, 138, 0.4)', borderLeft: '4px solid #3b82f6', padding: '12px', borderRadius: '0 4px 4px 0' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                                                                             <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{skill.label}</span>
@@ -307,13 +311,13 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                                                         {overlayCard.arts && overlayCard.arts.length > 0 && (
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                                                {overlayCard.arts.map((art, i) => (
+                                                                {overlayCard.arts.map((art: any, i: number) => (
                                                                     <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                                                                             <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>{art.name}</div>
                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                                                                    {art.costs.map((cost, ci) => (
+                                                                                    {art.costs.map((cost: any, ci: number) => (
                                                                                         <EnergyIcon key={ci} color={cost} size={18} />
                                                                                     ))}
                                                                                 </div>
@@ -328,7 +332,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
                                                         {overlayCard.keywords && overlayCard.keywords.length > 0 && (
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                                {overlayCard.keywords.map((kw, i) => (
+                                                                {overlayCard.keywords.map((kw: any, i: number) => (
                                                                     <div key={i} style={{ fontSize: '13px' }}>
                                                                         <span style={{ fontWeight: 'bold', color: '#eab308' }}>【{kw.type}：{kw.name}】</span>
                                                                         <span style={{ opacity: 0.9, marginLeft: '8px' }}>{kw.text}</span>
@@ -495,7 +499,7 @@ export const HololiveTools: React.FC<HololiveToolsProps> = ({
 
             {/* Part 2: Card Search Tool (Bottom, Fills remaining space) */}
             <div className="flex-1 overflow-hidden min-h-0 bg-gray-900 border-t border-gray-700">
-                <CardSearchContainer localCards={localCards} />
+                <CardSearchContainer localCards={localCards} metadataOrder={metadataOrder} mergeSameFileCards={mergeSameFileCards} />
             </div>
         </div>
     );

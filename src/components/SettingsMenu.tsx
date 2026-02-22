@@ -26,18 +26,19 @@ interface SettingsMenuProps {
     isScanning: boolean;
     onRequestAccess: () => void;
     onDropAccess: () => void;
-    mergeSameNameCards: boolean;
-    onToggleMergeSameNameCards: (val: boolean) => void;
+    mergeSameFileCards: boolean;
+    onToggleMergeSameFileCards: (val: boolean) => void;
     // Tab State Props (Lifted)
     activeTab: 'guide' | 'general' | 'widgets' | 'video' | 'about';
     onTabChange: (tab: 'guide' | 'general' | 'widgets' | 'video' | 'about') => void;
     // Widget Visibility
     localCards?: LocalCard[];
-    folderMetadataMap?: Map<string, any>;
+    metadataOrder?: Record<string, Record<string, string[]>>;
     isCardWidgetVisible: boolean;
     onToggleCardWidgetVisible: (val: boolean) => void;
     spMarkerMode: 'off' | 'follow' | 'independent';
     onToggleSPMarkerMode: () => void;
+    onVerifyPermission: () => void;
 }
 
 export const SettingsMenu = ({
@@ -56,16 +57,17 @@ export const SettingsMenu = ({
     isScanning,
     onRequestAccess,
     onDropAccess,
-    mergeSameNameCards,
-    onToggleMergeSameNameCards,
+    mergeSameFileCards,
+    onToggleMergeSameFileCards,
     activeTab,
     onTabChange,
     localCards,
-    folderMetadataMap,
+    metadataOrder,
     isCardWidgetVisible,
     onToggleCardWidgetVisible,
     spMarkerMode,
-    onToggleSPMarkerMode
+    onToggleSPMarkerMode,
+    onVerifyPermission
 }: SettingsMenuProps) => {
 
     const [isCardListOpen, setIsCardListOpen] = useState(false);
@@ -160,7 +162,7 @@ export const SettingsMenu = ({
                             </div>
                             {/* Main Search UI Area */}
                             <div className="flex-1 overflow-hidden relative">
-                                <CardSearchContainer localCards={localCards || []} folderMetadataMap={folderMetadataMap} />
+                                <CardSearchContainer localCards={localCards || []} metadataOrder={metadataOrder} />
                             </div>
                         </div>
                     ) : (
@@ -339,14 +341,41 @@ export const SettingsMenu = ({
                                                             </h4>
                                                             {hasAccess ? (
                                                                 <p className="text-xs text-gray-400">
-                                                                    接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">{cardCount}枚</span>
+                                                                    接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
+                                                                        {(() => {
+                                                                            if (!localCards) return 0;
+                                                                            // 1. 物理ファイルのみを抽出 (_linkedFrom がないもの)
+                                                                            let displayCards = localCards.filter(c => !c._linkedFrom);
+
+                                                                            // 2. 結合がONの場合は重複を除去
+                                                                            if (mergeSameFileCards) {
+                                                                                const seen = new Set<string>();
+                                                                                displayCards = displayCards.filter(c => {
+                                                                                    const name = c.name;
+                                                                                    if (seen.has(name)) return false;
+                                                                                    seen.add(name);
+                                                                                    return true;
+                                                                                });
+                                                                            }
+                                                                            return displayCards.length;
+                                                                        })()}枚</span>
                                                                 </p>
+                                                            ) : rootHandleName ? (
+                                                                <div className="space-y-[4px]">
+                                                                    <p className="text-xs text-red-400 font-bold flex items-center gap-[4px]">
+                                                                        <Info size={12} />
+                                                                        再接続が必要です
+                                                                    </p>
+                                                                    <p className="text-[10px] text-gray-400">
+                                                                        接続先: <span className="text-gray-200">{rootHandleName}</span>
+                                                                    </p>
+                                                                </div>
                                                             ) : (
                                                                 <p className="text-xs text-gray-400">フォルダ未接続</p>
                                                             )}
                                                         </div>
                                                         <div className="flex gap-[8px] shrink-0">
-                                                            {hasAccess && (
+                                                            {(hasAccess || rootHandleName) && (
                                                                 <button
                                                                     onClick={onDropAccess}
                                                                     className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50"
@@ -355,14 +384,17 @@ export const SettingsMenu = ({
                                                                 </button>
                                                             )}
                                                             <button
-                                                                onClick={onRequestAccess}
+                                                                onClick={hasAccess ? onRequestAccess : (rootHandleName ? onVerifyPermission : onRequestAccess)}
                                                                 disabled={isScanning}
-                                                                className="px-[16px] py-[8px] bg-primary hover:bg-primary/80 text-white rounded-lg font-bold text-sm transition-all disabled:opacity-50 flex items-center gap-[6px] shadow-lg cursor-pointer pointer-events-auto z-50"
+                                                                className={`px-[16px] py-[8px] rounded-lg font-bold text-sm transition-all disabled:opacity-50 flex items-center gap-[6px] shadow-lg cursor-pointer pointer-events-auto z-50 ${!hasAccess && rootHandleName ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : 'bg-primary hover:bg-primary/80 text-white'
+                                                                    }`}
                                                             >
                                                                 {isScanning ? (
                                                                     <><RefreshCw size={16} className="animate-spin" />スキャン中</>
                                                                 ) : hasAccess ? (
                                                                     '再スキャン'
+                                                                ) : rootHandleName ? (
+                                                                    'アクセスを許可'
                                                                 ) : (
                                                                     'フォルダを選択'
                                                                 )}
@@ -380,19 +412,19 @@ export const SettingsMenu = ({
                                                             <input
                                                                 type="checkbox"
                                                                 className="sr-only"
-                                                                checked={mergeSameNameCards}
-                                                                onChange={(e) => onToggleMergeSameNameCards(e.target.checked)}
+                                                                checked={mergeSameFileCards}
+                                                                onChange={(e) => onToggleMergeSameFileCards(e.target.checked)}
                                                             />
                                                             <div
                                                                 className="w-[36px] h-[20px] rounded-full transition-all duration-300 flex items-center px-[2px] shadow-inner relative border border-white/10"
                                                                 style={{
-                                                                    backgroundColor: mergeSameNameCards ? '#2563eb' : '#1e293b',
+                                                                    backgroundColor: mergeSameFileCards ? '#2563eb' : '#1e293b',
                                                                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
                                                                     cursor: 'pointer'
                                                                 }}
                                                             >
                                                                 <div
-                                                                    className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${mergeSameNameCards ? 'translate-x-[18px]' : 'translate-x-0'}`}
+                                                                    className={`bg-white rounded-full h-[16px] w-[16px] shadow-[0_2px_4px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ${mergeSameFileCards ? 'translate-x-[18px]' : 'translate-x-0'}`}
                                                                     style={{ backgroundColor: '#ffffff' }}
                                                                 ></div>
                                                             </div>

@@ -22,11 +22,12 @@ function App() {
     hasAccess,
     metadataOrder,
     rootHandle,
+    savedRootName,
     requestAccess,
     verifyPermissionAndScan,
-    mergeSameNameCards,
-    toggleMergeSameNameCards,
-    folderMetadataMap,
+    dropAccess,
+    mergeSameFileCards,
+    toggleMergeSameFileCards,
     isLoading
   } = useLocalCards();
 
@@ -36,8 +37,9 @@ function App() {
     toggleSPMarkerMode,
     toggleSPMarkerFace,
     toggleSPMarkerForceHidden,
-    showSPMarkerForceHidden
-  } = useCardSearch(cards, folderMetadataMap);
+    showSPMarkerForceHidden,
+    isSyncing
+  } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
   // Widget States
   const [gameMode, setGameMode] = useState<GameMode>(() => {
@@ -247,26 +249,43 @@ function App() {
   }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo]);
 
   // View mode detection
-  const isSearchView = new URLSearchParams(window.location.search).get('view') === 'search';
+  const searchViewParam = new URLSearchParams(window.location.search).get('view');
+  const isSearchView = searchViewParam === 'search';
+
+  if (import.meta.env.DEV) {
+    useEffect(() => {
+      console.log(`[App] Global State - isScanning: ${isScanning}, isLoading: ${isLoading}, hasAccess: ${hasAccess}, isSyncing: ${isSyncing}`);
+      console.log(`[App] Overlay Condition: ${isScanning || isSyncing || (isLoading && (hasAccess || !rootHandle))}`);
+    }, [isScanning, isLoading, hasAccess, isSyncing]);
+  }
 
   if (isSearchView) {
     return (
       <div className="app-container w-full h-full bg-gray-900 overflow-hidden flex flex-col p-[8px]">
         {/* Full screen Search UI mode */}
         <div className="flex-1 rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative">
-          <CardSearchContainer localCards={cards} metadataOrder={metadataOrder} folderMetadataMap={folderMetadataMap} />
+          <CardSearchContainer
+            localCards={cards}
+            metadataOrder={metadataOrder}
+            mergeSameFileCards={mergeSameFileCards}
+            isScanning={isScanning}
+          />
 
           {/* Scanning/Loading Overlay when already granted or checking */}
-          {(isScanning || isLoading) && (hasAccess || !rootHandle) && (
+          {(isScanning || isSyncing || (isLoading && (hasAccess || !rootHandle))) && (
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
-                  <Layers size={24} className="absolute inset-0 m-auto text-blue-400 opacity-50" />
+                  <div className="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
+                  <Layers size={20} className="absolute inset-0 m-auto text-blue-400/50" />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-white font-bold tracking-wider">カードを読み込み中...</span>
-                  <span className="text-gray-400 text-[10px] uppercase tracking-[0.2em]">Synchronizing Collection</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-white font-bold text-sm tracking-wider">読み込み中...</span>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <div className="h-1 w-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                    <div className="h-1 w-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    <div className="h-1 w-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -344,6 +363,8 @@ function App() {
                     onCoinClick={handleFlipCoin}
                     obsMode={obsMode}
                     localCards={cards}
+                    metadataOrder={metadataOrder}
+                    mergeSameFileCards={mergeSameFileCards}
                   />
                 ) : null
               )
@@ -384,22 +405,62 @@ function App() {
           onTabChange={setActiveSettingsTab}
           // File System Access Props
           hasAccess={hasAccess}
-          rootHandleName={rootHandle?.name}
+          rootHandleName={savedRootName || rootHandle?.name}
           cardCount={cards.length}
           isScanning={isScanning}
           onRequestAccess={requestAccess}
-          onDropAccess={() => {
-            window.location.reload();
-          }}
-          mergeSameNameCards={mergeSameNameCards}
-          onToggleMergeSameNameCards={toggleMergeSameNameCards}
+          onDropAccess={dropAccess}
+          mergeSameFileCards={mergeSameFileCards}
+          onToggleMergeSameFileCards={toggleMergeSameFileCards}
           localCards={cards}
-          folderMetadataMap={folderMetadataMap}
+          metadataOrder={metadataOrder}
           isCardWidgetVisible={isCardWidgetVisible}
           onToggleCardWidgetVisible={setIsCardWidgetVisible}
           spMarkerMode={spMarkerMode}
           onToggleSPMarkerMode={toggleSPMarkerMode}
+          onVerifyPermission={verifyPermissionAndScan}
         />
+      )}
+
+      {/* 6. Session Resume Overlay (Global) - Appears when we have a saved handle but no current access */}
+      {!isSearchView && !hasAccess && !isScanning && !isLoading && savedRootName && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[5000] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+          <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-w-[600px] w-full text-center animate-in zoom-in-95 duration-300 overflow-hidden">
+
+            <h2 className="text-2xl font-black mb-3 text-white tracking-tight">セッションを再開しますか？</h2>
+            <p className="text-gray-400 text-sm mb-10 leading-relaxed px-4">
+              セキュリティ保護のため、前回接続したカード画像フォルダ<br />
+              <span className="text-blue-400 font-bold px-2 py-1 bg-blue-400/10 rounded-md mt-2 inline-block">「{savedRootName}」</span><br />
+              へのアクセスをあらためて許可してください。
+            </p>
+
+            <div className="space-y-4">
+              <button
+                onClick={verifyPermissionAndScan}
+                className="w-full py-5 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-blue-900/30 flex items-center justify-center gap-3 group"
+              >
+                <Layers size={22} className="group-hover:rotate-12 transition-transform" />
+                アクセスを許可して開始
+              </button>
+
+              <div className="flex flex-row items-center gap-3">
+                <button
+                  onClick={requestAccess}
+                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold text-xs transition-all border border-white/10 whitespace-nowrap"
+                >
+                  別のフォルダに接続
+                </button>
+                <div className="w-px h-6 bg-black flex-shrink-0" />
+                <button
+                  onClick={dropAccess}
+                  className="flex-1 py-2.5 bg-red-900/10 hover:bg-red-900/20 text-red-400 rounded-xl font-bold text-xs transition-all border border-red-900/20 whitespace-nowrap"
+                >
+                  拒否する
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

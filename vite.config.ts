@@ -5,4 +5,15 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/tcg-remote-overlay/',
+  server: {
+    watch: {
+      ignored: [
+        '**/public/images/cardlist/**',
+        '**/public/images/cardlist/hololive/**',
+        '**/test/**',
+        '**/.git/**',
+        '**/node_modules/**'
+      ]
+    }
+  }
 })
