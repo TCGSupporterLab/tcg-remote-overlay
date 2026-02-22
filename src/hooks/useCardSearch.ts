@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { get, set } from 'idb-keyval';
 import type { LocalCard } from './useLocalCards';
 
 // Types from the original file
@@ -46,6 +47,7 @@ interface SharedState {
 
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
 const CHANNEL_NAME = 'tcg_remote_search_sync';
+const PINNED_STORAGE_KEY = 'tcg_remote_pinned_cards_v2';
 const channel = new BroadcastChannel(CHANNEL_NAME);
 
 const INITIAL_STATE: SharedState = {
@@ -76,8 +78,27 @@ channel.onmessage = (event: MessageEvent<SharedState>) => {
 const updateShared = (patch: Partial<SharedState>) => {
     sharedState = { ...sharedState, ...patch };
     channel.postMessage(sharedState);
+
+    // ピン留めが更新された場合は永続化
+    if (patch.pinnedCards) {
+        set(PINNED_STORAGE_KEY, patch.pinnedCards).catch(err => {
+            console.error('[Sync] Failed to persist pinned cards:', err);
+        });
+    }
+
     listeners.forEach(l => l());
 };
+
+// 永続化されたピン留めを復元
+if (!IS_OVERLAY) {
+    get(PINNED_STORAGE_KEY).then(saved => {
+        if (saved && Array.isArray(saved)) {
+            updateShared({ pinnedCards: saved });
+        }
+    }).catch(err => {
+        console.error('[Sync] Failed to load persisted pinned cards:', err);
+    });
+}
 
 const normalizeText = (text: string) => {
     if (!text) return '';
