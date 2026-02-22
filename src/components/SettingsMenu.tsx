@@ -477,7 +477,7 @@ export const SettingsMenu = ({
                                                                     {(hasAccess || rootHandleName) && (
                                                                         <button
                                                                             onClick={onDropAccess}
-                                                                            className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50"
+                                                                            className="px-[12px] py-[6px] bg-red-500/5 border border-red-500/20 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 shadow-sm"
                                                                         >
                                                                             解除
                                                                         </button>
@@ -485,10 +485,13 @@ export const SettingsMenu = ({
                                                                     <button
                                                                         onClick={hasAccess ? onRequestAccess : (rootHandleName ? onVerifyPermission : onRequestAccess)}
                                                                         disabled={isScanning}
-                                                                        className={`px-[16px] py-[8px] rounded-lg font-bold text-sm transition-all disabled:opacity-50 flex items-center gap-[6px] shadow-lg cursor-pointer pointer-events-auto z-50 ${!hasAccess && rootHandleName ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : 'bg-primary hover:bg-primary/80 text-white'}`}
+                                                                        className={`px-[12px] py-[6px] rounded-lg font-bold text-[11px] transition-all disabled:opacity-50 flex items-center gap-[6px] cursor-pointer pointer-events-auto z-50 border shadow-sm ${!hasAccess && rootHandleName
+                                                                            ? 'bg-yellow-500/5 border-yellow-500/20 text-yellow-500/80 hover:bg-yellow-500/20 hover:text-yellow-400 hover:border-yellow-500/40'
+                                                                            : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20'
+                                                                            }`}
                                                                     >
                                                                         {isScanning ? (
-                                                                            <><RefreshCw size={16} className="animate-spin" />スキャン中</>
+                                                                            <><RefreshCw size={14} className="animate-spin" />スキャン中</>
                                                                         ) : hasAccess ? (
                                                                             '別フォルダを選択'
                                                                         ) : rootHandleName ? (
@@ -538,9 +541,9 @@ export const SettingsMenu = ({
                                                                         onClick={() => {
                                                                             window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', '_blank');
                                                                         }}
-                                                                        className="px-[16px] py-[8px] bg-primary hover:bg-primary/80 text-white rounded-lg font-bold text-sm transition-all shadow-lg cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px]"
+                                                                        className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm"
                                                                     >
-                                                                        <Monitor size={16} />
+                                                                        <Monitor size={14} />
                                                                         別タブ
                                                                     </button>
                                                                     <button
@@ -555,7 +558,7 @@ export const SettingsMenu = ({
                                                                                 `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
                                                                             );
                                                                         }}
-                                                                        className="px-[12px] py-[8px] bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px]"
+                                                                        className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm"
                                                                     >
                                                                         <Layers size={14} />
                                                                         別ウィンドウ
