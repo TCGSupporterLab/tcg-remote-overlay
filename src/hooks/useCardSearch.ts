@@ -439,6 +439,27 @@ export const useCardSearch = (
         updateShared({ filters: { keyword: '', categories: {} } });
     }, []);
 
+    // 永続化されたピン留めカードの再同期（Blob URLおよびメタデータの更新）
+    useEffect(() => {
+        if (!normalizedData || normalizedData.length === 0 || sharedState.pinnedCards.length === 0) return;
+
+        let changed = false;
+        const freshPinned = sharedState.pinnedCards.map(pinned => {
+            // id をキーにして正規化済みデータから最新のオブジェクトを探す
+            const fresh = normalizedData.find(c => c.id === pinned.id);
+            if (fresh && (fresh.imageUrl !== pinned.imageUrl || fresh.name !== pinned.name)) {
+                changed = true;
+                return fresh;
+            }
+            return pinned;
+        });
+
+        if (changed) {
+            if (import.meta.env.DEV) console.log(`[Sync] Relinking ${sharedState.pinnedCards.length} pinned cards with current session data`);
+            updateShared({ pinnedCards: freshPinned });
+        }
+    }, [normalizedData]);
+
     return {
         filters: sharedState.filters,
         currentPath: sharedState.currentPath,
