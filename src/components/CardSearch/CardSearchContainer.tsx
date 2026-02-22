@@ -12,14 +12,12 @@ export interface CardSearchContainerProps {
     localCards?: LocalCard[];
     metadataOrder?: Record<string, Record<string, string[]>>;
     mergeSameFileCards?: boolean;
-    isScanning?: boolean;
 }
 
 export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
     localCards = [],
     metadataOrder = {},
     mergeSameFileCards = false,
-    isScanning = false
 }) => {
     const {
         filters,
@@ -27,7 +25,6 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
         currentPath,
         setCurrentPath,
         filteredCards,
-        isSyncing,
         pinnedCards,
         pinnedUniqueKeys,
         selectedCard,
@@ -181,7 +178,7 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
                 <div className="flex-1 overflow-hidden relative bg-gray-900 flex flex-col">
                     {/* Show Filter Panel ONLY in Search Tab (moved from sidebar) */}
                     {activeTab === 'search' && (
-                        <div className="flex-none bg-gray-900 border-b border-gray-700 p-2 z-10">
+                        <div className="bg-gray-900 border-b border-gray-700 p-2 z-10 w-full min-h-fit">
                             <FilterPanel
                                 filters={filters}
                                 options={dynamicFilterOptions}
@@ -195,19 +192,6 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
 
                     {/* Tab Content */}
                     <div className="flex-1 relative min-h-0">
-                        {/* Loading Overlay (Simplified to match original style) */}
-                        {(isScanning || isSyncing) && (
-                            <div className="absolute inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center gap-6 animate-in fade-in duration-300">
-                                <div className="relative">
-                                    <div className="w-16 h-16 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin"></div>
-                                    <Search className="absolute inset-0 m-auto text-blue-400 opacity-50" size={24} />
-                                </div>
-                                <div className="flex flex-col items-center gap-2">
-                                    <h3 className="text-xl font-bold text-white tracking-widest">CARDS SCANNING...</h3>
-                                    <p className="text-sm text-gray-400">フィルタ処理および描画準備中...</p>
-                                </div>
-                            </div>
-                        )}
                         {activeTab === 'search' ? (
                             <SearchTab
                                 ref={searchTabRef}

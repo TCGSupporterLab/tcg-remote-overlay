@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { LocalCard } from './useLocalCards';
 
 // Types from the original file
-export type FilterCategory = 'color' | 'type' | 'level' | 'bloom' | 'pack' | 'rarity' | 'oshi';
+export type FilterCategory = string;
 
 export interface Card {
     id: string;
@@ -22,13 +22,13 @@ export interface Card {
     [key: string]: any;
 }
 
-interface SearchFilters {
+export interface Filters {
     keyword: string;
     categories: Record<string, string[]>;
 }
 
 interface SharedState {
-    filters: SearchFilters;
+    filters: Filters;
     currentPath: string;
     pinnedCards: Card[];
     selectedCard: Card | null;
@@ -41,6 +41,7 @@ interface SharedState {
     remoteSPMarkerState: any;
     independentMarkerState: any;
     showSPMarkerForceHidden: boolean;
+    userInteracted: boolean;
 }
 
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
@@ -60,7 +61,8 @@ const INITIAL_STATE: SharedState = {
     spMarkerFace: 'front',
     remoteSPMarkerState: null,
     independentMarkerState: { x: 50, y: 50, scale: 1, rotation: 0 },
-    showSPMarkerForceHidden: false
+    showSPMarkerForceHidden: false,
+    userInteracted: false
 };
 
 let sharedState: SharedState = { ...INITIAL_STATE };
@@ -138,25 +140,48 @@ export const useCardSearch = (
 
     const dynamicFilterOptions = useMemo(() => {
         const options: Record<string, Set<string>> = {};
+        const currentPath = sharedState.currentPath;
+
+        // 1. 現在のパス、または親フォルダの _meta_filter.json の定義を遡って探す
+        let matchedPath = currentPath;
+        let effectiveOrder = metadataOrder[matchedPath];
+
+        while (!effectiveOrder && matchedPath.includes('/')) {
+            matchedPath = matchedPath.substring(0, matchedPath.lastIndexOf('/'));
+            effectiveOrder = metadataOrder[matchedPath];
+        }
+
+        const currentOrder = effectiveOrder || {};
+
+        Object.entries(currentOrder).forEach(([key, values]) => {
+            if (excludeKeys.includes(key)) return;
+            if (!options[key]) options[key] = new Set();
+            values.forEach(v => options[key].add(String(v)));
+        });
+
+        // 2. カードデータからも属性を抽出（現在のパス配下のカードのみを対象にする）
         normalizedData.forEach(card => {
-            if (card._metadata) {
-                Object.entries(card._metadata).forEach(([key, val]) => {
-                    if (excludeKeys.includes(key)) return;
-                    if (!options[key]) options[key] = new Set();
-                    if (Array.isArray(val)) val.forEach(v => options[key].add(String(v)));
-                    else if (val !== undefined && val !== null) options[key].add(String(val));
-                });
-            }
+            const path = card.path || '';
+            // 現在のパス配下のカードのみを対象にすることで、他のTCGの属性が混ざるのを防ぐ
+            if (currentPath && !path.startsWith(currentPath + '/')) return;
+
+            const m = card._metadata || {};
+            Object.entries(m).forEach(([key, val]) => {
+                if (excludeKeys.includes(key)) return;
+                if (!options[key]) options[key] = new Set();
+                if (Array.isArray(val)) val.forEach(v => options[key].add(String(v)));
+                else if (val !== undefined && val !== null) options[key].add(String(val));
+            });
         });
 
         const sorted: Record<string, string[]> = {};
         Object.entries(options).forEach(([key, values]) => {
-            const order = metadataOrder[key];
+            // 見つかった定義に従ってソート
+            const order = currentOrder[key];
             if (order) {
-                const orderArray = Object.values(order).flat();
                 sorted[key] = Array.from(values).sort((a, b) => {
-                    const idxA = orderArray.indexOf(a);
-                    const idxB = orderArray.indexOf(b);
+                    const idxA = order.indexOf(a);
+                    const idxB = order.indexOf(b);
                     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
                     if (idxA !== -1) return -1;
                     if (idxB !== -1) return 1;
@@ -167,7 +192,7 @@ export const useCardSearch = (
             }
         });
         return sorted;
-    }, [normalizedData, metadataOrder]);
+    }, [normalizedData, metadataOrder, sharedState.currentPath]);
 
     const activeCategories = useMemo(() => {
         return Object.keys(dynamicFilterOptions).filter(k => !excludeKeys.includes(k));
@@ -255,20 +280,46 @@ export const useCardSearch = (
         return combined;
     }, [normalizedData, sharedState.filters, sharedState.currentPath, mergeSameFileCards, activeCategories]);
 
-    const [hasAutoNavigated, setHasAutoNavigated] = useState(false);
     useEffect(() => {
-        if (!hasAutoNavigated && !sharedState.filters.keyword && filteredCards.length === 1 && filteredCards[0].isFolder) {
-            const pathParts = filteredCards[0].folderPath?.split('/').filter(Boolean) || [];
+        // すでに手動操作されたか、検索中の場合は何もしない
+        if (sharedState.userInteracted) {
+            if (import.meta.env.DEV) console.log('[Search] Auto-nav skipped: user already interacted');
+            return;
+        }
+        if (sharedState.filters.keyword) {
+            if (import.meta.env.DEV) console.log('[Search] Auto-nav skipped: keyword exists');
+            return;
+        }
+
+        if (filteredCards.length === 1 && filteredCards[0].isFolder) {
+            const folder = filteredCards[0];
+            const pathParts = folder.folderPath?.split('/').filter(Boolean) || [];
             const depth = pathParts.length;
+
+            if (import.meta.env.DEV) console.log(`[Search] Potential auto-nav to: ${folder.folderPath} (depth: ${depth})`);
+
+            // 2階層目（depth 2）より深い場合は自動遷移を停止し、全タブで共有する
             if (depth > 2) {
-                setHasAutoNavigated(true);
+                if (import.meta.env.DEV) console.log('[Search] Auto-nav stopped: too deep');
+                updateShared({ userInteracted: true });
                 return;
             }
-            setCurrentPath(filteredCards[0].folderPath || '');
-        }
-    }, [filteredCards, hasAutoNavigated, sharedState.filters.keyword]);
 
-    const setCurrentPath = (path: string) => updateShared({ currentPath: path });
+            if (import.meta.env.DEV) console.log('[Search] Executing auto-nav');
+            // 自動遷移時は manual=false で呼び出す
+            setCurrentPath(folder.folderPath || '', false);
+        }
+    }, [filteredCards, sharedState.filters.keyword, sharedState.userInteracted]);
+
+    const setCurrentPath = (path: string, manual = true) => {
+        const normalizedPath = path.replace(/\\/g, '/');
+        if (manual) {
+            if (import.meta.env.DEV) console.log(`[Search] Manual path change: ${normalizedPath}`);
+            updateShared({ currentPath: normalizedPath, userInteracted: true });
+        } else {
+            updateShared({ currentPath: normalizedPath });
+        }
+    };
 
     return {
         filters: sharedState.filters,

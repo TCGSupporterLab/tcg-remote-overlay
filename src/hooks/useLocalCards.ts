@@ -98,7 +98,7 @@ export const useLocalCards = () => {
                     const name = entry.name.toLowerCase();
                     const isImage = name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp');
                     const isJson = name.endsWith('.json');
-                    const isLink = name.endsWith('.link');
+                    const isLink = name === '_link.txt';
 
                     if (isImage || isJson || isLink) {
                         const file = await (entry as any).getFile();
@@ -160,12 +160,14 @@ export const useLocalCards = () => {
                 const text = await linkObj.file.text();
                 const lines = text.split(/\r?\n/);
                 for (const line of lines) {
-                    const rawLine = line.trim().replace(/^['"]|['"]$/g, '').replace(/\\/g, '/');
+                    let rawLine = line.trim().replace(/^['"]|['"]$/g, '').replace(/\\/g, '/');
+                    if (rawLine.startsWith('/')) rawLine = rawLine.substring(1);
                     if (!rawLine || !rawLine.includes('/')) continue;
+
                     const parts = rawLine.split('/');
                     let targetPath = '';
                     if (parts.length === 2) targetPath = `${linkObj.ocg}/${rawLine}`;
-                    else if (parts.length === 3) targetPath = rawLine;
+                    else if (parts.length >= 3) targetPath = rawLine;
                     else continue;
 
                     if (targetPath.startsWith(linkObj.folderPath + '/')) continue;
@@ -181,6 +183,8 @@ export const useLocalCards = () => {
                             deckName: linkObj.folder,
                             _linkedFrom: targetPath
                         });
+                    } else {
+                        if (import.meta.env.DEV) console.warn(`[Sync] Link target not found: ${targetPath} (linked from ${linkObj.folderPath}/_link.txt)`);
                     }
                 }
             }
@@ -191,9 +195,7 @@ export const useLocalCards = () => {
             }
 
             const finalCards: LocalCard[] = foundCards.sort((a, b) => a.path.split('/').length - b.path.split('/').length).map(card => {
-                const metaFileName = card._linkedFrom ? getBasename(card._linkedFrom) : getBasename(card.path);
-                const metaOcg = card._linkedFrom ? card._linkedFrom.split('/')[0] : card.ocgName!;
-                const metaKey = `${metaOcg}/${metaFileName}`;
+                const metaKey = card._linkedFrom || card.path;
                 const data = cardMetadataMap.get(metaKey) || {};
                 return { ...card, metadata: data, yomi: data.yomi || '' };
             });

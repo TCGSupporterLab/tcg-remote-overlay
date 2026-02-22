@@ -93,10 +93,41 @@ function App() {
   // Persistent Tool State
   const lastDotTapRef = useRef<number>(0);
   const dotTimerRef = useRef<number | null>(null);
-  // Document Title
+  // View mode detection
+  const searchViewParam = new URLSearchParams(window.location.search).get('view');
+  const isSearchView = searchViewParam === 'search';
+  const [isTerminated, setIsTerminated] = useState(false);
+
+  // Document Title & Single Instance Control
   useEffect(() => {
-    document.title = 'TCG Remote Overlay';
-  }, []);
+    const type = isSearchView ? 'search' : 'main';
+    const title = isSearchView ? 'TCG Remote Overlay - カード表示設定' : 'TCG Remote Overlay';
+    document.title = title;
+
+    // Instance Synchronization via BroadcastChannel
+    const channel = new BroadcastChannel('tcg_instance_sync');
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data.type === 'new_instance' && e.data.viewType === type) {
+        // A newer instance of the same type has been opened
+        if (import.meta.env.DEV) console.log(`[App] Closing old instance of type: ${type}`);
+
+        // Attempt to close. If it fails (usually because it wasn't opened by script), show termination UI
+        window.close();
+        setIsTerminated(true);
+      }
+    };
+
+    channel.addEventListener('message', handleMessage);
+
+    // Announce new instance to others
+    channel.postMessage({ type: 'new_instance', viewType: type, timestamp: Date.now() });
+
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+      channel.close();
+    };
+  }, [isSearchView]);
 
   const handleGameModeChange = (mode: GameMode) => {
     setGameMode(mode);
@@ -248,9 +279,6 @@ function App() {
     };
   }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo]);
 
-  // View mode detection
-  const searchViewParam = new URLSearchParams(window.location.search).get('view');
-  const isSearchView = searchViewParam === 'search';
 
   if (import.meta.env.DEV) {
     useEffect(() => {
@@ -258,6 +286,61 @@ function App() {
       console.log(`[App] Overlay Condition: ${isScanning || isSyncing || (isLoading && (hasAccess || !rootHandle))}`);
     }, [isScanning, isLoading, hasAccess, isSyncing]);
   }
+
+  // Render termination overlay if this instance should be closed
+  if (isTerminated) {
+    return (
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[9000] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+        <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-red-500/20 shadow-[0_0_100px_rgba(239,68,68,0.2)] max-w-md w-full animate-in zoom-in-95 duration-300">
+          <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <RefreshCw size={40} className="text-red-500 animate-spin-slow" />
+          </div>
+          <h2 className="text-2xl font-black mb-4 text-white">セッションが終了しました</h2>
+          <p className="text-gray-400 text-sm leading-relaxed mb-8">
+            別のタブまたはウィンドウで新しい画面が開かれたため、このインスタンスは無効化されました。
+          </p>
+          <div className="text-xs text-gray-500 font-mono bg-black/40 p-3 rounded-xl border border-white/5 uppercase tracking-widest">
+            Instance Terminated
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const ScanningOverlay = (
+    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-20 h-20 flex items-center justify-center">
+          <svg width="80" height="80" viewBox="0 0 100 100">
+            {/* 外周の回転リング */}
+            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-500/20" />
+            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500" strokeDasharray="60 220">
+              <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1s" repeatCount="indefinite" />
+            </circle>
+            {/* 内側の逆回転レーダー */}
+            <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400/10" strokeDasharray="10 178">
+              <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+            {/* 中心で鼓動するコア */}
+            <circle cx="50" cy="50" r="6" className="fill-blue-400">
+              <animate attributeName="r" values="4;8;4" dur="1.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        </div>
+        <div className="flex flex-col gap-1 items-center">
+          <span className="text-white font-black text-sm tracking-[0.4em] pl-[0.4em] uppercase">Scanning</span>
+          <div className="flex gap-1.5 mt-1">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full">
+                <animate attributeName="opacity" values="1;0.2;1" dur="1s" begin={`${i * 0.2}s`} repeatCount="indefinite" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (isSearchView) {
     return (
@@ -268,28 +351,10 @@ function App() {
             localCards={cards}
             metadataOrder={metadataOrder}
             mergeSameFileCards={mergeSameFileCards}
-            isScanning={isScanning}
           />
 
           {/* Scanning/Loading Overlay when already granted or checking */}
-          {(isScanning || isSyncing || (isLoading && (hasAccess || !rootHandle))) && (
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
-                  <Layers size={20} className="absolute inset-0 m-auto text-blue-400/50" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-white font-bold text-sm tracking-wider">読み込み中...</span>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <div className="h-1 w-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                    <div className="h-1 w-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                    <div className="h-1 w-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {(isScanning || isSyncing || (isLoading && (hasAccess || !rootHandle))) && ScanningOverlay}
 
           {/* Helper overlay for standalone mode */}
           {!hasAccess && !isScanning && !isLoading && (

@@ -21,11 +21,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<string>('');
 
-    // Initialize activeTab when options are loaded
+    // Initialize activeTab when options are loaded or current tab becomes invalid
     useEffect(() => {
-        if (!activeTab && Object.keys(options).length > 0) {
-            const keys = Object.keys(options);
-            // Just pick the first available category
+        const keys = Object.keys(options);
+        if (keys.length > 0 && (!activeTab || !keys.includes(activeTab))) {
             setActiveTab(keys[0]);
         }
     }, [options, activeTab]);

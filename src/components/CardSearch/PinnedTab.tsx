@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import type { Card } from '../../hooks/useCardSearch';
 import { CardGrid } from './CardGrid';
-import { Trash2, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface PinnedTabProps {
     pinnedCards: Card[];
@@ -61,9 +61,8 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
     return (
         <div className="flex flex-col h-full w-full bg-gray-900">
             {/* Toolbar */}
-            <div className="flex-none bg-gray-800 border-b border-gray-700 p-2 flex items-center justify-end gap-2">
-                {/* Reset Button */}
-                {pinnedCards.length > 0 && (
+            {pinnedCards.length > 0 && (
+                <div className="flex-none bg-gray-800 border-b border-gray-700 p-2 flex items-center justify-end">
                     <button
                         onClick={() => {
                             if (confirm('ピン留めをすべて解除しますか？')) {
@@ -76,28 +75,8 @@ export const PinnedTab = React.forwardRef<PinnedTabHandle, PinnedTabProps>(({
                         <Trash2 size={14} className="inline mr-1" />
                         全て解除
                     </button>
-                )}
-
-                {/* Scroll Buttons */}
-                <div className="flex gap-1">
-                    <button
-                        onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                        style={{ ...buttonStyle(false), padding: '6px 10px' }}
-                        className="hover:border-cyan-500 hover:text-cyan-400 transition-colors"
-                        title="一番上へ"
-                    >
-                        <ArrowUpToLine size={16} />
-                    </button>
-                    <button
-                        onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })}
-                        style={{ ...buttonStyle(false), padding: '6px 10px' }}
-                        className="hover:border-cyan-500 hover:text-cyan-400 transition-colors"
-                        title="一番下へ"
-                    >
-                        <ArrowDownToLine size={16} />
-                    </button>
                 </div>
-            </div>
+            )}
 
             {/* Pinned Grid */}
             <div className="flex-1 relative min-h-0">
