@@ -327,7 +327,7 @@ export const useCardSearch = (
         setCurrentPath,
         searchKey: `${sharedState.filters.keyword}-${JSON.stringify(sharedState.filters.categories)}-${sharedState.currentPath}`,
         filteredCards,
-        isSyncing: localCards.length > 0 && filteredCards.length === 0,
+        isSyncing: false,
         pinnedCards: sharedState.pinnedCards,
         pinnedUniqueKeys: useMemo(() => new Set(sharedState.pinnedCards.map(c => `${c.id}-${c.imageUrl}`)), [sharedState.pinnedCards]),
         selectedCard: sharedState.selectedCard,
