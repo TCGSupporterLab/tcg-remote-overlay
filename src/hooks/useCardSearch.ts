@@ -48,6 +48,8 @@ interface SharedState {
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
 const CHANNEL_NAME = 'tcg_remote_search_sync';
 const PINNED_STORAGE_KEY = 'tcg_remote_pinned_cards_v2';
+const PATH_STORAGE_KEY = 'tcg_remote_current_path_v2';
+const SELECTED_CARD_STORAGE_KEY = 'tcg_remote_selected_card_v2';
 const channel = new BroadcastChannel(CHANNEL_NAME);
 
 const INITIAL_STATE: SharedState = {
@@ -79,25 +81,48 @@ const updateShared = (patch: Partial<SharedState>) => {
     sharedState = { ...sharedState, ...patch };
     channel.postMessage(sharedState);
 
-    // ピン留めが更新された場合は永続化
+    // 永続化が必要な情報の保存
     if (patch.pinnedCards) {
         set(PINNED_STORAGE_KEY, patch.pinnedCards).catch(err => {
             console.error('[Sync] Failed to persist pinned cards:', err);
+        });
+    }
+    if (patch.currentPath !== undefined) {
+        set(PATH_STORAGE_KEY, patch.currentPath).catch(err => {
+            console.error('[Sync] Failed to persist current path:', err);
+        });
+    }
+    if (patch.selectedCard !== undefined) {
+        set(SELECTED_CARD_STORAGE_KEY, patch.selectedCard).catch(err => {
+            console.error('[Sync] Failed to persist selected card:', err);
         });
     }
 
     listeners.forEach(l => l());
 };
 
-// 永続化されたピン留めを復元
+// 永続化された情報の復元
 if (!IS_OVERLAY) {
+    // ピン留め
     get(PINNED_STORAGE_KEY).then(saved => {
         if (saved && Array.isArray(saved)) {
             updateShared({ pinnedCards: saved });
         }
-    }).catch(err => {
-        console.error('[Sync] Failed to load persisted pinned cards:', err);
-    });
+    }).catch(err => console.error('[Sync] Failed to load pinned cards:', err));
+
+    // 現在の階層
+    get(PATH_STORAGE_KEY).then(saved => {
+        if (saved !== undefined && typeof saved === 'string') {
+            updateShared({ currentPath: saved });
+        }
+    }).catch(err => console.error('[Sync] Failed to load path:', err));
+
+    // 選択中のカード
+    get(SELECTED_CARD_STORAGE_KEY).then(saved => {
+        if (saved) {
+            updateShared({ selectedCard: saved as Card });
+        }
+    }).catch(err => console.error('[Sync] Failed to load selected card:', err));
 }
 
 const normalizeText = (text: string) => {
@@ -439,24 +464,36 @@ export const useCardSearch = (
         updateShared({ filters: { keyword: '', categories: {} } });
     }, []);
 
-    // 永続化されたピン留めカードの再同期（Blob URLおよびメタデータの更新）
+    // 永続化されたカードデータの再同期（Blob URLおよびメタデータの更新）
     useEffect(() => {
-        if (!normalizedData || normalizedData.length === 0 || sharedState.pinnedCards.length === 0) return;
+        if (!normalizedData || normalizedData.length === 0) return;
 
-        let changed = false;
+        let pinnedChanged = false;
         const freshPinned = sharedState.pinnedCards.map(pinned => {
-            // id をキーにして正規化済みデータから最新のオブジェクトを探す
             const fresh = normalizedData.find(c => c.id === pinned.id);
             if (fresh && (fresh.imageUrl !== pinned.imageUrl || fresh.name !== pinned.name)) {
-                changed = true;
+                pinnedChanged = true;
                 return fresh;
             }
             return pinned;
         });
 
-        if (changed) {
-            if (import.meta.env.DEV) console.log(`[Sync] Relinking ${sharedState.pinnedCards.length} pinned cards with current session data`);
-            updateShared({ pinnedCards: freshPinned });
+        let selectedChanged = false;
+        let freshSelected = sharedState.selectedCard;
+        if (sharedState.selectedCard) {
+            const fresh = normalizedData.find(c => c.id === sharedState.selectedCard?.id);
+            if (fresh && fresh.imageUrl !== sharedState.selectedCard?.imageUrl) {
+                selectedChanged = true;
+                freshSelected = fresh;
+            }
+        }
+
+        if (pinnedChanged || selectedChanged) {
+            if (import.meta.env.DEV) console.log(`[Sync] Relinking persisted data with current session cards: pinned=${pinnedChanged}, selected=${selectedChanged}`);
+            updateShared({
+                pinnedCards: freshPinned,
+                selectedCard: freshSelected
+            });
         }
     }, [normalizedData]);
 
