@@ -313,20 +313,20 @@ export const SettingsMenu = ({
 
                             {/* WIDGETS TAB */}
                             {activeTab === 'widgets' && (
-                                <div className="space-y-[32px] pb-[40px]">
+                                <div className="space-y-[24px] pb-[40px]">
 
                                     {/* 汎用ウィジェット */}
-                                    <div className="space-y-[16px]">
-                                        <div className="flex items-center gap-[12px] mb-[16px]">
+                                    <div className="space-y-[8px]">
+                                        <div className="flex items-center gap-[12px]">
                                             <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
                                                 <Settings2 size={20} />
                                             </div>
                                             <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">汎用ウィジェット</h2>
                                         </div>
-                                        <div className="space-y-[12px]">
+                                        <div className="space-y-[8px]">
 
                                             {/* ダイスウィジェット */}
-                                            <div className="flex items-center justify-between p-[12px] px-[16px] bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group outline-none">
+                                            <div className="flex items-center justify-between p-[10px] px-[16px] bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group outline-none">
                                                 <div className="flex items-center gap-[12px]">
                                                     <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
                                                         <Dices size={18} />
@@ -358,7 +358,7 @@ export const SettingsMenu = ({
                                             </div>
 
                                             {/* コインウィジェット */}
-                                            <div className="flex items-center justify-between p-[12px] px-[16px] bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group outline-none">
+                                            <div className="flex items-center justify-between p-[10px] px-[16px] bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group outline-none">
                                                 <div className="flex items-center gap-[12px]">
                                                     <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
                                                         <Coins size={18} />
@@ -391,7 +391,7 @@ export const SettingsMenu = ({
 
                                             {/* カードウィジェット */}
                                             <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
-                                                <div className="flex items-center justify-between p-[12px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
+                                                <div className="flex items-center justify-between p-[10px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
                                                     <div
                                                         className="flex items-center gap-[12px] cursor-pointer flex-1"
                                                         onClick={() => setIsCardSectionOpen(!isCardSectionOpen)}
@@ -432,12 +432,12 @@ export const SettingsMenu = ({
                                                 </div>
 
                                                 {isCardSectionOpen && (
-                                                    <div className="pl-[46px] pr-[16px] pt-[4px] pb-[8px] mt-[4px] animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="pl-[46px] pr-[16px] pt-[0px] pb-[4px] mt-[0px] animate-in slide-in-from-top-2 duration-200">
                                                         {/* ローカルカード画像の読み込み */}
-                                                        <div className="py-[12px] flex flex-col gap-[12px]">
+                                                        <div className="py-[4px] flex flex-col gap-[8px]">
                                                             <div className="flex items-center justify-between">
                                                                 <div>
-                                                                    <h4 className="text-[14px] font-semibold text-gray-200">表示フォルダ選択</h4>
+                                                                    <h4 className="text-[14px] font-semibold text-gray-200">・表示フォルダ選択</h4>
                                                                     {hasAccess ? (
                                                                         <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">
                                                                             接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
@@ -498,9 +498,9 @@ export const SettingsMenu = ({
                                                         </div>
 
                                                         {/* 同名ファイルの結合 */}
-                                                        <div className="py-[12px] flex items-center justify-between">
+                                                        <div className="py-[4px] flex items-center justify-between">
                                                             <div>
-                                                                <h4 className="text-[14px] font-semibold text-gray-200">同名ファイルの統合</h4>
+                                                                <h4 className="text-[14px] font-semibold text-gray-200">・同名ファイルの統合</h4>
                                                             </div>
                                                             <label className="relative inline-flex items-center cursor-pointer pointer-events-auto z-50 shrink-0 ml-[16px]">
                                                                 <input
@@ -527,8 +527,8 @@ export const SettingsMenu = ({
 
                                                         {/* 表示カード選択画面を開く */}
                                                         {hasAccess && cardCount > 0 && localCards && (
-                                                            <div className="py-[12px] flex items-center justify-between">
-                                                                <h4 className="text-[14px] font-semibold text-gray-200 whitespace-nowrap">表示カード選択画面を開く</h4>
+                                                            <div className="py-[4px] flex items-center justify-between">
+                                                                <h4 className="text-[14px] font-semibold text-gray-200 whitespace-nowrap">・表示カード選択画面を開く</h4>
                                                                 <div className="flex gap-[8px] shrink-0">
                                                                     <button
                                                                         onClick={() => {
@@ -566,14 +566,14 @@ export const SettingsMenu = ({
                                     </div>
 
                                     {/* 専用ウィジェット */}
-                                    <div className="space-y-[16px]">
-                                        <div className="flex items-center gap-[12px] pt-[16px] border-t border-white/10 mt-[8px] mb-[16px]">
+                                    <div className="space-y-[8px]">
+                                        <div className="flex items-center gap-[12px] pt-[8px] border-t border-white/10 mt-[4px]">
                                             <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
                                                 <Settings2 size={20} />
                                             </div>
                                             <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">専用ウィジェット</h2>
                                         </div>
-                                        <div className="space-y-[12px]">
+                                        <div className="space-y-[8px]">
 
                                             {/* 遊戯王特化ウィジェット */}
                                             <div className="relative flex flex-col transition-all outline-none">
@@ -590,10 +590,10 @@ export const SettingsMenu = ({
                                                     </div>
                                                 </div>
                                                 {isYugiohSectionOpen && (
-                                                    <div className="pl-[28px] pt-[8px] pb-[8px] space-y-[12px] animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="pl-[28px] pt-[0px] pb-[4px] space-y-[8px] animate-in slide-in-from-top-2 duration-200">
                                                         {/* Life Points Widget */}
                                                         <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
-                                                            <div className="flex items-center justify-between p-[12px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
+                                                            <div className="flex items-center justify-between p-[10px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
                                                                 <div
                                                                     className="flex items-center gap-[12px] cursor-pointer flex-1"
                                                                     onClick={() => setIsLPSectionOpen(!isLPSectionOpen)}
@@ -632,10 +632,10 @@ export const SettingsMenu = ({
                                                                 </label>
                                                             </div>
                                                             {isLPSectionOpen && (
-                                                                <div className="mt-[4px] ml-[16px] mr-[16px] mb-[16px] space-y-[12px] animate-in slide-in-from-top-2 duration-200 bg-black/20 p-[16px] rounded-xl border border-white/5">
-                                                                    <div className="space-y-[12px]">
+                                                                <div className="mt-[0px] ml-[16px] mr-[16px] mb-[8px] space-y-[8px] animate-in slide-in-from-top-2 duration-200 bg-black/20 p-[8px] rounded-xl border border-white/5">
+                                                                    <div className="space-y-[8px]">
                                                                         <div className="flex justify-between items-center">
-                                                                            <h4 className="text-[14px] font-semibold text-gray-200">初期ライフポイント</h4>
+                                                                            <h4 className="text-[14px] font-semibold text-gray-200 ml-[12px]">・初期ライフポイント</h4>
                                                                             <input
                                                                                 type="number"
                                                                                 value={initialLP}
@@ -643,7 +643,6 @@ export const SettingsMenu = ({
                                                                                 className="w-[80px] bg-black/40 border border-white/10 rounded px-2 py-1 text-right text-sm text-blue-400 font-bold"
                                                                             />
                                                                         </div>
-                                                                        <p className="text-[11px] text-gray-500">ライフポイントの計算式やログを設定できます</p>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -665,10 +664,10 @@ export const SettingsMenu = ({
                                                     </div>
                                                 </div>
                                                 {isHololiveSectionOpen && (
-                                                    <div className="pl-[28px] pt-[8px] pb-[8px] space-y-[12px] animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="pl-[28px] pt-[0px] pb-[4px] space-y-[8px] animate-in slide-in-from-top-2 duration-200">
                                                         {/* SP Marker Toggle */}
                                                         <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
-                                                            <div className="flex items-center justify-between p-[12px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
+                                                            <div className="flex items-center justify-between p-[10px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
                                                                 <div className="flex items-center gap-[12px] flex-1">
                                                                     <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-yellow-400 transition-colors">
                                                                         <Sparkles size={18} />
@@ -707,16 +706,16 @@ export const SettingsMenu = ({
                                     </div>
 
                                     {/* 共通設定 */}
-                                    <div className="space-y-[16px]">
-                                        <div className="flex items-center gap-[12px] pt-[16px] border-t border-white/10 mt-[8px] mb-[16px]">
+                                    <div className="space-y-[8px]">
+                                        <div className="flex items-center gap-[12px] pt-[8px] border-t border-white/10 mt-[4px]">
                                             <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
                                                 <Settings size={20} />
                                             </div>
                                             <h2 className="text-xl font-bold tracking-wide text-white drop-shadow-md">共通設定</h2>
                                         </div>
-                                        <div className="space-y-[12px]">
+                                        <div className="space-y-[8px]">
                                             {/* 優先表示順 - Placeholder */}
-                                            <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none p-[16px]">
+                                            <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none p-[12px]">
                                                 <label className="text-[15px] font-semibold text-gray-200 mb-[8px] flex items-center gap-[8px]">
                                                     <Layers size={16} className="text-gray-400" />
                                                     優先表示順
