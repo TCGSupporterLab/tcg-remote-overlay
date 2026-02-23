@@ -103,6 +103,9 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
             });
 
             setSelectedWidgetIds(selected);
+        } else {
+            // Very small drag or simple click on background: clear selection
+            setSelectedWidgetIds(new Set());
         }
 
         setIsSelecting(false);

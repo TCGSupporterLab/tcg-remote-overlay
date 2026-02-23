@@ -742,8 +742,8 @@ function App() {
 
       {/* 2 & 3. GB and Widgets Layer */}
       <main
-        className="absolute inset-0 flex flex-col overflow-hidden pointer-events-none z-10"
-        style={{ pointerEvents: isSelecting ? 'auto' : undefined }}
+        className="absolute inset-0 flex flex-col overflow-hidden z-10"
+        style={{ pointerEvents: !isAdjustingVideo ? 'auto' : (isSelecting ? 'auto' : 'none') }}
         onMouseDown={(e) => {
           // Only start rect selection on direct background click (not on widgets)
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget) {
