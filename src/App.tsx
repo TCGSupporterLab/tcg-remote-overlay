@@ -11,7 +11,6 @@ import { useLocalCards } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
 import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
-import { SelectionActionBar } from './components/SelectionActionBar';
 import { GroupBoundingBox } from './components/GroupBoundingBox';
 import { useWidgetSelection } from './hooks/useWidgetSelection';
 import type { WidgetId, WidgetState, WidgetGroupData, WidgetGroup, RelativeTransform } from './types/widgetTypes';
@@ -943,26 +942,10 @@ function App() {
           isSelected={true}
           widgetRefsMap={widgetRefsMap}
           onAnchorStateChange={handleTransientDrag}
-          onUngroup={() => groupWidgets(effectiveSelectionMembers)}
+          onGroup={() => groupWidgets(effectiveSelectionMembers)}
         />
       )}
 
-      {/* Selection Action Bar */}
-      <SelectionActionBar
-        selectedCount={selectedWidgetIds.size}
-        hasGroupedSelection={Array.from(selectedWidgetIds).some(id => groupData.groups.some(g => g.id === id))}
-        onGroup={() => groupWidgets(Array.from(selectedWidgetIds))}
-        onUngroup={() => {
-          const groupIdsToRemove = new Set<string>();
-          selectedWidgetIds.forEach(id => {
-            const group = groupData.groups.find(g => g.id === id);
-            if (group) groupIdsToRemove.add(group.id);
-          });
-          groupIdsToRemove.forEach(gid => ungroupWidgets(gid));
-          clearSelection();
-        }}
-        onClearSelection={clearSelection}
-      />
 
       {/* 4. Removed Initial Help Screen (now in Settings Guide tab) */}
 

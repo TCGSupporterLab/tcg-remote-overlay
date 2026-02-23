@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Move, Maximize2, RotateCw, Undo2, Unlink } from 'lucide-react';
+import { Move, Maximize2, RotateCw, Undo2, Unlink, Link } from 'lucide-react';
 import type { WidgetId, WidgetState } from '../types/widgetTypes';
 
 interface GroupBoundingBoxProps {
@@ -9,7 +9,8 @@ interface GroupBoundingBoxProps {
     isSelected: boolean;
     widgetRefsMap: React.RefObject<Map<WidgetId, HTMLDivElement>>;
     onAnchorStateChange: (anchorId: WidgetId, newState: WidgetState) => void;
-    onUngroup: (groupId: string) => void;
+    onUngroup?: (groupId: string) => void;
+    onGroup?: (memberIds: WidgetId[]) => void;
 }
 
 export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
@@ -20,6 +21,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     widgetRefsMap,
     onAnchorStateChange,
     onUngroup,
+    onGroup,
 }) => {
     const [bbox, setBbox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
     const [isHovered, setIsHovered] = useState(false);
@@ -234,17 +236,32 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 >
                     <Undo2 size={17} />
                 </div>
-                <div
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onUngroup(groupId);
-                    }}
-                    className="bg-amber-600/80 hover:bg-amber-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-1"
-                    title="グループを解除（分解）"
-                >
-                    <Unlink size={17} />
-                </div>
+                {onUngroup && (
+                    <div
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onUngroup(groupId);
+                        }}
+                        className="bg-amber-600/80 hover:bg-amber-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-1"
+                        title="グループを解除（分解）"
+                    >
+                        <Unlink size={17} />
+                    </div>
+                )}
+                {onGroup && (
+                    <div
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onGroup(memberIds);
+                        }}
+                        className="bg-emerald-600/80 hover:bg-emerald-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-1"
+                        title="これらをグループ化（結合）"
+                    >
+                        <Link size={17} />
+                    </div>
+                )}
             </div>
         </>
     );
