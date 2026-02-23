@@ -111,11 +111,12 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         return () => cancelAnimationFrame(animId);
     }, [memberIds, widgetRefsMap]);
 
+    // We now rely entirely on Props for the current state to ensure sync
+    // with memory-based live states in App.tsx.
     const readAnchorState = (): WidgetState => {
-        if (externalAnchorState) return { ...externalAnchorState };
-        const saved = localStorage.getItem(`overlay_widget_v4_${anchorId}`);
-        return saved ? JSON.parse(saved) : { px: 0, py: 0, scale: 1, rotation: 0 };
+        return externalAnchorState || { px: 0, py: 0, scale: 1, rotation: 0 };
     };
+
 
 
     const handleDragStart = (e: React.MouseEvent) => {

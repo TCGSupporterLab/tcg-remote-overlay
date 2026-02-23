@@ -102,6 +102,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         const channel = new BroadcastChannel('tcg_remote_sync');
         channel.onmessage = (event) => {
             if (event.data.type === 'WIDGET_STATE_UPDATE' && event.data.value.gameMode === gameMode) {
+                // Ignore messages sent by our own tab to avoid double-processing
+                if (event.data.senderId === (window as any).TAB_ID) return;
+
                 if (!isDragging && !isResizing && !isRotating) {
                     const newState = event.data.value.state;
                     // Only update if actually different to prevent cycles
@@ -114,6 +117,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                     }
                 }
             }
+
             if (event.data.type === 'RESET') {
                 lastUpdateSourceRef.current = 'local';
                 setState({ px: 0, py: 0, scale: 1, rotation: 0 });

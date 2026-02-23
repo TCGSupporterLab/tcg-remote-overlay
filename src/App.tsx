@@ -165,7 +165,14 @@ function App() {
           setGroupData(newValue);
         }
       }
+
+      if (e.data.type === 'WIDGET_STATE_UPDATE') {
+        const { gameMode: widgetId, state: newState } = e.data.value;
+        // Sync external window's widget state to our live cache immediately
+        liveWidgetStatesRef.current[widgetId as WidgetId] = newState;
+      }
     };
+
     channel.addEventListener('message', handler);
     return () => { channel.removeEventListener('message', handler); channel.close(); };
   }, [groupData]);
@@ -178,29 +185,30 @@ function App() {
   // Fix for rotation drift and infinite loop stabilization
   const manipulationStartStatesRef = useRef<Record<WidgetId, WidgetState>>({});
 
-  const handleManipulationStart = useCallback(() => {
-    const states: Record<WidgetId, WidgetState> = {};
+  // Cache for all widgets to avoid localStorage reads during manipulation
+  const liveWidgetStatesRef = useRef<Record<WidgetId, WidgetState>>({});
+
+  // Initialize cache from localStorage
+  useEffect(() => {
     const ids = ["card_widget", "yugioh", "hololive_sp_marker", "dice", "coin"];
-
+    const initial: Record<WidgetId, WidgetState> = {};
     ids.forEach(id => {
-      const wid = id as WidgetId;
-      // FIRST: Check if we have an active external state (most up-to-date in memory)
-      // SECOND: Fallback to localStorage
-      if (externalStates[wid]) {
-        states[wid] = { ...externalStates[wid] };
-      } else {
-        const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
-        if (saved) {
-          states[wid] = JSON.parse(saved);
-        }
-      }
+      const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
+      if (saved) initial[id as WidgetId] = JSON.parse(saved);
     });
+    liveWidgetStatesRef.current = initial;
+  }, []);
 
-    manipulationStartStatesRef.current = states;
+  const handleManipulationStart = useCallback(() => {
+    // CAPTURE CURRENT LIVE STATES as the start points for manipulation
+    // We no longer read localStorage here because liveWidgetStatesRef is 
+    // strictly updated on every change/sync message.
+    manipulationStartStatesRef.current = { ...liveWidgetStatesRef.current };
+
     if (import.meta.env.DEV) {
-      console.log("[App] Manipulation Start Captured States (Memory Prioritized):", states);
+      console.log("[App] Manipulation Start Snapshot (Unified Cache):", manipulationStartStatesRef.current);
     }
-  }, [externalStates]);
+  }, []);
 
 
 
@@ -448,21 +456,30 @@ function App() {
     setExternalStates(prev => {
       let changed = false;
       const next = { ...prev };
-      for (const id in newExternalStates) {
-        const u = newExternalStates[id as WidgetId];
-        const p = prev[id as WidgetId];
+      // Also include the anchor's own new state in updates for local cache
+      const updates = { ...newExternalStates, [id]: newState };
+
+      for (const widgetId in updates) {
+        const u = updates[widgetId as WidgetId];
+        const p = prev[widgetId as WidgetId];
+
+        // Also update the live cache
+        liveWidgetStatesRef.current[widgetId as WidgetId] = u;
+
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
           Math.abs(u.py - p.py) > 0.00001 ||
           Math.abs(u.scale - p.scale) > 0.00001 ||
           Math.abs(u.rotation - p.rotation) > 0.00001) {
-          next[id as WidgetId] = u;
+          next[widgetId as WidgetId] = u;
           changed = true;
         }
       }
       return changed ? next : prev;
     });
   }, [groupData, resolveActiveAnchor]);
+
+
 
 
   // Handle group drag (from GroupBoundingBox handles)
