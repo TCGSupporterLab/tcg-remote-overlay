@@ -19,10 +19,12 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     onAnchorStateChange,
 }) => {
     const [bbox, setBbox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+    const [isHovered, setIsHovered] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
 
+    const mouseRef = useRef({ x: 0, y: 0 });
     const manipRef = useRef({
         mouseX: 0,
         mouseY: 0,
@@ -30,6 +32,15 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         rotateCenter: { x: 0, y: 0 },
         rotateStartAngle: 0,
     });
+
+    // Track mouse position globally for hover detection
+    useEffect(() => {
+        const handleGlobalMouseMove = (e: MouseEvent) => {
+            mouseRef.current = { x: e.clientX, y: e.clientY };
+        };
+        window.addEventListener('mousemove', handleGlobalMouseMove, { passive: true });
+        return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
+    }, []);
 
     // Continuously compute bounding box from DOM
     useEffect(() => {
@@ -48,15 +59,26 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 const top = Math.min(...rects.map(r => r.top)) - padding;
                 const right = Math.max(...rects.map(r => r.right)) + padding;
                 const bottom = Math.max(...rects.map(r => r.bottom)) + padding;
+                const newBbox = { x: left, y: top, w: right - left, h: bottom - top };
+
                 setBbox(prev => {
                     if (prev && Math.abs(prev.x - left) < 0.5 && Math.abs(prev.y - top) < 0.5
                         && Math.abs(prev.w - (right - left)) < 0.5 && Math.abs(prev.h - (bottom - top)) < 0.5) {
                         return prev;
                     }
-                    return { x: left, y: top, w: right - left, h: bottom - top };
+                    return newBbox;
                 });
+
+                // Detect hover over bbox area
+                const mx = mouseRef.current.x;
+                const my = mouseRef.current.y;
+                // Add some bleed for the handle area below (approx 60px)
+                const isOver = mx >= newBbox.x && mx <= newBbox.x + newBbox.w &&
+                    my >= newBbox.y && my <= newBbox.y + newBbox.h + 60;
+                setIsHovered(isOver);
             } else {
                 setBbox(null);
+                setIsHovered(false);
             }
             animId = requestAnimationFrame(update);
         };
@@ -150,25 +172,28 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         };
     }, [isDragging, isResizing, isRotating, anchorId, onAnchorStateChange]);
 
-    if (!bbox || !isSelected) return null;
+    const isActive = isSelected || isHovered || isDragging || isResizing || isRotating;
+
+    if (!bbox || !isActive) return null;
 
     return (
         <>
             {/* Group selection frame */}
             <div
-                className="fixed pointer-events-none z-[150] border-2 border-blue-400 rounded-lg"
+                className="fixed pointer-events-none z-[150] border-2 border-blue-400 rounded-lg transition-opacity duration-200"
                 style={{
                     left: bbox.x,
                     top: bbox.y,
                     width: bbox.w,
                     height: bbox.h,
-                    boxShadow: '0 0 16px rgba(96, 165, 250, 0.35)',
+                    boxShadow: isSelected ? '0 0 16px rgba(96, 165, 250, 0.35)' : 'none',
+                    opacity: isSelected ? 1 : 0.5,
                 }}
             />
 
             {/* Handles below the bounding box */}
             <div
-                className="fixed pointer-events-auto z-[150] flex items-center gap-2"
+                className="fixed pointer-events-auto z-[150] flex items-center gap-2 animate-in fade-in zoom-in duration-200"
                 style={{
                     left: bbox.x + bbox.w / 2,
                     top: bbox.y + bbox.h + 12,
