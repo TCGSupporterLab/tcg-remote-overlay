@@ -1,9 +1,24 @@
 import React from 'react';
 import { useCardSearch } from '../../hooks/useCardSearch';
+import { FolderOpen, Search, ExternalLink, RefreshCw, Layout, FolderSearch, Unlock } from 'lucide-react';
 
 export const OVERLAY_CARD_RADIUS = '17px';
 
-export const CardWidget: React.FC = () => {
+interface CardWidgetProps {
+    hasAccess?: boolean;
+    isScanning?: boolean;
+    savedRootName?: string | null;
+    onRequestAccess?: () => void;
+    onVerifyPermission?: () => void;
+}
+
+export const CardWidget: React.FC<CardWidgetProps> = ({
+    hasAccess = false,
+    isScanning = false,
+    savedRootName = null,
+    onRequestAccess = () => { },
+    onVerifyPermission = () => { }
+}) => {
     const {
         selectedCard,
         pinnedCards,
@@ -42,6 +57,18 @@ export const CardWidget: React.FC = () => {
 
     const isImageAvailable = !!imageUrl && !imageError;
 
+    // ヘルパー: 検索画面を開く
+    const openSearch = (mode: 'tab' | 'window') => {
+        const url = window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search';
+        if (mode === 'tab') {
+            window.open(url, '_blank');
+        } else {
+            const width = 1200; const height = 800;
+            const left = (window.screen.width - width) / 2; const top = (window.screen.height - height) / 2;
+            window.open(url, 'CardSearchWindow', `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+        }
+    };
+
     return (
         <div className="overlay-card-frame relative flex flex-col items-center justify-center animate-in zoom-in duration-500 transform"
             style={{
@@ -70,35 +97,65 @@ export const CardWidget: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center text-white text-center space-y-4">
-                    <div className="bg-white/10 p-4 rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
-                    </div>
-                    <div className="w-full max-w-[320px]">
-                        <p className="font-bold text-lg mb-4">表示するカードが選択されていません</p>
-                        <div className="text-[13px] text-white/70 leading-relaxed space-y-4">
-                            <p>下記手順で画像フォルダに接続し、カードを選択してください</p>
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-left font-medium space-y-1.5 grayscale-[0.3]">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                                    <span>設定 <span className="text-[10px] opacity-50 font-normal">(Esc / 右クリック)</span></span>
-                                </div>
-                                <div className="flex items-center gap-2 ml-4">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                                    <span>ウィジェット</span>
-                                </div>
-                                <div className="flex items-center gap-2 ml-8 text-blue-400">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                    <span className="font-bold">カードを表示 ∨</span>
-                                </div>
+                <div className="flex flex-col items-center justify-center text-white text-center space-y-6">
+                    {!hasAccess ? (
+                        // フォルダ未選択またはアクセス許可待ち
+                        <>
+                            <div className="bg-blue-500/10 p-6 rounded-3xl border border-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]">
+                                <FolderOpen size={48} className="text-blue-400" />
                             </div>
-                        </div>
-                    </div>
-                    {displayCardNo > 0 && hasPins && pinnedCards.length < displayCardNo && (
-                        <p className="text-xs text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded">
-                            ピン留め番号 {displayCardNo} が存在しません
+                            <div className="space-y-2">
+                                <p className="font-bold text-lg text-white">
+                                    {savedRootName ? 'アクセス許可が必要です' : '表示フォルダが選択されていません'}
+                                </p>
+                                {savedRootName && <p className="text-xs text-blue-400 font-medium">接続先: {savedRootName}</p>}
+                            </div>
+
+                            <button
+                                onClick={savedRootName ? onVerifyPermission : onRequestAccess}
+                                disabled={isScanning}
+                                className={`px-[18px] py-[10px] rounded-lg font-bold text-[13px] transition-all disabled:opacity-50 flex items-center gap-[8px] cursor-pointer pointer-events-auto z-50 border shadow-sm ${!hasAccess && savedRootName ? 'bg-yellow-500/5 border-yellow-500/20 text-yellow-500/80 hover:bg-yellow-500/20 hover:text-yellow-400 hover:border-yellow-500/40' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20'}`}
+                            >
+                                {isScanning ? <RefreshCw size={16} className="animate-spin" /> : (savedRootName ? <Unlock size={16} /> : <FolderSearch size={16} />)}
+                                {isScanning ? 'スキャン中' : (savedRootName ? 'アクセスを許可' : 'フォルダを選択')}
+                            </button>
+                        </>
+                    ) : (
+                        // フォルダ接続済みだがカード未選択
+                        <>
+                            <div className="bg-amber-500/10 p-6 rounded-3xl border border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+                                <Search size={48} className="text-amber-400" />
+                            </div>
+                            <p className="font-bold text-lg text-white">表示カードを選択してください</p>
+
+                            <div className="flex gap-4 pointer-events-auto">
+                                <button
+                                    onClick={() => openSearch('tab')}
+                                    className="px-[18px] py-[10px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[13px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[8px] shadow-sm"
+                                >
+                                    <Layout size={16} />
+                                    別タブ
+                                </button>
+                                <button
+                                    onClick={() => openSearch('window')}
+                                    className="px-[18px] py-[10px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[13px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[8px] shadow-sm"
+                                >
+                                    <ExternalLink size={16} />
+                                    別ウィンドウ
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {hasAccess && displayCardNo > 0 && hasPins && pinnedCards.length < displayCardNo && (
+                        <p className="text-xs text-yellow-400 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20">
+                            ピン留め番号 <span className="font-bold">{displayCardNo}</span> が存在しません
                         </p>
                     )}
+
+                    <p className="text-[11px] text-white/40 font-medium">
+                        Shift + 数字キーで表示カードを変更できます
+                    </p>
                 </div>
             )}
         </div>

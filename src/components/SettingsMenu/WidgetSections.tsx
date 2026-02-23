@@ -1,4 +1,4 @@
-import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight } from 'lucide-react';
+import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Layout, FolderX, FolderPlus, FolderSearch, Unlock } from 'lucide-react';
 import { SettingsToggle, SettingItem } from './SettingsUI';
 import type { LocalCard } from '../../hooks/useLocalCards';
 
@@ -89,7 +89,8 @@ export const CardSetting = ({
                         </div>
                         <div className="flex gap-[8px] shrink-0">
                             {(hasAccess || rootHandleName) && (
-                                <button onClick={onDropAccess} className="px-[12px] py-[6px] bg-red-500/5 border border-red-500/20 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 shadow-sm">
+                                <button onClick={onDropAccess} className="px-[12px] py-[6px] bg-red-500/5 border border-red-500/20 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 shadow-sm flex items-center gap-[6px]">
+                                    <FolderX size={14} />
                                     解除
                                 </button>
                             )}
@@ -98,7 +99,10 @@ export const CardSetting = ({
                                 disabled={isScanning}
                                 className={`px-[12px] py-[6px] rounded-lg font-bold text-[11px] transition-all disabled:opacity-50 flex items-center gap-[6px] cursor-pointer pointer-events-auto z-50 border shadow-sm ${!hasAccess && rootHandleName ? 'bg-yellow-500/5 border-yellow-500/20 text-yellow-500/80 hover:bg-yellow-500/20 hover:text-yellow-400 hover:border-yellow-500/40' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20'}`}
                             >
-                                {isScanning ? <><RefreshCw size={14} className="animate-spin" />スキャン中</> : hasAccess ? '別フォルダを選択' : rootHandleName ? 'アクセスを許可' : 'フォルダを選択'}
+                                {isScanning ? <><RefreshCw size={14} className="animate-spin" />スキャン中</> :
+                                    hasAccess ? <><FolderPlus size={14} />別フォルダを選択</> :
+                                        rootHandleName ? <><Unlock size={14} />アクセスを許可</> :
+                                            <><FolderSearch size={14} />フォルダを選択</>}
                             </button>
                         </div>
                     </div>
@@ -114,6 +118,7 @@ export const CardSetting = ({
                         <h4 className="text-[14px] font-semibold text-gray-200 whitespace-nowrap">・表示カード選択画面を開く</h4>
                         <div className="flex gap-[6px] shrink-0">
                             <button onClick={() => window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', '_blank')} className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm">
+                                <Layout size={14} />
                                 別タブ
                             </button>
                             <button
@@ -124,7 +129,8 @@ export const CardSetting = ({
                                 }}
                                 className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm"
                             >
-                                別窓
+                                <ExternalLink size={14} />
+                                別ウィンドウ
                             </button>
                         </div>
                     </div>
@@ -190,9 +196,9 @@ export const YugiohSection = ({
 
 // --- Hololive Section ---
 export const HololiveSection = ({
-    isOpen, onToggleOpen, spMarkerMode, onToggleSPMarkerMode
+    isOpen, onToggleOpen, isSPMarkerVisible, onToggleSPMarkerMode
 }: {
-    isOpen: boolean, onToggleOpen: () => void, spMarkerMode: 'off' | 'follow' | 'independent', onToggleSPMarkerMode: () => void
+    isOpen: boolean, onToggleOpen: () => void, isSPMarkerVisible: boolean, onToggleSPMarkerMode: () => void
 }) => (
     <div className="relative flex flex-col transition-all outline-none">
         <div className="flex items-center justify-between py-[6px] px-[8px] hover:bg-white/5 rounded-xl group transition-all cursor-pointer relative z-10" onClick={onToggleOpen}>
@@ -216,7 +222,7 @@ export const HololiveSection = ({
                                 <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">SPマーカーを表示</h3>
                             </div>
                         </div>
-                        <SettingsToggle checked={spMarkerMode !== 'off'} onChange={onToggleSPMarkerMode} />
+                        <SettingsToggle checked={isSPMarkerVisible} onChange={onToggleSPMarkerMode} />
                     </div>
                 </div>
             </div>

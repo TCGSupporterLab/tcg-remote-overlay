@@ -56,7 +56,7 @@ interface SettingsMenuProps {
     onlyShowPlayer1: boolean;
     onToggleOnlyShowPlayer1: (val: boolean) => void;
     // SP Marker
-    spMarkerMode: 'off' | 'follow' | 'independent';
+    isSPMarkerVisible: boolean;
     onToggleSPMarkerMode: () => void;
     onVerifyPermission: () => void;
 }

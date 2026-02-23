@@ -3,17 +3,15 @@ import React from 'react';
 interface SPMarkerWidgetProps {
     face: 'front' | 'back';
     onToggle: () => void;
-    isFollowMode?: boolean;
 }
 
-export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle, isFollowMode }) => {
+export const SPMarkerWidget: React.FC<SPMarkerWidgetProps> = ({ face, onToggle }) => {
     // --- 【調整用】サイズの設定 ---
     // ここを書き換えるだけで、縦横比を保ったままサイズが変わります
-    const FOLLOW_SIZE = 380;      // カード追従モードの大きさ
-    const INDEPENDENT_SIZE = 380; // 独立表示モードの大きさ
+    const INDEPENDENT_SIZE = 380; // 表示モードの大きさ
     // ----------------------------
 
-    const size = isFollowMode ? FOLLOW_SIZE : INDEPENDENT_SIZE;
+    const size = INDEPENDENT_SIZE;
     const height = Math.round(size * ((283 + 285) / (481 + 482))); // アスペクト比を元画像の平均に合わせる
 
     const base = import.meta.env.BASE_URL;

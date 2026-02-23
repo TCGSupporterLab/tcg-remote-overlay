@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { YugiohTools } from './components/YugiohTools';
 import { HololiveTools } from './components/HololiveTools';
-import { useCardSearch } from './hooks/useCardSearch';
+import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { SettingsMenu } from './components/SettingsMenu';
 import { OverlayWidget } from './components/OverlayWidget';
@@ -34,7 +34,7 @@ function App() {
   } = useLocalCards();
 
   const {
-    spMarkerMode,
+    isSPMarkerVisible,
     spMarkerFace,
     toggleSPMarkerMode,
     toggleSPMarkerFace,
@@ -56,8 +56,25 @@ function App() {
     initialLP,
     setInitialLP,
     onlyShowPlayer1,
-    setOnlyShowPlayer1
+    setOnlyShowPlayer1,
+    rootFolderName,
+    setRootFolderName
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
+
+  // Sync folder name for caching logic
+  const prevFolderRef = useRef(rootFolderName);
+  useEffect(() => {
+    const currentName = rootHandle?.name || savedRootName || '';
+    if (currentName !== rootFolderName) {
+      const wasEmpty = !prevFolderRef.current;
+      setRootFolderName(currentName);
+      prevFolderRef.current = currentName;
+      // フォルダ接続時にキャッシュから復元
+      if (wasEmpty && currentName) {
+        restoreFolderCache(currentName);
+      }
+    }
+  }, [rootHandle?.name, savedRootName, rootFolderName, setRootFolderName]);
 
   // Widget States
   const [gameMode, setGameMode] = useState<GameMode>(() => {
@@ -465,7 +482,13 @@ function App() {
         {/* Independent Card Widget */}
         {isCardWidgetVisible && (
           <OverlayWidget gameMode="card_widget">
-            <CardWidget />
+            <CardWidget
+              hasAccess={hasAccess}
+              isScanning={isScanning}
+              savedRootName={savedRootName}
+              onRequestAccess={requestAccess}
+              onVerifyPermission={verifyPermissionAndScan}
+            />
           </OverlayWidget>
         )}
 
@@ -518,13 +541,12 @@ function App() {
         )}
 
         {/* Independent SP Marker Widget */}
-        {gameMode === 'hololive' && spMarkerMode === 'independent' && !showSPMarkerForceHidden && (
+        {isSPMarkerVisible && !showSPMarkerForceHidden && (
           <OverlayWidget gameMode="hololive_sp_marker">
             <div className="pointer-events-auto">
               <SPMarkerWidget
                 face={spMarkerFace}
                 onToggle={toggleSPMarkerFace}
-                isFollowMode={false}
               />
             </div>
           </OverlayWidget>
@@ -608,7 +630,7 @@ function App() {
             onChangeInitialLP={setInitialLP}
             onlyShowPlayer1={onlyShowPlayer1}
             onToggleOnlyShowPlayer1={setOnlyShowPlayer1}
-            spMarkerMode={spMarkerMode}
+            isSPMarkerVisible={isSPMarkerVisible}
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}
           />

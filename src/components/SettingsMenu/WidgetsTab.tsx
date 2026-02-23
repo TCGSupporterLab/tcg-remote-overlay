@@ -39,7 +39,7 @@ interface WidgetsTabProps {
     initialLP: number;
     onChangeInitialLP: (val: number) => void;
     // Hololive Specific
-    spMarkerMode: 'off' | 'follow' | 'independent';
+    isSPMarkerVisible: boolean;
     onToggleSPMarkerMode: () => void;
 }
 
@@ -88,7 +88,7 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                     <HololiveSection
                         isOpen={props.isHololiveSectionOpen}
                         onToggleOpen={props.onToggleHololiveSectionOpen}
-                        spMarkerMode={props.spMarkerMode}
+                        isSPMarkerVisible={props.isSPMarkerVisible}
                         onToggleSPMarkerMode={props.onToggleSPMarkerMode}
                     />
                 </div>

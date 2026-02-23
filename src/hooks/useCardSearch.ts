@@ -36,13 +36,14 @@ interface SharedState {
     remoteCard: Card | null;
     overlayMode: 'on' | 'off';
     overlayForcedCard: Card | null;
-    spMarkerMode: 'off' | 'follow' | 'independent';
     spMarkerFace: 'front' | 'back';
+    isSPMarkerVisible: boolean;
     remoteSPMarkerState: any;
     independentMarkerState: any;
     showSPMarkerForceHidden: boolean;
     userInteracted: boolean;
     displayCardNo: number;
+    rootFolderName: string;
     // Widget Visibility & Settings
     isDiceVisible: boolean;
     isCoinVisible: boolean;
@@ -59,6 +60,7 @@ const PATH_STORAGE_KEY = 'tcg_remote_current_path_v2';
 const SELECTED_CARD_STORAGE_KEY = 'tcg_remote_selected_card_v2';
 const DISPLAY_NO_STORAGE_KEY = 'tcg_remote_display_card_no_v2';
 const WIDGET_SETTINGS_KEY = 'tcg_remote_widget_settings_v3';
+const FOLDER_CACHE_KEY = 'tcg_remote_folder_cache_v1';
 
 const channel = new BroadcastChannel(CHANNEL_NAME);
 
@@ -70,13 +72,14 @@ const INITIAL_STATE: SharedState = {
     remoteCard: null,
     overlayMode: 'on',
     overlayForcedCard: null,
-    spMarkerMode: 'off',
+    isSPMarkerVisible: false,
     spMarkerFace: 'front',
     remoteSPMarkerState: null,
     independentMarkerState: { x: 50, y: 50, scale: 1, rotation: 0 },
     showSPMarkerForceHidden: false,
     userInteracted: false,
     displayCardNo: 0,
+    rootFolderName: '',
     isDiceVisible: true,
     isCoinVisible: true,
     isLPVisible: true,
@@ -94,6 +97,7 @@ channel.onmessage = (event: MessageEvent<SharedState>) => {
 };
 
 const updateShared = (patch: Partial<SharedState>) => {
+    const oldFolderName = sharedState.rootFolderName;
     sharedState = { ...sharedState, ...patch };
     channel.postMessage(sharedState);
 
@@ -141,8 +145,108 @@ const updateShared = (patch: Partial<SharedState>) => {
         });
     }
 
+
+    // フォルダ名が変更された場合のキャッシュ処理（保存のみ・復元はApp.tsx側で行う）
+    if (patch.rootFolderName !== undefined && patch.rootFolderName !== oldFolderName) {
+        if (import.meta.env.DEV) console.log(`[FolderCache] Name changed: "${oldFolderName}" -> "${patch.rootFolderName}"`);
+        // 旧フォルダの状態を保存（fire-and-forget）
+        if (oldFolderName) {
+            saveFolderCache(oldFolderName, {
+                pinnedCards: sharedState.pinnedCards,
+                selectedCard: sharedState.selectedCard,
+                currentPath: sharedState.currentPath,
+                displayCardNo: sharedState.displayCardNo
+            });
+        }
+        // 新フォルダが空の場合（解除）は即座にクリア（同期的）
+        if (!patch.rootFolderName) {
+            sharedState = {
+                ...sharedState,
+                pinnedCards: [],
+                selectedCard: null,
+                currentPath: '',
+                displayCardNo: 0
+            };
+            set(PINNED_STORAGE_KEY, []).catch(() => { });
+            set(SELECTED_CARD_STORAGE_KEY, null).catch(() => { });
+            set(PATH_STORAGE_KEY, '').catch(() => { });
+            set(DISPLAY_NO_STORAGE_KEY, 0).catch(() => { });
+            if (import.meta.env.DEV) console.log('[FolderCache] Folder disconnected, state cleared.');
+        }
+    }
+
     listeners.forEach(l => l());
 };
+
+interface FolderCacheEntry {
+    folderName: string;
+    pinnedCards: Card[];
+    selectedCard: Card | null;
+    currentPath: string;
+    displayCardNo: number;
+    lastOpened: number;
+}
+
+/**
+ * フォルダのキャッシュを保存（fire-and-forget）
+ */
+function saveFolderCache(folderName: string, state: Partial<FolderCacheEntry>) {
+    const isMain = !window.location.search.includes('view=');
+    if (IS_OVERLAY || !isMain) return;
+
+    get(FOLDER_CACHE_KEY).then((raw) => {
+        const cache: Record<string, FolderCacheEntry> = (raw as any) || {};
+        cache[folderName] = {
+            folderName,
+            pinnedCards: state.pinnedCards || [],
+            selectedCard: state.selectedCard || null,
+            currentPath: state.currentPath || '',
+            displayCardNo: state.displayCardNo || 0,
+            lastOpened: Date.now()
+        };
+
+        // 最大5件に制限（古い順に削除）
+        const entries = Object.values(cache).sort((a, b) => b.lastOpened - a.lastOpened);
+        const newCache: Record<string, FolderCacheEntry> = {};
+        entries.slice(0, 5).forEach(e => { newCache[e.folderName] = e; });
+
+        return set(FOLDER_CACHE_KEY, newCache);
+    }).then(() => {
+        if (import.meta.env.DEV) console.log(`[FolderCache] Saved state for "${folderName}"`);
+    }).catch(err => {
+        console.error('[FolderCache] Failed to save:', err);
+    });
+}
+
+/**
+ * フォルダキャッシュから復元（App.tsxのuseEffectから呼ばれる）
+ */
+export async function restoreFolderCache(folderName: string): Promise<boolean> {
+    if (!folderName) return false;
+    try {
+        const cache: Record<string, FolderCacheEntry> = (await get(FOLDER_CACHE_KEY) as any) || {};
+        const entry = cache[folderName];
+        if (entry) {
+            if (import.meta.env.DEV) console.log(`[FolderCache] Restoring state for "${folderName}"`, entry);
+            updateShared({
+                pinnedCards: entry.pinnedCards || [],
+                selectedCard: entry.selectedCard || null,
+                currentPath: entry.currentPath || '',
+                displayCardNo: entry.displayCardNo || 0
+            });
+            // 開いた日時を更新
+            entry.lastOpened = Date.now();
+            await set(FOLDER_CACHE_KEY, cache);
+            return true;
+        } else {
+            if (import.meta.env.DEV) console.log(`[FolderCache] No cache found for "${folderName}"`);
+            return false;
+        }
+    } catch (err) {
+        console.error('[FolderCache] Failed to restore:', err);
+        return false;
+    }
+}
 
 // 永続化された情報の復元
 if (!IS_OVERLAY) {
@@ -660,9 +764,9 @@ export const useCardSearch = (
         selectedCard: sharedState.selectedCard,
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayForcedCard || sharedState.selectedCard),
         overlayMode: sharedState.overlayMode,
-        spMarkerMode: sharedState.spMarkerMode,
+        isSPMarkerVisible: sharedState.isSPMarkerVisible,
         spMarkerFace: sharedState.spMarkerFace,
-        spMarkerState: sharedState.spMarkerMode === 'independent' ? sharedState.independentMarkerState : sharedState.remoteSPMarkerState,
+        spMarkerState: sharedState.independentMarkerState,
         showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
         dynamicFilterOptions,
         setKeyword: (keyword: string) => updateShared({ filters: { ...sharedState.filters, keyword } }),
@@ -727,7 +831,7 @@ export const useCardSearch = (
         setOverlayForcedCard: (card: Card | null) => updateShared({ overlayForcedCard: card }),
         toggleOverlayMode: () => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }),
         toggleSPMarkerMode: () => {
-            updateShared({ spMarkerMode: sharedState.spMarkerMode !== 'off' ? 'off' : 'independent' });
+            updateShared({ isSPMarkerVisible: !sharedState.isSPMarkerVisible });
         },
         toggleSPMarkerFace: () => updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' }),
         toggleSPMarkerForceHidden: () => updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden }),
@@ -747,6 +851,8 @@ export const useCardSearch = (
         initialLP: sharedState.initialLP,
         setInitialLP: (lp: number) => updateShared({ initialLP: lp }),
         onlyShowPlayer1: sharedState.onlyShowPlayer1,
-        setOnlyShowPlayer1: (visible: boolean) => updateShared({ onlyShowPlayer1: visible })
+        setOnlyShowPlayer1: (visible: boolean) => updateShared({ onlyShowPlayer1: visible }),
+        rootFolderName: sharedState.rootFolderName,
+        setRootFolderName: (name: string) => updateShared({ rootFolderName: name })
     };
 };
