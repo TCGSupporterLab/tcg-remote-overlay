@@ -16,6 +16,8 @@ interface OverlayWidgetProps {
     containerRefCallback?: (id: WidgetId, el: HTMLDivElement | null) => void;
     /** Externally controlled state (for group member sync) */
     externalState?: WidgetState;
+    /** Whether this widget is part of a larger active selection (multiple items) */
+    isPartOfMultiSelection?: boolean;
 }
 
 export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
@@ -29,6 +31,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     onStateChange,
     containerRefCallback,
     externalState,
+    isPartOfMultiSelection = false,
 }) => {
     // Persistent state
     const [state, setState] = useState<WidgetState>(() => {
@@ -255,8 +258,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         }
     }, [state, winSize, finalScale, yOffset, clampedOffset.x, clampedOffset.y]);
 
-    // Determine if handles should be shown (hidden for ALL grouped widgets)
-    const showHandles = !isGrouped;
+    // Determine if handles should be shown (hidden for ALL grouped widgets or multi-selected items)
+    const showHandles = !isGrouped && !isPartOfMultiSelection;
 
     // Handle click on widget content for selection (Ctrl+Click only)
     const handleContentClick = (e: React.MouseEvent) => {

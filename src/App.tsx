@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 import { YugiohTools } from './components/YugiohTools';
 
@@ -222,6 +222,58 @@ function App() {
 
     clearSelection();
   }, [clearSelection]);
+
+  // Get all unique gadget IDs currently selected (expanding groups to members)
+  const effectiveSelectionMembers = useMemo(() => {
+    const members = new Set<WidgetId>();
+    selectedWidgetIds.forEach(id => {
+      const g = groupData.groups.find(group => group.id === id);
+      if (g) {
+        g.memberIds.forEach(m => members.add(m));
+      } else {
+        members.add(id as WidgetId);
+      }
+    });
+    return Array.from(members);
+  }, [selectedWidgetIds, groupData.groups]);
+
+  const isMultiSelectionActive = effectiveSelectionMembers.length > 1;
+
+  // Handle manipulation for any selection (even if not a formal group)
+  const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
+    // 1. Get original state of the anchor (from storage) to calculate deltas
+    const anchorDataString = localStorage.getItem(`overlay_widget_v4_${anchorId}`);
+    if (!anchorDataString) return;
+    const anchorPrevState = JSON.parse(anchorDataString);
+    if (!anchorPrevState.scale) return;
+
+    const updates: Record<WidgetId, WidgetState> = {};
+    updates[anchorId] = newAnchorState;
+
+    // 2. Apply same deltas to all other selected members
+    for (const memberId of effectiveSelectionMembers) {
+      if (memberId === anchorId) continue;
+
+      const memberDataString = localStorage.getItem(`overlay_widget_v4_${memberId}`);
+      if (!memberDataString) continue;
+      const memberState = JSON.parse(memberDataString);
+      if (!memberState.scale) continue;
+
+      // Delta relative to anchor PREVIOUS state
+      const dx = memberState.px - anchorPrevState.px;
+      const dy = memberState.py - anchorPrevState.py;
+      const dr = memberState.rotation - anchorPrevState.rotation;
+      const ds = memberState.scale / anchorPrevState.scale; // scale is multiplicative
+
+      updates[memberId] = {
+        px: newAnchorState.px + dx,
+        py: newAnchorState.py + dy,
+        rotation: newAnchorState.rotation + dr,
+        scale: newAnchorState.scale * ds,
+      };
+    }
+    setExternalStates(prev => ({ ...prev, ...updates }));
+  }, [effectiveSelectionMembers]);
 
   // Ungroup
   const ungroupWidgets = useCallback((groupId: string) => {
@@ -719,6 +771,7 @@ function App() {
             gameMode="card_widget"
             instanceId="card_widget"
             isSelected={selectedWidgetIds.has('card_widget')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('card_widget')}
             {...getGroupProps('card_widget')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
@@ -743,6 +796,7 @@ function App() {
             gameMode="yugioh"
             instanceId="yugioh"
             isSelected={selectedWidgetIds.has('yugioh')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('yugioh')}
             {...getGroupProps('yugioh')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
@@ -776,6 +830,7 @@ function App() {
             gameMode="hololive_sp_marker"
             instanceId="hololive_sp_marker"
             isSelected={selectedWidgetIds.has('hololive_sp_marker')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('hololive_sp_marker')}
             {...getGroupProps('hololive_sp_marker')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
@@ -797,6 +852,7 @@ function App() {
             gameMode="dice"
             instanceId="dice"
             isSelected={selectedWidgetIds.has('dice')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('dice')}
             {...getGroupProps('dice')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
@@ -824,6 +880,7 @@ function App() {
             gameMode="coin"
             instanceId="coin"
             isSelected={selectedWidgetIds.has('coin')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('coin')}
             {...getGroupProps('coin')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
@@ -876,6 +933,19 @@ function App() {
           />
         );
       })}
+
+      {/* Transient Selection Bounding Box (for multiple selected independent gadgets) */}
+      {isMultiSelectionActive && !groupData.groups.some(g => selectedWidgetIds.has(g.id) && g.memberIds.length === effectiveSelectionMembers.length) && (
+        <GroupBoundingBox
+          groupId="transient-selection"
+          memberIds={effectiveSelectionMembers}
+          anchorId={effectiveSelectionMembers[0]}
+          isSelected={true}
+          widgetRefsMap={widgetRefsMap}
+          onAnchorStateChange={handleTransientDrag}
+          onUngroup={() => groupWidgets(effectiveSelectionMembers)}
+        />
+      )}
 
       {/* Selection Action Bar */}
       <SelectionActionBar
