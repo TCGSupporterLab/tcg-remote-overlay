@@ -748,6 +748,7 @@ function App() {
           // Only start rect selection on direct background click (not on widgets)
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget) {
             if (!(e.target as HTMLElement).closest('.pointer-events-auto')) {
+              e.preventDefault(); // Prevent browser text selection
               startRectSelection(e);
             }
           }

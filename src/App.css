@@ -97,6 +97,11 @@
 }
 
 /* Remove default borders when in overlay mode to avoid "annoying rectangles" EXCEPT for the card frame itself and settings menu */
+.overlay-mode {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .overlay-mode .border:not(.overlay-card-frame):not(.settings-window),
 .overlay-mode .border-border:not(.overlay-card-frame):not(.settings-window),
 .overlay-mode main {
