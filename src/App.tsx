@@ -20,7 +20,12 @@ import './App.css';
 type GameMode = 'yugioh' | 'hololive' | 'none';
 type ObsMode = 'normal' | 'green';
 
+const TAB_ID = crypto.randomUUID();
+(window as any).TAB_ID = TAB_ID;
+
 function App() {
+
+
   const {
     cards,
     isScanning,
@@ -142,21 +147,30 @@ function App() {
   useEffect(() => {
     localStorage.setItem('widget_groups', JSON.stringify(groupData));
     const channel = new BroadcastChannel('tcg_remote_sync');
-    channel.postMessage({ type: 'WIDGET_GROUP_UPDATE', value: groupData });
+    channel.postMessage({ type: 'WIDGET_GROUP_UPDATE', value: groupData, senderId: TAB_ID });
     channel.close();
   }, [groupData]);
+
 
   // Sync group data from other windows
   useEffect(() => {
     const channel = new BroadcastChannel('tcg_remote_sync');
     const handler = (e: MessageEvent) => {
+      if (e.data.senderId === TAB_ID) return; // Prevent loopback
+
       if (e.data.type === 'WIDGET_GROUP_UPDATE') {
-        setGroupData(e.data.value);
+        const newValue = e.data.value;
+        // Deep equality check for group data to prevent infinite reload loops
+        if (JSON.stringify(groupData) !== JSON.stringify(newValue)) {
+          setGroupData(newValue);
+        }
       }
     };
     channel.addEventListener('message', handler);
     return () => { channel.removeEventListener('message', handler); channel.close(); };
-  }, []);
+  }, [groupData]);
+
+
 
   // External state map for group member sync
   const [externalStates, setExternalStates] = useState<Record<WidgetId, WidgetState>>({});
@@ -166,17 +180,29 @@ function App() {
 
   const handleManipulationStart = useCallback(() => {
     const states: Record<WidgetId, WidgetState> = {};
-    // Capture snapshot of ALL widgets to ensure we have initial states for all members
     const ids = ["card_widget", "yugioh", "hololive_sp_marker", "dice", "coin"];
+
     ids.forEach(id => {
-      const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
-      if (saved) {
-        states[id as WidgetId] = JSON.parse(saved);
+      const wid = id as WidgetId;
+      // FIRST: Check if we have an active external state (most up-to-date in memory)
+      // SECOND: Fallback to localStorage
+      if (externalStates[wid]) {
+        states[wid] = { ...externalStates[wid] };
+      } else {
+        const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
+        if (saved) {
+          states[wid] = JSON.parse(saved);
+        }
       }
     });
-    manipulationStartStatesRef.current = states;
 
-  }, []);
+    manipulationStartStatesRef.current = states;
+    if (import.meta.env.DEV) {
+      console.log("[App] Manipulation Start Captured States (Memory Prioritized):", states);
+    }
+  }, [externalStates]);
+
+
 
 
   // Widget visibility map
@@ -248,7 +274,6 @@ function App() {
     clearSelection();
   }, [clearSelection]);
 
-  // Get all unique gadget IDs currently selected (expanding groups to members)
   const effectiveSelectionMembers = useMemo(() => {
     const members = new Set<WidgetId>();
     selectedWidgetIds.forEach(id => {
@@ -262,7 +287,29 @@ function App() {
     return Array.from(members);
   }, [selectedWidgetIds, groupData.groups]);
 
+  // Stable ref to selection for callbacks
+  const effectiveSelectionMembersRef = useRef<WidgetId[]>([]);
+  useEffect(() => {
+    effectiveSelectionMembersRef.current = effectiveSelectionMembers;
+  }, [effectiveSelectionMembers]);
+
   const isMultiSelectionActive = effectiveSelectionMembers.length > 1;
+
+
+  // Debug logging for multiple selection start
+  useEffect(() => {
+    if (import.meta.env.DEV && isMultiSelectionActive) {
+      console.log(`[SelectionDebug] Multiple objects selected: ${effectiveSelectionMembers.join(', ')}`);
+      effectiveSelectionMembers.forEach(id => {
+        const s = localStorage.getItem(`overlay_widget_v4_${id}`);
+        if (s) {
+          const st = JSON.parse(s);
+          console.log(`[SelectionDebug] State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}`);
+        }
+      });
+    }
+  }, [isMultiSelectionActive, effectiveSelectionMembers]);
+
 
   // Handle manipulation for any selection (even if not a formal group)
   const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
@@ -294,7 +341,7 @@ function App() {
 
     const aspect = window.innerWidth / window.innerHeight;
 
-    for (const memberId of effectiveSelectionMembers) {
+    for (const memberId of effectiveSelectionMembersRef.current) {
       if (memberId === anchorId) continue;
 
       const memberState = startStates[memberId];
@@ -321,6 +368,7 @@ function App() {
       };
     }
 
+
     setExternalStates(prev => {
       let changed = false;
       const next = { ...prev };
@@ -338,7 +386,8 @@ function App() {
       }
       return changed ? next : prev;
     });
-  }, [effectiveSelectionMembers]);
+  }, []);
+
 
 
   // Ungroup
@@ -1055,8 +1104,8 @@ function App() {
             onAnchorStateChange={handleGroupDrag}
             onManipulationStart={handleManipulationStart}
             onUngroup={ungroupWidgets}
+            externalAnchorState={externalStates[activeAnchor]}
           />
-
         );
       })}
 
@@ -1071,7 +1120,9 @@ function App() {
           onAnchorStateChange={handleTransientDrag}
           onManipulationStart={handleManipulationStart}
           onGroup={() => groupWidgets(effectiveSelectionMembers)}
+          externalAnchorState={externalStates[effectiveSelectionMembers[0]]}
         />
+
 
       )}
 

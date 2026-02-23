@@ -12,7 +12,9 @@ interface GroupBoundingBoxProps {
     onManipulationStart?: () => void;
     onUngroup?: (groupId: string) => void;
     onGroup?: (memberIds: WidgetId[]) => void;
+    externalAnchorState?: WidgetState;
 }
+
 
 
 export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
@@ -25,23 +27,36 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     onManipulationStart,
     onUngroup,
     onGroup,
+    externalAnchorState
 }) => {
+
 
     const [bbox, setBbox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
+    const [visualRotateAngle, setVisualRotateAngle] = useState(0);
 
     const mouseRef = useRef({ x: 0, y: 0 });
-    const manipRef = useRef({
+    const manipRef = useRef<{
+        mouseX: number;
+        mouseY: number;
+        initialState: WidgetState;
+        rotateCenter: { x: number; y: number };
+        rotateCenterNormalized: { x: number; y: number };
+        rotateStartAngle: number;
+        initialBbox: { x: number; y: number; w: number; h: number } | null;
+    }>({
         mouseX: 0,
         mouseY: 0,
-        initialState: { px: 0, py: 0, scale: 1, rotation: 0 } as WidgetState,
+        initialState: { px: 0, py: 0, scale: 1, rotation: 0 },
         rotateCenter: { x: 0, y: 0 },
         rotateCenterNormalized: { x: 0, y: 0 },
         rotateStartAngle: 0,
+        initialBbox: null,
     });
+
 
     // Track mouse position globally for hover detection
     useEffect(() => {
@@ -97,9 +112,11 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     }, [memberIds, widgetRefsMap]);
 
     const readAnchorState = (): WidgetState => {
+        if (externalAnchorState) return { ...externalAnchorState };
         const saved = localStorage.getItem(`overlay_widget_v4_${anchorId}`);
         return saved ? JSON.parse(saved) : { px: 0, py: 0, scale: 1, rotation: 0 };
     };
+
 
     const handleDragStart = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -107,7 +124,20 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         onManipulationStart?.();
         setIsDragging(true);
 
-        manipRef.current = { ...manipRef.current, mouseX: e.clientX, mouseY: e.clientY, initialState: readAnchorState() };
+        const st = readAnchorState();
+        manipRef.current = { ...manipRef.current, mouseX: e.clientX, mouseY: e.clientY, initialState: st };
+
+        if (import.meta.env.DEV) {
+            console.log(`[MoveDebug] START [${groupId}] - Anchor: ${anchorId}, px: ${st.px.toFixed(4)}, py: ${st.py.toFixed(4)}`);
+            memberIds.forEach(id => {
+                const s = localStorage.getItem(`overlay_widget_v4_${id}`);
+                if (s) {
+                    const mst = JSON.parse(s);
+                    console.log(`[MoveDebug] Initial State [${id}]: px=${mst.px.toFixed(4)}, py=${mst.py.toFixed(4)}, rot=${mst.rotation.toFixed(1)}`);
+                }
+            });
+        }
+
     };
 
     const handleResizeStart = (e: React.MouseEvent) => {
@@ -128,6 +158,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
 
         const cy = bbox.y + bbox.h / 2;
         setIsRotating(true);
+        setVisualRotateAngle(0);
         manipRef.current = {
             ...manipRef.current,
             initialState: readAnchorState(),
@@ -137,10 +168,23 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 y: (cy / window.innerHeight) - 0.5
             },
             rotateStartAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI),
+            initialBbox: { ...bbox }
         };
 
 
+        if (import.meta.env.DEV) {
+            console.log(`[RotateDebug] START [${groupId}] - Center: (${cx.toFixed(1)}, ${cy.toFixed(1)})`);
+            memberIds.forEach(id => {
+                const s = localStorage.getItem(`overlay_widget_v4_${id}`);
+                if (s) {
+                    const st = JSON.parse(s);
+                    console.log(`[RotateDebug] Initial State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}`);
+                }
+            });
+
+        }
     };
+
 
 
 
@@ -161,11 +205,25 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             if (isDragging) {
                 const dx = e.clientX - manipRef.current.mouseX;
                 const dy = e.clientY - manipRef.current.mouseY;
+                const nextPx = Math.min(Math.max(initialState.px + dx / window.innerWidth, -0.5), 0.5);
+                const nextPy = Math.min(Math.max(initialState.py + dy / window.innerHeight, -0.5), 0.5);
+
+                if (import.meta.env.DEV) {
+                    const lastLogX = (manipRef.current as any).lastLogX || 0;
+                    const lastLogY = (manipRef.current as any).lastLogY || 0;
+                    if (Math.abs(lastLogX - dx) > 30 || Math.abs(lastLogY - dy) > 30) {
+                        (manipRef.current as any).lastLogX = dx;
+                        (manipRef.current as any).lastLogY = dy;
+                        console.log(`[MoveDebug] UPDATE [${groupId}] - dx: ${dx.toFixed(1)}, dy: ${dy.toFixed(1)}`);
+                    }
+                }
+
                 onAnchorStateChange(anchorId, {
                     ...initialState,
-                    px: Math.min(Math.max(initialState.px + dx / window.innerWidth, -0.5), 0.5),
-                    py: Math.min(Math.max(initialState.py + dy / window.innerHeight, -0.5), 0.5),
+                    px: nextPx,
+                    py: nextPy,
                 });
+
             } else if (isResizing) {
                 const dx = e.clientX - manipRef.current.mouseX;
                 const newScale = Math.min(Math.max(initialState.scale + dx / 200, 0.3), 3);
@@ -180,12 +238,14 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 // Snap
                 for (const snap of [0, 90, 180, 270, 360]) {
                     if (Math.abs(newRotation - snap) < 10) {
-                        const snapDiff = (snap % 360) - newRotation;
-                        newRotation = snap % 360;
-                        angleDiff += snapDiff;
+                        const snapTarget = snap % 360;
+                        const snapAdjustment = snap - newRotation; // Calculate adjustment relative to the literal snap point (e.g. 360)
+                        angleDiff += snapAdjustment;
+                        newRotation = snapTarget;
                         break;
                     }
                 }
+
 
                 // Revolve the position around normalized rotation center
                 // MUST account for aspect ratio because px/py are normalized
@@ -202,8 +262,30 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 const newPx = rotateCenterNormalized.x + (new_dx_px / window.innerWidth);
                 const newPy = rotateCenterNormalized.y + (new_dy_px / window.innerHeight);
 
+                if (import.meta.env.DEV) {
+                    const prevAngleRef = (manipRef.current as any).prevAngleLogged || 0;
+                    if (Math.abs(prevAngleRef - angleDiff) >= 5) {
+                        (manipRef.current as any).prevAngleLogged = angleDiff;
+                        console.log(`[RotateDebug] UPDATE - AngleDiff: ${angleDiff.toFixed(1)}° NewAnchorRotation: ${newRotation.toFixed(1)}°`);
+
+                        memberIds.forEach(id => {
+                            const s = localStorage.getItem(`overlay_widget_v4_${id}`);
+                            if (s) {
+                                const st = JSON.parse(s);
+                                // Calculate pixel distance from rotating center to check for "drifting"
+                                const d_px = Math.sqrt(
+                                    Math.pow((st.px - rotateCenterNormalized.x) * window.innerWidth, 2) +
+                                    Math.pow((st.py - rotateCenterNormalized.y) * window.innerHeight, 2)
+                                );
+                                console.log(`[RotateDebug] State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}, dist=${d_px.toFixed(1)}px`);
+                            }
+                        });
+                    }
+                }
 
 
+
+                setVisualRotateAngle(angleDiff);
 
                 onAnchorStateChange(anchorId, {
                     ...initialState,
@@ -213,13 +295,49 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 });
             }
 
+
         };
 
         const handleMouseUp = () => {
+            if (import.meta.env.DEV) {
+                if (isDragging) {
+                    console.log(`[MoveDebug] FINISH [${groupId}]`);
+                    memberIds.forEach(id => {
+                        const s = localStorage.getItem(`overlay_widget_v4_${id}`);
+                        if (s) {
+                            const st = JSON.parse(s);
+                            console.log(`[MoveDebug] Final State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}`);
+                        }
+                    });
+                } else if (isRotating) {
+                    console.log(`[RotateDebug] FINISH [${groupId}]`);
+                    memberIds.forEach(id => {
+                        const s = localStorage.getItem(`overlay_widget_v4_${id}`);
+                        if (s) {
+                            const st = JSON.parse(s);
+                            // Initial rotation center was captured at rotation start
+                            const { rotateCenterNormalized } = manipRef.current;
+                            const d_px = Math.sqrt(
+                                Math.pow((st.px - rotateCenterNormalized.x) * window.innerWidth, 2) +
+                                Math.pow((st.py - rotateCenterNormalized.y) * window.innerHeight, 2)
+                            );
+                            console.log(`[RotateDebug] Final State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}, dist=${d_px.toFixed(1)}px`);
+                        }
+                    });
+                }
+
+                // Clear move debug throttles
+                (manipRef.current as any).lastLogX = 0;
+                (manipRef.current as any).lastLogY = 0;
+                (manipRef.current as any).prevAngleLogged = 0;
+            }
             setIsDragging(false);
             setIsResizing(false);
             setIsRotating(false);
+            setVisualRotateAngle(0);
         };
+
+
 
         window.addEventListener('mousemove', handleMouseMove, { passive: true });
         window.addEventListener('mouseup', handleMouseUp);
@@ -233,17 +351,27 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
 
     if (!bbox || !isActive) return null;
 
+    const isActivelyRotating = isRotating && manipRef.current.initialBbox;
+    const renderBbox = isActivelyRotating ? manipRef.current.initialBbox! : bbox;
+
     return (
-        <>
+        <div
+            className="fixed inset-0 pointer-events-none z-[150]"
+            style={{
+                // If rotating, we rotate the entire container of the box and handles
+                transformOrigin: isActivelyRotating ? `${manipRef.current.rotateCenter.x}px ${manipRef.current.rotateCenter.y}px` : 'center',
+                transform: isActivelyRotating ? `rotate(${visualRotateAngle}deg)` : 'none',
+            }}
+        >
             {/* Group selection frame */}
             <div
-                className="fixed pointer-events-none z-[150] border-2 border-blue-400 rounded-lg"
+                className="absolute border-2 border-blue-400 rounded-lg"
                 style={{
                     left: 0,
                     top: 0,
-                    width: bbox.w,
-                    height: bbox.h,
-                    transform: `translate3d(${bbox.x}px, ${bbox.y}px, 0)`,
+                    width: renderBbox.w,
+                    height: renderBbox.h,
+                    transform: `translate3d(${renderBbox.x}px, ${renderBbox.y}px, 0)`,
                     boxShadow: isSelected ? '0 0 16px rgba(96, 165, 250, 0.35)' : 'none',
                     opacity: isSelected ? 1 : 0.5,
                     transition: (isDragging || isResizing || isRotating) ? 'none' : 'opacity 0.2s',
@@ -252,14 +380,15 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
 
             {/* Handles below the bounding box */}
             <div
-                className={`fixed pointer-events-auto z-[150] flex items-center gap-2 ${(isDragging || isResizing || isRotating) ? '' : 'animate-in fade-in zoom-in duration-200'
+                className={`absolute pointer-events-auto flex items-center gap-2 ${(isDragging || isResizing || isRotating) ? '' : 'animate-in fade-in zoom-in duration-200'
                     }`}
                 style={{
                     left: 0,
                     top: 0,
-                    transform: `translate3d(${bbox.x + bbox.w / 2}px, ${bbox.y + bbox.h + 12}px, 0) translateX(-50%)`,
+                    transform: `translate3d(${renderBbox.x + renderBbox.w / 2}px, ${renderBbox.h + renderBbox.y + 12}px, 0) translateX(-50%)`,
                 }}
             >
+
                 <div
                     onMouseDown={handleDragStart}
                     className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-grab active:cursor-grabbing text-white transition-transform hover:scale-110"
@@ -315,6 +444,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 };
+

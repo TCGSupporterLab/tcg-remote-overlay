@@ -57,16 +57,29 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     const rotateStartRef = useRef({ initialRotation: 0, centerX: 0, centerY: 0, startAngle: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
+    const lastUpdateSourceRef = useRef<'local' | 'external' | 'sync'>('local');
+
     // Save state ONLY when not manipulating to avoid lag
     useEffect(() => {
         if (isDragging || isResizing || isRotating) return;
 
+        // Don't broadcast if this update came from external/sync to prevent infinite loops
+        if (lastUpdateSourceRef.current !== 'local') {
+            lastUpdateSourceRef.current = 'local';
+            return;
+        }
+
         localStorage.setItem(`overlay_widget_v4_${gameMode}`, JSON.stringify(state));
 
         const channel = new BroadcastChannel('tcg_remote_sync');
-        channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state } });
+        // Retrieve TAB_ID from window or use a fallback. App.tsx should set window.TAB_ID.
+        const senderId = (window as any).TAB_ID || 'widget-local';
+        channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state }, senderId });
         channel.close();
     }, [state, gameMode, isDragging, isResizing, isRotating]);
+
+
+
 
     // Handle Window Resize
     useEffect(() => {
@@ -90,14 +103,24 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         channel.onmessage = (event) => {
             if (event.data.type === 'WIDGET_STATE_UPDATE' && event.data.value.gameMode === gameMode) {
                 if (!isDragging && !isResizing && !isRotating) {
-                    setState(event.data.value.state);
+                    const newState = event.data.value.state;
+                    // Only update if actually different to prevent cycles
+                    if (Math.abs(newState.px - state.px) > 0.0001 ||
+                        Math.abs(newState.py - state.py) > 0.0001 ||
+                        Math.abs(newState.rotation - state.rotation) > 0.01 ||
+                        Math.abs(newState.scale - state.scale) > 0.001) {
+                        lastUpdateSourceRef.current = 'sync';
+                        setState(newState);
+                    }
                 }
             }
             if (event.data.type === 'RESET') {
+                lastUpdateSourceRef.current = 'local';
                 setState({ px: 0, py: 0, scale: 1, rotation: 0 });
             }
         };
         return () => channel.close();
+
     }, [gameMode, isDragging, isResizing, isRotating]);
 
     const handleDragStart = (e: React.MouseEvent) => {
@@ -280,12 +303,20 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     // Sync with external state (e.g. group member position update)
     useEffect(() => {
         if (externalState) {
-            setState(externalState);
+            // Only update if actually different
+            if (Math.abs(externalState.px - state.px) > 0.00001 ||
+                Math.abs(externalState.py - state.py) > 0.00001 ||
+                Math.abs(externalState.rotation - state.rotation) > 0.001 ||
+                Math.abs(externalState.scale - state.scale) > 0.001) {
+                lastUpdateSourceRef.current = 'external';
+                setState(externalState);
+            }
             setIsSyncing(true);
             if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
             syncTimeoutRef.current = setTimeout(() => setIsSyncing(false), 150);
         }
     }, [externalState]);
+
 
     // Register container ref for rect selection
     useEffect(() => {
