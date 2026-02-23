@@ -161,6 +161,24 @@ function App() {
   // External state map for group member sync
   const [externalStates, setExternalStates] = useState<Record<WidgetId, WidgetState>>({});
 
+  // Fix for rotation drift and infinite loop stabilization
+  const manipulationStartStatesRef = useRef<Record<WidgetId, WidgetState>>({});
+
+  const handleManipulationStart = useCallback(() => {
+    const states: Record<WidgetId, WidgetState> = {};
+    // Capture snapshot of ALL widgets to ensure we have initial states for all members
+    const ids = ["card_widget", "yugioh", "hololive_sp_marker", "dice", "coin"];
+    ids.forEach(id => {
+      const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
+      if (saved) {
+        states[id as WidgetId] = JSON.parse(saved);
+      }
+    });
+    manipulationStartStatesRef.current = states;
+
+  }, []);
+
+
   // Widget visibility map
   const getVisibilityMap = useCallback((): Record<WidgetId, boolean> => ({
     card_widget: isCardWidgetVisible,
@@ -199,11 +217,13 @@ function App() {
     const anchorState = states[anchorId];
     const newRelativeTransforms: Record<WidgetId, RelativeTransform> = {};
 
+    const aspect = window.innerWidth / window.innerHeight;
+
     for (const id of widgetIds) {
       if (id === anchorId) {
         newRelativeTransforms[id] = { dx: 0, dy: 0, dRotation: 0, dScale: 1 };
       } else {
-        const dx_world = states[id].px - anchorState.px;
+        const dx_world = (states[id].px - anchorState.px) * aspect;
         const dy_world = states[id].py - anchorState.py;
         const rad = -anchorState.rotation * (Math.PI / 180);
         const cos = Math.cos(rad);
@@ -246,16 +266,24 @@ function App() {
 
   // Handle manipulation for any selection (even if not a formal group)
   const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
-    // 1. Get original state of the anchor (from storage) to calculate deltas
-    const anchorDataString = localStorage.getItem(`overlay_widget_v4_${anchorId}`);
-    if (!anchorDataString) return;
-    const anchorPrevState = JSON.parse(anchorDataString);
-    if (!anchorPrevState.scale) return;
+    // 1. Get snapshot state from the start of manipulation
+    const startStates = manipulationStartStatesRef.current;
+    const anchorPrevState = startStates[anchorId];
+
+    if (!anchorPrevState || !anchorPrevState.scale) {
+      // Fallback if snapshot is missing for some reason
+      const saved = localStorage.getItem(`overlay_widget_v4_${anchorId}`);
+      if (!saved) return;
+      const fallback = JSON.parse(saved);
+      if (!fallback.scale) return;
+      manipulationStartStatesRef.current[anchorId] = fallback;
+      return;
+    }
 
     const updates: Record<WidgetId, WidgetState> = {};
     updates[anchorId] = newAnchorState;
 
-    // 2. Apply rigid transformation to all other selected members
+    // 2. Apply rigid transformation using start-of-drag snapshot
     const radPrev = -anchorPrevState.rotation * (Math.PI / 180);
     const cosPrev = Math.cos(radPrev);
     const sinPrev = Math.sin(radPrev);
@@ -264,16 +292,16 @@ function App() {
     const cosNew = Math.cos(radNew);
     const sinNew = Math.sin(radNew);
 
+    const aspect = window.innerWidth / window.innerHeight;
+
     for (const memberId of effectiveSelectionMembers) {
       if (memberId === anchorId) continue;
 
-      const memberDataString = localStorage.getItem(`overlay_widget_v4_${memberId}`);
-      if (!memberDataString) continue;
-      const memberState = JSON.parse(memberDataString);
-      if (!memberState.scale) continue;
+      const memberState = startStates[memberId];
+      if (!memberState || !memberState.scale) continue;
 
       // Calculate relative position in anchor's ORIGINAL local space
-      const dx_world = memberState.px - anchorPrevState.px;
+      const dx_world = (memberState.px - anchorPrevState.px) * aspect;
       const dy_world = memberState.py - anchorPrevState.py;
       const lx = (dx_world * cosPrev - dy_world * sinPrev) / anchorPrevState.scale;
       const ly = (dx_world * sinPrev + dy_world * cosPrev) / anchorPrevState.scale;
@@ -286,14 +314,32 @@ function App() {
       const ds = memberState.scale / anchorPrevState.scale;
 
       updates[memberId] = {
-        px: newAnchorState.px + dx_new,
+        px: newAnchorState.px + (dx_new / aspect),
         py: newAnchorState.py + dy_new,
         rotation: newAnchorState.rotation + dr,
         scale: newAnchorState.scale * ds,
       };
     }
-    setExternalStates(prev => ({ ...prev, ...updates }));
+
+    setExternalStates(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id in updates) {
+        const u = updates[id as WidgetId];
+        const p = prev[id as WidgetId];
+        if (!p ||
+          Math.abs(u.px - p.px) > 0.00001 ||
+          Math.abs(u.py - p.py) > 0.00001 ||
+          Math.abs(u.scale - p.scale) > 0.00001 ||
+          Math.abs(u.rotation - p.rotation) > 0.00001) {
+          next[id as WidgetId] = u;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
   }, [effectiveSelectionMembers]);
+
 
   // Ungroup
   const ungroupWidgets = useCallback((groupId: string) => {
@@ -332,21 +378,43 @@ function App() {
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
 
+    const aspect = window.innerWidth / window.innerHeight;
+
     for (const memberId of group.memberIds) {
       if (memberId === id) continue;
       const rel = groupData.relativeTransforms[memberId];
       if (!rel) continue;
 
       // Apply rigid transform using local offsets stored in rel.dx, rel.dy
+      const dx_new = (rel.dx * cos - rel.dy * sin) * newState.scale;
+      const dy_new = (rel.dx * sin + rel.dy * cos) * newState.scale;
+
       newExternalStates[memberId] = {
-        px: newState.px + (rel.dx * cos - rel.dy * sin) * newState.scale,
-        py: newState.py + (rel.dx * sin + rel.dy * cos) * newState.scale,
+        px: newState.px + (dx_new / aspect),
+        py: newState.py + dy_new,
         rotation: newState.rotation + rel.dRotation,
         scale: newState.scale * rel.dScale,
       };
     }
-    setExternalStates(prev => ({ ...prev, ...newExternalStates }));
+    setExternalStates(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id in newExternalStates) {
+        const u = newExternalStates[id as WidgetId];
+        const p = prev[id as WidgetId];
+        if (!p ||
+          Math.abs(u.px - p.px) > 0.00001 ||
+          Math.abs(u.py - p.py) > 0.00001 ||
+          Math.abs(u.scale - p.scale) > 0.00001 ||
+          Math.abs(u.rotation - p.rotation) > 0.00001) {
+          next[id as WidgetId] = u;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
   }, [groupData, resolveActiveAnchor]);
+
 
   // Handle group drag (from GroupBoundingBox handles)
   const handleGroupDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
@@ -360,6 +428,8 @@ function App() {
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
 
+    const aspect = window.innerWidth / window.innerHeight;
+
     const updates: Record<WidgetId, WidgetState> = {};
     updates[anchorId] = newAnchorState;
     for (const memberId of group.memberIds) {
@@ -368,15 +438,35 @@ function App() {
       if (!rel) continue;
 
       // Apply rigid transform
+      const dx_new = (rel.dx * cos - rel.dy * sin) * newAnchorState.scale;
+      const dy_new = (rel.dx * sin + rel.dy * cos) * newAnchorState.scale;
+
       updates[memberId] = {
-        px: newAnchorState.px + (rel.dx * cos - rel.dy * sin) * newAnchorState.scale,
-        py: newAnchorState.py + (rel.dx * sin + rel.dy * cos) * newAnchorState.scale,
+        px: newAnchorState.px + (dx_new / aspect),
+        py: newAnchorState.py + dy_new,
         rotation: newAnchorState.rotation + rel.dRotation,
         scale: newAnchorState.scale * rel.dScale,
       };
     }
-    setExternalStates(prev => ({ ...prev, ...updates }));
+    setExternalStates(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id in updates) {
+        const u = updates[id as WidgetId];
+        const p = prev[id as WidgetId];
+        if (!p ||
+          Math.abs(u.px - p.px) > 0.00001 ||
+          Math.abs(u.py - p.py) > 0.00001 ||
+          Math.abs(u.scale - p.scale) > 0.00001 ||
+          Math.abs(u.rotation - p.rotation) > 0.00001) {
+          next[id as WidgetId] = u;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
   }, [groupData, resolveActiveAnchor]);
+
 
   // Helper to get group props for a widget
   const getGroupProps = useCallback((widgetId: WidgetId) => {
@@ -963,8 +1053,10 @@ function App() {
             isSelected={selectedWidgetIds.has(group.id)}
             widgetRefsMap={widgetRefsMap}
             onAnchorStateChange={handleGroupDrag}
+            onManipulationStart={handleManipulationStart}
             onUngroup={ungroupWidgets}
           />
+
         );
       })}
 
@@ -977,8 +1069,10 @@ function App() {
           isSelected={true}
           widgetRefsMap={widgetRefsMap}
           onAnchorStateChange={handleTransientDrag}
+          onManipulationStart={handleManipulationStart}
           onGroup={() => groupWidgets(effectiveSelectionMembers)}
         />
+
       )}
 
 

@@ -9,9 +9,11 @@ interface GroupBoundingBoxProps {
     isSelected: boolean;
     widgetRefsMap: React.RefObject<Map<WidgetId, HTMLDivElement>>;
     onAnchorStateChange: (anchorId: WidgetId, newState: WidgetState) => void;
+    onManipulationStart?: () => void;
     onUngroup?: (groupId: string) => void;
     onGroup?: (memberIds: WidgetId[]) => void;
 }
+
 
 export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     groupId,
@@ -20,9 +22,11 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     isSelected,
     widgetRefsMap,
     onAnchorStateChange,
+    onManipulationStart,
     onUngroup,
     onGroup,
 }) => {
+
     const [bbox, setBbox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -100,14 +104,18 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     const handleDragStart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        onManipulationStart?.();
         setIsDragging(true);
+
         manipRef.current = { ...manipRef.current, mouseX: e.clientX, mouseY: e.clientY, initialState: readAnchorState() };
     };
 
     const handleResizeStart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        onManipulationStart?.();
         setIsResizing(true);
+
         manipRef.current = { ...manipRef.current, mouseX: e.clientX, initialState: readAnchorState() };
     };
 
@@ -115,7 +123,9 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         e.preventDefault();
         e.stopPropagation();
         if (!bbox) return;
+        onManipulationStart?.();
         const cx = bbox.x + bbox.w / 2;
+
         const cy = bbox.y + bbox.h / 2;
         setIsRotating(true);
         manipRef.current = {
@@ -128,7 +138,12 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             },
             rotateStartAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI),
         };
+
+
     };
+
+
+
 
     const handleReset = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -173,15 +188,22 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 }
 
                 // Revolve the position around normalized rotation center
+                // MUST account for aspect ratio because px/py are normalized
                 const rad = angleDiff * (Math.PI / 180);
                 const cos = Math.cos(rad);
                 const sin = Math.sin(rad);
 
-                const dx = initialState.px - rotateCenterNormalized.x;
-                const dy = initialState.py - rotateCenterNormalized.y;
+                const dx_px = (initialState.px - rotateCenterNormalized.x) * window.innerWidth;
+                const dy_px = (initialState.py - rotateCenterNormalized.y) * window.innerHeight;
 
-                const newPx = rotateCenterNormalized.x + (dx * cos - dy * sin);
-                const newPy = rotateCenterNormalized.y + (dx * sin + dy * cos);
+                const new_dx_px = dx_px * cos - dy_px * sin;
+                const new_dy_px = dx_px * sin + dy_px * cos;
+
+                const newPx = rotateCenterNormalized.x + (new_dx_px / window.innerWidth);
+                const newPy = rotateCenterNormalized.y + (new_dy_px / window.innerHeight);
+
+
+
 
                 onAnchorStateChange(anchorId, {
                     ...initialState,
@@ -190,6 +212,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                     rotation: newRotation
                 });
             }
+
         };
 
         const handleMouseUp = () => {

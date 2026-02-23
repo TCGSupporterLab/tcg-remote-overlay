@@ -333,7 +333,7 @@ export const useCardSearch = (
 
     const normalizedData = useMemo(() => {
         if (!localCards || localCards.length === 0) return [];
-        if (import.meta.env.DEV) console.time('[Search] Normalization');
+        // if (import.meta.env.DEV) console.time('[Search] Normalization');
         const results = localCards
             .filter(lc => {
                 const parts = (lc.path || '').split('/').filter(Boolean);
@@ -369,10 +369,12 @@ export const useCardSearch = (
                     _metadata: m
                 } as Card;
             });
+        /*
         if (import.meta.env.DEV) {
             console.timeEnd('[Search] Normalization');
             console.log(`[Search] Normalized ${results.length} cards`);
         }
+        */
         return results;
     }, [localCards]);
 
@@ -442,7 +444,7 @@ export const useCardSearch = (
     }, [dynamicFilterOptions]);
 
     const filteredCards = useMemo(() => {
-        if (import.meta.env.DEV) console.time('[Search] Filtering');
+        // if (import.meta.env.DEV) console.time('[Search] Filtering');
         const { keyword, categories } = sharedState.filters;
         const currentPath = sharedState.currentPath;
         const normKeyword = normalizeText(keyword);
@@ -473,6 +475,7 @@ export const useCardSearch = (
             return true;
         });
 
+        /*
         if (import.meta.env.DEV && keyword) {
             console.log(`[Search] Keyword matching finished. Results: ${results.length}`);
             if (results.length > 0 && results.length < 10) {
@@ -483,6 +486,7 @@ export const useCardSearch = (
                 });
             }
         }
+        */
 
         const pathParts = currentPath.split('/').filter(Boolean);
         const depth = pathParts.length;
@@ -587,10 +591,12 @@ export const useCardSearch = (
         }
 
         const combined = [...folders, ...files];
+        /*
         if (import.meta.env.DEV) {
             console.timeEnd('[Search] Filtering');
             console.log(`[Search] Filtered results: ${combined.length} items (Folders: ${folders.length}, Files: ${files.length}).`);
         }
+        */
         return combined;
     }, [normalizedData, sharedState.filters, sharedState.currentPath, mergeSameFileCards, activeCategories]);
 
