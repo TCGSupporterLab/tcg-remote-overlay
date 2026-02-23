@@ -180,24 +180,27 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         <>
             {/* Group selection frame */}
             <div
-                className="fixed pointer-events-none z-[150] border-2 border-blue-400 rounded-lg transition-opacity duration-200"
+                className="fixed pointer-events-none z-[150] border-2 border-blue-400 rounded-lg"
                 style={{
-                    left: bbox.x,
-                    top: bbox.y,
+                    left: 0,
+                    top: 0,
                     width: bbox.w,
                     height: bbox.h,
+                    transform: `translate3d(${bbox.x}px, ${bbox.y}px, 0)`,
                     boxShadow: isSelected ? '0 0 16px rgba(96, 165, 250, 0.35)' : 'none',
                     opacity: isSelected ? 1 : 0.5,
+                    transition: (isDragging || isResizing || isRotating) ? 'none' : 'opacity 0.2s',
                 }}
             />
 
             {/* Handles below the bounding box */}
             <div
-                className="fixed pointer-events-auto z-[150] flex items-center gap-2 animate-in fade-in zoom-in duration-200"
+                className={`fixed pointer-events-auto z-[150] flex items-center gap-2 ${(isDragging || isResizing || isRotating) ? '' : 'animate-in fade-in zoom-in duration-200'
+                    }`}
                 style={{
-                    left: bbox.x + bbox.w / 2,
-                    top: bbox.y + bbox.h + 12,
-                    transform: 'translateX(-50%)',
+                    left: 0,
+                    top: 0,
+                    transform: `translate3d(${bbox.x + bbox.w / 2}px, ${bbox.y + bbox.h + 12}px, 0) translateX(-50%)`,
                 }}
             >
                 <div

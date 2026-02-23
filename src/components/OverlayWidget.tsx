@@ -203,8 +203,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         };
     }, [isDragging, isResizing, isRotating, winSize]);
 
+    const [isSyncing, setIsSyncing] = useState(false);
+    const syncTimeoutRef = useRef<any>(null);
+
     const finalScale = state.scale;
-    const shouldDisableTransition = isDragging || isResizing || isRotating || isWindowResizing;
+    const shouldDisableTransition = isDragging || isResizing || isRotating || isWindowResizing || isSyncing;
 
     const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 });
     const [yOffset, setYOffset] = useState(60);
@@ -275,6 +278,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     useEffect(() => {
         if (externalState) {
             setState(externalState);
+            setIsSyncing(true);
+            if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+            syncTimeoutRef.current = setTimeout(() => setIsSyncing(false), 150);
         }
     }, [externalState]);
 
