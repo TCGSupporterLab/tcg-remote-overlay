@@ -35,6 +35,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         mouseY: 0,
         initialState: { px: 0, py: 0, scale: 1, rotation: 0 } as WidgetState,
         rotateCenter: { x: 0, y: 0 },
+        rotateCenterNormalized: { x: 0, y: 0 },
         rotateStartAngle: 0,
     });
 
@@ -121,6 +122,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             ...manipRef.current,
             initialState: readAnchorState(),
             rotateCenter: { x: cx, y: cy },
+            rotateCenterNormalized: {
+                x: (cx / window.innerWidth) - 0.5,
+                y: (cy / window.innerHeight) - 0.5
+            },
             rotateStartAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI),
         };
     };
@@ -151,15 +156,39 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 const newScale = Math.min(Math.max(initialState.scale + dx / 200, 0.3), 3);
                 onAnchorStateChange(anchorId, { ...initialState, scale: newScale });
             } else if (isRotating) {
-                const { rotateCenter, rotateStartAngle } = manipRef.current;
+                const { rotateCenter, rotateCenterNormalized, rotateStartAngle, initialState } = manipRef.current;
                 const currentAngle = Math.atan2(e.clientY - rotateCenter.y, e.clientX - rotateCenter.x) * (180 / Math.PI);
-                let newRotation = (initialState.rotation + (currentAngle - rotateStartAngle)) % 360;
+                let angleDiff = currentAngle - rotateStartAngle;
+                let newRotation = (initialState.rotation + angleDiff) % 360;
                 if (newRotation < 0) newRotation += 360;
+
                 // Snap
                 for (const snap of [0, 90, 180, 270, 360]) {
-                    if (Math.abs(newRotation - snap) < 10) { newRotation = snap % 360; break; }
+                    if (Math.abs(newRotation - snap) < 10) {
+                        const snapDiff = (snap % 360) - newRotation;
+                        newRotation = snap % 360;
+                        angleDiff += snapDiff;
+                        break;
+                    }
                 }
-                onAnchorStateChange(anchorId, { ...initialState, rotation: newRotation });
+
+                // Revolve the position around normalized rotation center
+                const rad = angleDiff * (Math.PI / 180);
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+
+                const dx = initialState.px - rotateCenterNormalized.x;
+                const dy = initialState.py - rotateCenterNormalized.y;
+
+                const newPx = rotateCenterNormalized.x + (dx * cos - dy * sin);
+                const newPy = rotateCenterNormalized.y + (dx * sin + dy * cos);
+
+                onAnchorStateChange(anchorId, {
+                    ...initialState,
+                    px: newPx,
+                    py: newPy,
+                    rotation: newRotation
+                });
             }
         };
 

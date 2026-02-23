@@ -203,9 +203,15 @@ function App() {
       if (id === anchorId) {
         newRelativeTransforms[id] = { dx: 0, dy: 0, dRotation: 0, dScale: 1 };
       } else {
+        const dx_world = states[id].px - anchorState.px;
+        const dy_world = states[id].py - anchorState.py;
+        const rad = -anchorState.rotation * (Math.PI / 180);
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
         newRelativeTransforms[id] = {
-          dx: states[id].px - anchorState.px,
-          dy: states[id].py - anchorState.py,
+          dx: (dx_world * cos - dy_world * sin) / anchorState.scale,
+          dy: (dx_world * sin + dy_world * cos) / anchorState.scale,
           dRotation: states[id].rotation - anchorState.rotation,
           dScale: anchorState.scale !== 0 ? states[id].scale / anchorState.scale : 1,
         };
@@ -249,7 +255,15 @@ function App() {
     const updates: Record<WidgetId, WidgetState> = {};
     updates[anchorId] = newAnchorState;
 
-    // 2. Apply same deltas to all other selected members
+    // 2. Apply rigid transformation to all other selected members
+    const radPrev = -anchorPrevState.rotation * (Math.PI / 180);
+    const cosPrev = Math.cos(radPrev);
+    const sinPrev = Math.sin(radPrev);
+
+    const radNew = newAnchorState.rotation * (Math.PI / 180);
+    const cosNew = Math.cos(radNew);
+    const sinNew = Math.sin(radNew);
+
     for (const memberId of effectiveSelectionMembers) {
       if (memberId === anchorId) continue;
 
@@ -258,15 +272,22 @@ function App() {
       const memberState = JSON.parse(memberDataString);
       if (!memberState.scale) continue;
 
-      // Delta relative to anchor PREVIOUS state
-      const dx = memberState.px - anchorPrevState.px;
-      const dy = memberState.py - anchorPrevState.py;
+      // Calculate relative position in anchor's ORIGINAL local space
+      const dx_world = memberState.px - anchorPrevState.px;
+      const dy_world = memberState.py - anchorPrevState.py;
+      const lx = (dx_world * cosPrev - dy_world * sinPrev) / anchorPrevState.scale;
+      const ly = (dx_world * sinPrev + dy_world * cosPrev) / anchorPrevState.scale;
+
+      // Map back to world space using anchor's NEW state
+      const dx_new = (lx * cosNew - ly * sinNew) * newAnchorState.scale;
+      const dy_new = (lx * sinNew + ly * cosNew) * newAnchorState.scale;
+
       const dr = memberState.rotation - anchorPrevState.rotation;
-      const ds = memberState.scale / anchorPrevState.scale; // scale is multiplicative
+      const ds = memberState.scale / anchorPrevState.scale;
 
       updates[memberId] = {
-        px: newAnchorState.px + dx,
-        py: newAnchorState.py + dy,
+        px: newAnchorState.px + dx_new,
+        py: newAnchorState.py + dy_new,
         rotation: newAnchorState.rotation + dr,
         scale: newAnchorState.scale * ds,
       };
@@ -307,13 +328,19 @@ function App() {
     if (!group) return;
 
     const newExternalStates: Record<WidgetId, WidgetState> = {};
+    const rad = newState.rotation * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
     for (const memberId of group.memberIds) {
       if (memberId === id) continue;
       const rel = groupData.relativeTransforms[memberId];
       if (!rel) continue;
+
+      // Apply rigid transform using local offsets stored in rel.dx, rel.dy
       newExternalStates[memberId] = {
-        px: newState.px + rel.dx,
-        py: newState.py + rel.dy,
+        px: newState.px + (rel.dx * cos - rel.dy * sin) * newState.scale,
+        py: newState.py + (rel.dx * sin + rel.dy * cos) * newState.scale,
         rotation: newState.rotation + rel.dRotation,
         scale: newState.scale * rel.dScale,
       };
@@ -329,15 +356,21 @@ function App() {
     });
     if (!group) return;
 
+    const rad = newAnchorState.rotation * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
     const updates: Record<WidgetId, WidgetState> = {};
     updates[anchorId] = newAnchorState;
     for (const memberId of group.memberIds) {
       if (memberId === anchorId) continue;
       const rel = groupData.relativeTransforms[memberId];
       if (!rel) continue;
+
+      // Apply rigid transform
       updates[memberId] = {
-        px: newAnchorState.px + rel.dx,
-        py: newAnchorState.py + rel.dy,
+        px: newAnchorState.px + (rel.dx * cos - rel.dy * sin) * newAnchorState.scale,
+        py: newAnchorState.py + (rel.dx * sin + rel.dy * cos) * newAnchorState.scale,
         rotation: newAnchorState.rotation + rel.dRotation,
         scale: newAnchorState.scale * rel.dScale,
       };
@@ -568,6 +601,7 @@ function App() {
           }
         }
       }
+
 
       // Shift + Number keys (Digit0-9 or Numpad0-9) for Display Card Number
       // Support multi-digit input by buffering digits within a 200ms window
