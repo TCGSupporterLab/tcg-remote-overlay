@@ -35,6 +35,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
 }) => {
     // Persistent state
     const [state, setState] = useState<WidgetState>(() => {
+        // Prefer external initial state (from App.tsx memory cache) to avoid jumps on mount
+        if (externalState) return externalState;
+
         const saved = localStorage.getItem(`overlay_widget_v4_${gameMode}`);
         return saved ? JSON.parse(saved) : { px: 0, py: 0, scale: 1, rotation: 0 };
     });
@@ -59,24 +62,49 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
 
     const lastUpdateSourceRef = useRef<'local' | 'external' | 'sync'>('local');
 
+    // Sync internal state with externalState (group manipulation or external sync)
+    // CRITICAL for preventing jumps and keeping internal state fresh.
+    useEffect(() => {
+        if (externalState) {
+            if (isDragging || isResizing || isRotating) return;
+
+            // Only update if actually different to avoid unnecessary re-renders
+            if (Math.abs(externalState.px - state.px) > 0.0001 ||
+                Math.abs(externalState.py - state.py) > 0.0001 ||
+                Math.abs(externalState.rotation - state.rotation) > 0.01 ||
+                Math.abs(externalState.scale - state.scale) > 0.001) {
+
+                lastUpdateSourceRef.current = 'external';
+                setState(externalState);
+
+                // For the "syncing" visual state (disabling transitions)
+                setIsSyncing(true);
+                if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+                syncTimeoutRef.current = setTimeout(() => setIsSyncing(false), 150);
+            }
+        }
+    }, [externalState, isDragging, isResizing, isRotating, state.px, state.py, state.rotation, state.scale]);
+
     // Save state ONLY when not manipulating to avoid lag
     useEffect(() => {
         if (isDragging || isResizing || isRotating) return;
 
-        // Don't broadcast if this update came from external/sync to prevent infinite loops
-        if (lastUpdateSourceRef.current !== 'local') {
-            lastUpdateSourceRef.current = 'local';
-            return;
-        }
-
+        // ALWAYS save to localStorage when state changes and we are not busy
         localStorage.setItem(`overlay_widget_v4_${gameMode}`, JSON.stringify(state));
 
-        const channel = new BroadcastChannel('tcg_remote_sync');
-        // Retrieve TAB_ID from window or use a fallback. App.tsx should set window.TAB_ID.
-        const senderId = (window as any).TAB_ID || 'widget-local';
-        channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state }, senderId });
-        channel.close();
+        // ONLY broadcast (cross-window) if the change originated LOCALLY in this widget
+        // If it came from external (parent) or sync (other window), parent or sender already handled it.
+        if (lastUpdateSourceRef.current === 'local') {
+            const channel = new BroadcastChannel('tcg_remote_sync');
+            const senderId = (window as any).TAB_ID || 'widget-local';
+            channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state }, senderId });
+            channel.close();
+        } else {
+            // Reset to 'local' for next user interaction
+            lastUpdateSourceRef.current = 'local';
+        }
     }, [state, gameMode, isDragging, isResizing, isRotating]);
+
 
 
 
@@ -305,21 +333,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     };
 
     // Sync with external state (e.g. group member position update)
-    useEffect(() => {
-        if (externalState) {
-            // Only update if actually different
-            if (Math.abs(externalState.px - state.px) > 0.00001 ||
-                Math.abs(externalState.py - state.py) > 0.00001 ||
-                Math.abs(externalState.rotation - state.rotation) > 0.001 ||
-                Math.abs(externalState.scale - state.scale) > 0.001) {
-                lastUpdateSourceRef.current = 'external';
-                setState(externalState);
-            }
-            setIsSyncing(true);
-            if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-            syncTimeoutRef.current = setTimeout(() => setIsSyncing(false), 150);
-        }
-    }, [externalState]);
+    // (Removed duplicate effect, consolidated above)
+
 
 
     // Register container ref for rect selection

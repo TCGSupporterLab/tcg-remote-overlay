@@ -168,9 +168,22 @@ function App() {
 
       if (e.data.type === 'WIDGET_STATE_UPDATE') {
         const { gameMode: widgetId, state: newState } = e.data.value;
-        // Sync external window's widget state to our live cache immediately
+        // 1. Sync external window's widget state to our live cache immediately
         liveWidgetStatesRef.current[widgetId as WidgetId] = newState;
+
+        // 2. ALSO update externalStates so the UI (like BoundingBox) stays in sync across windows
+        setExternalStates(prev => {
+          const p = prev[widgetId as WidgetId];
+          if (!p ||
+            Math.abs(newState.px - p.px) > 0.00001 ||
+            Math.abs(newState.py - p.py) > 0.00001 ||
+            Math.abs(newState.rotation - p.rotation) > 0.001) {
+            return { ...prev, [widgetId as WidgetId]: newState };
+          }
+          return prev;
+        });
       }
+
     };
 
     channel.addEventListener('message', handler);
@@ -180,24 +193,34 @@ function App() {
 
 
   // External state map for group member sync
-  const [externalStates, setExternalStates] = useState<Record<WidgetId, WidgetState>>({});
+  const [externalStates, setExternalStates] = useState<Record<WidgetId, WidgetState>>(() => {
+    const initial: Record<WidgetId, WidgetState> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('overlay_widget_v4_')) {
+        const id = key.replace('overlay_widget_v4_', '');
+        try {
+          const saved = localStorage.getItem(key);
+          if (saved) initial[id as WidgetId] = JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to parse localStorage for", key, e);
+        }
+      }
+    }
+    return initial;
+  });
 
   // Fix for rotation drift and infinite loop stabilization
   const manipulationStartStatesRef = useRef<Record<WidgetId, WidgetState>>({});
 
   // Cache for all widgets to avoid localStorage reads during manipulation
-  const liveWidgetStatesRef = useRef<Record<WidgetId, WidgetState>>({});
+  const liveWidgetStatesRef = useRef<Record<WidgetId, WidgetState>>(externalStates);
 
-  // Initialize cache from localStorage
+  // Sync internal cache if externalStates changes (though it's initialized above)
   useEffect(() => {
-    const ids = ["card_widget", "yugioh", "hololive_sp_marker", "dice", "coin"];
-    const initial: Record<WidgetId, WidgetState> = {};
-    ids.forEach(id => {
-      const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
-      if (saved) initial[id as WidgetId] = JSON.parse(saved);
-    });
-    liveWidgetStatesRef.current = initial;
-  }, []);
+    liveWidgetStatesRef.current = { ...externalStates };
+  }, [externalStates]);
+
 
   const handleManipulationStart = useCallback(() => {
     // CAPTURE CURRENT LIVE STATES as the start points for manipulation
@@ -309,14 +332,14 @@ function App() {
     if (import.meta.env.DEV && isMultiSelectionActive) {
       console.log(`[SelectionDebug] Multiple objects selected: ${effectiveSelectionMembers.join(', ')}`);
       effectiveSelectionMembers.forEach(id => {
-        const s = localStorage.getItem(`overlay_widget_v4_${id}`);
-        if (s) {
-          const st = JSON.parse(s);
+        const st = liveWidgetStatesRef.current[id as WidgetId];
+        if (st) {
           console.log(`[SelectionDebug] State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}`);
         }
       });
     }
   }, [isMultiSelectionActive, effectiveSelectionMembers]);
+
 
 
   // Handle manipulation for any selection (even if not a formal group)
@@ -383,6 +406,10 @@ function App() {
       for (const id in updates) {
         const u = updates[id as WidgetId];
         const p = prev[id as WidgetId];
+
+        // Synchronously update the live cache during drag to keep it fresh
+        liveWidgetStatesRef.current[id as WidgetId] = u;
+
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
           Math.abs(u.py - p.py) > 0.00001 ||
@@ -424,60 +451,69 @@ function App() {
 
   // Handle state change from anchor widget (propagate to group members)
   const handleWidgetStateChange = useCallback((id: WidgetId, newState: WidgetState) => {
+    // 1. ALWAYS update the live cache first, regardless of group membership
+    liveWidgetStatesRef.current[id] = newState;
+
     const group = groupData.groups.find(g => {
       const activeAnchor = resolveActiveAnchor(g);
       return activeAnchor === id;
     });
-    if (!group) return;
 
     const newExternalStates: Record<WidgetId, WidgetState> = {};
-    const rad = newState.rotation * (Math.PI / 180);
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
+    if (group) {
+      const rad = newState.rotation * (Math.PI / 180);
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const aspect = window.innerWidth / window.innerHeight;
 
-    const aspect = window.innerWidth / window.innerHeight;
+      for (const memberId of group.memberIds) {
+        if (memberId === id) continue;
+        const rel = groupData.relativeTransforms[memberId];
+        if (!rel) continue;
 
-    for (const memberId of group.memberIds) {
-      if (memberId === id) continue;
-      const rel = groupData.relativeTransforms[memberId];
-      if (!rel) continue;
+        // Apply rigid transform using local offsets stored in rel.dx, rel.dy
+        const dx_new = (rel.dx * cos - rel.dy * sin) * newState.scale;
+        const dy_new = (rel.dx * sin + rel.dy * cos) * newState.scale;
 
-      // Apply rigid transform using local offsets stored in rel.dx, rel.dy
-      const dx_new = (rel.dx * cos - rel.dy * sin) * newState.scale;
-      const dy_new = (rel.dx * sin + rel.dy * cos) * newState.scale;
-
-      newExternalStates[memberId] = {
-        px: newState.px + (dx_new / aspect),
-        py: newState.py + dy_new,
-        rotation: newState.rotation + rel.dRotation,
-        scale: newState.scale * rel.dScale,
-      };
+        newExternalStates[memberId] = {
+          px: newState.px + (dx_new / aspect),
+          py: newState.py + dy_new,
+          rotation: newState.rotation + rel.dRotation,
+          scale: newState.scale * rel.dScale,
+        };
+      }
     }
+
     setExternalStates(prev => {
       let changed = false;
       const next = { ...prev };
-      // Also include the anchor's own new state in updates for local cache
+      // Include BOTH the anchor and any members in updates for local cache
       const updates = { ...newExternalStates, [id]: newState };
 
       for (const widgetId in updates) {
         const u = updates[widgetId as WidgetId];
         const p = prev[widgetId as WidgetId];
 
-        // Also update the live cache
+        // Batch update the live cache
         liveWidgetStatesRef.current[widgetId as WidgetId] = u;
 
+        // Very small threshold just to prevent JS floating point "noise" loops, 
+        // but large enough to NOT cause visual drifting/jumping.
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
           Math.abs(u.py - p.py) > 0.00001 ||
           Math.abs(u.scale - p.scale) > 0.00001 ||
-          Math.abs(u.rotation - p.rotation) > 0.00001) {
+          Math.abs(u.rotation - p.rotation) > 0.001) {
           next[widgetId as WidgetId] = u;
           changed = true;
         }
+
+
       }
       return changed ? next : prev;
     });
   }, [groupData, resolveActiveAnchor]);
+
 
 
 
@@ -520,6 +556,10 @@ function App() {
       for (const id in updates) {
         const u = updates[id as WidgetId];
         const p = prev[id as WidgetId];
+
+        // Synchronously update the live cache during drag
+        liveWidgetStatesRef.current[id as WidgetId] = u;
+
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
           Math.abs(u.py - p.py) > 0.00001 ||
