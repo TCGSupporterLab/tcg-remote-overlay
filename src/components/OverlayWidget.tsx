@@ -7,10 +7,10 @@ interface OverlayWidgetProps {
     gameMode: string;
     // Group & Selection props (optional for backward compat)
     instanceId?: WidgetId;
+    groupId?: string;
     isSelected?: boolean;
     isGrouped?: boolean;
-    isGroupAnchor?: boolean;
-    onSelect?: (id: WidgetId, ctrlKey: boolean) => void;
+    onSelect?: (id: string, ctrlKey: boolean) => void;
     onStateChange?: (id: WidgetId, newState: WidgetState) => void;
     /** Ref callback to register this widget's container element for rect selection */
     containerRefCallback?: (id: WidgetId, el: HTMLDivElement | null) => void;
@@ -22,9 +22,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     children,
     gameMode,
     instanceId,
+    groupId,
     isSelected = false,
     isGrouped = false,
-    isGroupAnchor = false,
     onSelect,
     onStateChange,
     containerRefCallback,
@@ -252,13 +252,22 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         }
     }, [state, winSize, finalScale, yOffset, clampedOffset.x, clampedOffset.y]);
 
-    // Determine if handles should be shown
-    const showHandles = !isGrouped || isGroupAnchor;
+    // Determine if handles should be shown (hidden for ALL grouped widgets)
+    const showHandles = !isGrouped;
 
-    // Handle click on widget content for selection
+    // Handle click on widget content for selection (Ctrl+Click only)
     const handleContentClick = (e: React.MouseEvent) => {
-        if (onSelect && (instanceId || gameMode)) {
-            onSelect(instanceId || gameMode, e.ctrlKey || e.metaKey);
+        const isMultiSelect = e.ctrlKey || e.metaKey;
+        if (!isMultiSelect) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (onSelect) {
+            // Grouped widgets: select the group, not the individual widget
+            if (isGrouped && groupId) {
+                onSelect(groupId, true);
+            } else if (instanceId || gameMode) {
+                onSelect(instanceId || gameMode, true);
+            }
         }
     };
 
@@ -296,11 +305,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                         transform: `scale(${finalScale}) rotate(${state.rotation}deg)`,
                         transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)'
                     }}
-                    onClick={handleContentClick}
+                    onClickCapture={handleContentClick}
                 >
                     {children}
-                    {/* Selection highlight */}
-                    {isSelected && (
+                    {/* Selection highlight (not shown for grouped widgets - group has its own frame) */}
+                    {isSelected && !isGrouped && (
                         <div
                             className="absolute inset-[-4px] border-2 border-blue-400 rounded-lg pointer-events-none"
                             style={{ boxShadow: '0 0 12px rgba(96, 165, 250, 0.4)' }}

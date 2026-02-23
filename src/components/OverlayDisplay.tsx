@@ -57,8 +57,8 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
         : "flex flex-col items-center gap-1 pointer-events-auto cursor-pointer hover:bg-white/5 rounded-xl p-1 hover:scale-105 active:scale-95";
 
     const itemSizeClass = compact
-        ? "relative h-14 w-14 flex items-center justify-center scale-[0.6]" // ~60px equivalent
-        : "relative h-24 w-24 flex items-center justify-center scale-[0.85]"; // ~85px equivalent (fits 100px base better)
+        ? "relative h-20 w-20 flex items-center justify-center"
+        : "relative h-32 w-32 flex items-center justify-center";
 
     return (
         <div className={`${containerClass} ${className || ''}`}>
@@ -81,7 +81,7 @@ export const OverlayDisplay: React.FC<OverlayDisplayProps> = ({
 
             {showCoin && (
                 <div
-                    className={`${itemWrapperClass} ${!compact && showDice ? 'translate-x-8' : ''}`}
+                    className={itemWrapperClass}
                     onClick={onCoinClick}
                     title="クリックしてコイントス"
                 >

@@ -1,7 +1,7 @@
 /* 3D Scene setup */
 .scene-3d {
-    width: 200px;
-    height: 200px;
+    width: 100%;
+    height: 100%;
     perspective: 600px;
     display: flex;
     align-items: center;
@@ -10,18 +10,18 @@
 
 /* --- 3D Dice (Ruby Style) --- */
 .cube {
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
     position: relative;
     transform-style: preserve-3d;
-    transform: translateZ(-50px);
+    transform: translateZ(-40px);
     /* Removed transition to prevent unwanted movement on reset/mount */
 }
 
 .cube__face {
     position: absolute;
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
     line-height: 100px;
     font-size: 40px;
     font-weight: bold;
@@ -42,62 +42,62 @@
 
 /* Positioning Faces */
 .cube__face--1 {
-    transform: rotateY(0deg) translateZ(50px);
+    transform: rotateY(0deg) translateZ(40px);
 }
 
 .cube__face--2 {
-    transform: rotateY(90deg) translateZ(50px);
+    transform: rotateY(90deg) translateZ(40px);
 }
 
 .cube__face--3 {
-    transform: rotateY(180deg) translateZ(50px);
+    transform: rotateY(180deg) translateZ(40px);
 }
 
 .cube__face--4 {
-    transform: rotateY(-90deg) translateZ(50px);
+    transform: rotateY(-90deg) translateZ(40px);
 }
 
 .cube__face--5 {
-    transform: rotateX(90deg) translateZ(50px);
+    transform: rotateX(90deg) translateZ(40px);
 }
 
 .cube__face--6 {
-    transform: rotateX(-90deg) translateZ(50px);
+    transform: rotateX(-90deg) translateZ(40px);
 }
 
 /* Rolling Classes */
 .show-1 {
-    transform: translateZ(-50px) rotateY(0deg);
+    transform: translateZ(-40px) rotateY(0deg);
 }
 
 .show-2 {
-    transform: translateZ(-50px) rotateY(-90deg);
+    transform: translateZ(-40px) rotateY(-90deg);
 }
 
 .show-3 {
-    transform: translateZ(-50px) rotateY(-180deg);
+    transform: translateZ(-40px) rotateY(-180deg);
 }
 
 .show-4 {
-    transform: translateZ(-50px) rotateY(90deg);
+    transform: translateZ(-40px) rotateY(90deg);
 }
 
 .show-5 {
-    transform: translateZ(-50px) rotateX(-90deg);
+    transform: translateZ(-40px) rotateX(-90deg);
 }
 
 .show-6 {
-    transform: translateZ(-50px) rotateX(90deg);
+    transform: translateZ(-40px) rotateX(90deg);
 }
 
 /* Animation: Spin wildly before settling */
 @keyframes spin-dice {
     0% {
-        transform: translateZ(-50px) rotateX(0deg) rotateY(0deg);
+        transform: translateZ(-40px) rotateX(0deg) rotateY(0deg);
     }
 
     100% {
-        transform: translateZ(-50px) rotateX(720deg) rotateY(1080deg);
+        transform: translateZ(-40px) rotateX(720deg) rotateY(1080deg);
     }
 }
 
@@ -109,8 +109,8 @@
 
 /* --- 3D Coin (Detailed Metal) --- */
 .coin {
-    width: 100px;
-    height: 100px;
+    width: 80px;
+    height: 80px;
     position: relative;
     transform-style: preserve-3d;
     transition: transform 1.0s cubic-bezier(0.18, 0.89, 0.32, 1.28);
@@ -125,11 +125,14 @@
     justify-content: center;
     align-items: center;
     backface-visibility: hidden;
+    box-sizing: border-box;
+    /* ADDED: prevent border from expanding size */
     /* Ridge effect */
     border: 6px dashed rgba(0, 0, 0, 0.1);
     box-shadow:
         inset 0 0 10px rgba(0, 0, 0, 0.4),
-        0 4px 10px rgba(0, 0, 0, 0.3);
+        0 0 10px rgba(0, 0, 0, 0.3);
+    /* MODIFIED: centered shadow */
 }
 
 .coin__face--heads {

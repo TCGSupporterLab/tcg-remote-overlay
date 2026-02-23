@@ -110,7 +110,7 @@ export const ThreeDDice: React.FC<ThreeDDiceProps> = ({ value, rolling }) => {
     };
 
     return (
-        <div className="scene-3d" style={{ width: '100px', height: '100px' }}>
+        <div className="scene-3d pointer-events-none" style={{ width: '100%', height: '100%' }}>
             <div className={`cube ${rolling ? 'animate-rolling' : getRotationClass(value)}`}>
                 <div className="cube__face cube__face--1"><DiceFaceSVG num={1} /></div>
                 <div className="cube__face cube__face--2"><DiceFaceSVG num={2} /></div>

@@ -12,6 +12,7 @@ import { CardSearchContainer } from './components/CardSearch/CardSearchContainer
 import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
 import { SelectionActionBar } from './components/SelectionActionBar';
+import { GroupBoundingBox } from './components/GroupBoundingBox';
 import { useWidgetSelection } from './hooks/useWidgetSelection';
 import type { WidgetId, WidgetState, WidgetGroupData, WidgetGroup, RelativeTransform } from './types/widgetTypes';
 import { Layers, RefreshCw } from 'lucide-react';
@@ -227,6 +228,14 @@ function App() {
     setGroupData(prev => {
       const group = prev.groups.find(g => g.id === groupId);
       if (!group) return prev;
+      // Clear external states for members so widgets return to self-managed state
+      setExternalStates(prevStates => {
+        const next = { ...prevStates };
+        for (const id of group.memberIds) {
+          delete next[id];
+        }
+        return next;
+      });
       const newTransforms = { ...prev.relativeTransforms };
       for (const id of group.memberIds) {
         delete newTransforms[id];
@@ -261,16 +270,39 @@ function App() {
     setExternalStates(prev => ({ ...prev, ...newExternalStates }));
   }, [groupData, resolveActiveAnchor]);
 
+  // Handle group drag (from GroupBoundingBox handles)
+  const handleGroupDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
+    const group = groupData.groups.find(g => {
+      const active = resolveActiveAnchor(g);
+      return active === anchorId;
+    });
+    if (!group) return;
+
+    const updates: Record<WidgetId, WidgetState> = {};
+    updates[anchorId] = newAnchorState;
+    for (const memberId of group.memberIds) {
+      if (memberId === anchorId) continue;
+      const rel = groupData.relativeTransforms[memberId];
+      if (!rel) continue;
+      updates[memberId] = {
+        px: newAnchorState.px + rel.dx,
+        py: newAnchorState.py + rel.dy,
+        rotation: newAnchorState.rotation + rel.dRotation,
+        scale: newAnchorState.scale * rel.dScale,
+      };
+    }
+    setExternalStates(prev => ({ ...prev, ...updates }));
+  }, [groupData, resolveActiveAnchor]);
+
   // Helper to get group props for a widget
   const getGroupProps = useCallback((widgetId: WidgetId) => {
     const group = findGroupForWidget(widgetId);
-    if (!group) return { isGrouped: false, isGroupAnchor: false };
-    const activeAnchor = resolveActiveAnchor(group);
+    if (!group) return { isGrouped: false, groupId: undefined };
     return {
       isGrouped: true,
-      isGroupAnchor: activeAnchor === widgetId,
+      groupId: group.id,
     };
-  }, [findGroupForWidget, resolveActiveAnchor]);
+  }, [findGroupForWidget]);
 
 
   // Apply OBS mode class to body
@@ -827,19 +859,35 @@ function App() {
         )}
       </main>
 
+      {/* Group Bounding Boxes */}
+      {groupData.groups.map(group => {
+        const activeAnchor = resolveActiveAnchor(group);
+        if (!activeAnchor) return null;
+        return (
+          <GroupBoundingBox
+            key={group.id}
+            groupId={group.id}
+            memberIds={group.memberIds}
+            anchorId={activeAnchor}
+            isSelected={selectedWidgetIds.has(group.id)}
+            widgetRefsMap={widgetRefsMap}
+            onAnchorStateChange={handleGroupDrag}
+          />
+        );
+      })}
+
       {/* Selection Action Bar */}
       <SelectionActionBar
         selectedCount={selectedWidgetIds.size}
-        hasGroupedSelection={Array.from(selectedWidgetIds).some(id => findGroupForWidget(id) !== undefined)}
+        hasGroupedSelection={Array.from(selectedWidgetIds).some(id => groupData.groups.some(g => g.id === id))}
         onGroup={() => groupWidgets(Array.from(selectedWidgetIds))}
         onUngroup={() => {
-          // Ungroup all groups that contain selected widgets
-          const groupIds = new Set<string>();
+          const groupIdsToRemove = new Set<string>();
           selectedWidgetIds.forEach(id => {
-            const group = findGroupForWidget(id);
-            if (group) groupIds.add(group.id);
+            const group = groupData.groups.find(g => g.id === id);
+            if (group) groupIdsToRemove.add(group.id);
           });
-          groupIds.forEach(gid => ungroupWidgets(gid));
+          groupIdsToRemove.forEach(gid => ungroupWidgets(gid));
           clearSelection();
         }}
         onClearSelection={clearSelection}
