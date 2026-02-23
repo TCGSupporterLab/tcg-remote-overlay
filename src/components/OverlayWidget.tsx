@@ -1,19 +1,35 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Move, Maximize2, RotateCw, Undo2 } from 'lucide-react';
-
-interface WidgetState {
-    px: number; // Position X as fraction of window (-0.5 to 0.5)
-    py: number; // Position Y as fraction of window (-0.5 to 0.5)
-    scale: number;
-    rotation: number; // Rotation in degrees
-}
+import type { WidgetState, WidgetId } from '../types/widgetTypes';
 
 interface OverlayWidgetProps {
     children: React.ReactNode;
     gameMode: string;
+    // Group & Selection props (optional for backward compat)
+    instanceId?: WidgetId;
+    isSelected?: boolean;
+    isGrouped?: boolean;
+    isGroupAnchor?: boolean;
+    onSelect?: (id: WidgetId, ctrlKey: boolean) => void;
+    onStateChange?: (id: WidgetId, newState: WidgetState) => void;
+    /** Ref callback to register this widget's container element for rect selection */
+    containerRefCallback?: (id: WidgetId, el: HTMLDivElement | null) => void;
+    /** Externally controlled state (for group member sync) */
+    externalState?: WidgetState;
 }
 
-export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode }) => {
+export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
+    children,
+    gameMode,
+    instanceId,
+    isSelected = false,
+    isGrouped = false,
+    isGroupAnchor = false,
+    onSelect,
+    onStateChange,
+    containerRefCallback,
+    externalState,
+}) => {
     // Persistent state
     const [state, setState] = useState<WidgetState>(() => {
         const saved = localStorage.getItem(`overlay_widget_v4_${gameMode}`);
@@ -170,6 +186,13 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
             setIsDragging(false);
             setIsResizing(false);
             setIsRotating(false);
+            // Notify parent of final state for group sync
+            if (onStateChange && (instanceId || gameMode)) {
+                setState(current => {
+                    onStateChange(instanceId || gameMode, current);
+                    return current;
+                });
+            }
         };
 
         window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -229,6 +252,31 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
         }
     }, [state, winSize, finalScale, yOffset, clampedOffset.x, clampedOffset.y]);
 
+    // Determine if handles should be shown
+    const showHandles = !isGrouped || isGroupAnchor;
+
+    // Handle click on widget content for selection
+    const handleContentClick = (e: React.MouseEvent) => {
+        if (onSelect && (instanceId || gameMode)) {
+            onSelect(instanceId || gameMode, e.ctrlKey || e.metaKey);
+        }
+    };
+
+    // Sync with external state (e.g. group member position update)
+    useEffect(() => {
+        if (externalState) {
+            setState(externalState);
+        }
+    }, [externalState]);
+
+    // Register container ref for rect selection
+    useEffect(() => {
+        if (containerRefCallback && (instanceId || gameMode)) {
+            containerRefCallback(instanceId || gameMode, containerRef.current);
+            return () => containerRefCallback(instanceId || gameMode, null);
+        }
+    }, [containerRefCallback, instanceId, gameMode]);
+
     return (
         <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
             {/* Translation Base (Center of Widget) */}
@@ -248,63 +296,73 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({ children, gameMode
                         transform: `scale(${finalScale}) rotate(${state.rotation}deg)`,
                         transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)'
                     }}
+                    onClick={handleContentClick}
                 >
                     {children}
+                    {/* Selection highlight */}
+                    {isSelected && (
+                        <div
+                            className="absolute inset-[-4px] border-2 border-blue-400 rounded-lg pointer-events-none"
+                            style={{ boxShadow: '0 0 12px rgba(96, 165, 250, 0.4)' }}
+                        />
+                    )}
                 </div>
 
                 {/* B. Floating Handles (Stays Upright & Clamped) */}
-                <div
-                    ref={handleBarRef}
-                    className="absolute pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap flex items-center gap-2"
-                    style={{
-                        left: '50%',
-                        top: '50%',
-                        // yOffset moves it to bottom, clampedOffset keeps it in screen.
-                        // No rotation applied here = Always upright.
-                        transform: `translate(-50%, -50%) translate(${clampedOffset.x}px, ${yOffset + clampedOffset.y}px)`,
-                        transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s'
-                    }}
-                >
-                    {/* Move Handle */}
+                {showHandles && (
                     <div
-                        onMouseDown={handleDragStart}
-                        className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-grab active:cursor-grabbing text-white transition-transform hover:scale-110"
-                        title="ドラッグで移動"
-                    >
-                        <Move size={17} />
-                    </div>
-
-                    {/* Rotate Handle */}
-                    <div
-                        onMouseDown={handleRotateStart}
-                        className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-alias text-white transition-transform hover:scale-110"
-                        title="ドラッグで回転"
-                    >
-                        <RotateCw size={17} />
-                    </div>
-
-                    {/* Resize Handle */}
-                    <div
-                        onMouseDown={handleResizeStart}
-                        className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-nwse-resize text-white transition-transform hover:scale-110"
-                        title="ドラッグで拡大縮小"
-                    >
-                        <Maximize2 size={17} className="rotate-90" />
-                    </div>
-
-                    {/* Reset Handle */}
-                    <div
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setState({ px: 0, py: 0, scale: 1, rotation: 0 });
+                        ref={handleBarRef}
+                        className="absolute pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap flex items-center gap-2"
+                        style={{
+                            left: '50%',
+                            top: '50%',
+                            // yOffset moves it to bottom, clampedOffset keeps it in screen.
+                            // No rotation applied here = Always upright.
+                            transform: `translate(-50%, -50%) translate(${clampedOffset.x}px, ${yOffset + clampedOffset.y}px)`,
+                            transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s'
                         }}
-                        className="bg-red-600/80 hover:bg-red-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-2"
-                        title="初期状態にリセット"
                     >
-                        <Undo2 size={17} />
+                        {/* Move Handle */}
+                        <div
+                            onMouseDown={handleDragStart}
+                            className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-grab active:cursor-grabbing text-white transition-transform hover:scale-110"
+                            title="ドラッグで移動"
+                        >
+                            <Move size={17} />
+                        </div>
+
+                        {/* Rotate Handle */}
+                        <div
+                            onMouseDown={handleRotateStart}
+                            className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-alias text-white transition-transform hover:scale-110"
+                            title="ドラッグで回転"
+                        >
+                            <RotateCw size={17} />
+                        </div>
+
+                        {/* Resize Handle */}
+                        <div
+                            onMouseDown={handleResizeStart}
+                            className="bg-blue-600/80 hover:bg-blue-500 p-2 rounded-full shadow-md cursor-nwse-resize text-white transition-transform hover:scale-110"
+                            title="ドラッグで拡大縮小"
+                        >
+                            <Maximize2 size={17} className="rotate-90" />
+                        </div>
+
+                        {/* Reset Handle */}
+                        <div
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setState({ px: 0, py: 0, scale: 1, rotation: 0 });
+                            }}
+                            className="bg-red-600/80 hover:bg-red-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-2"
+                            title="初期状態にリセット"
+                        >
+                            <Undo2 size={17} />
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

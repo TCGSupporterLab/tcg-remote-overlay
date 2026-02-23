@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { YugiohTools } from './components/YugiohTools';
-import { HololiveTools } from './components/HololiveTools';
+
 import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { SettingsMenu } from './components/SettingsMenu';
@@ -11,6 +11,9 @@ import { useLocalCards } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
 import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
+import { SelectionActionBar } from './components/SelectionActionBar';
+import { useWidgetSelection } from './hooks/useWidgetSelection';
+import type { WidgetId, WidgetState, WidgetGroupData, WidgetGroup, RelativeTransform } from './types/widgetTypes';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
 
@@ -99,6 +102,175 @@ function App() {
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'guide' | 'general' | 'widgets' | 'video' | 'about'>('guide');
+
+  // Widget Selection & Grouping
+  const {
+    selectedWidgetIds,
+    isSelecting,
+    selectionRect,
+    toggleSelect,
+    startRectSelection,
+    updateRectSelection,
+    finishRectSelection,
+    clearSelection,
+  } = useWidgetSelection();
+
+  const widgetRefsMap = useRef<Map<WidgetId, HTMLDivElement>>(new Map());
+  const containerRefCallback = useCallback((id: WidgetId, el: HTMLDivElement | null) => {
+    if (el) {
+      widgetRefsMap.current.set(id, el);
+    } else {
+      widgetRefsMap.current.delete(id);
+    }
+  }, []);
+
+  const getWidgetRects = useCallback(() => {
+    const rects = new Map<WidgetId, DOMRect>();
+    widgetRefsMap.current.forEach((el, id) => {
+      rects.set(id, el.getBoundingClientRect());
+    });
+    return rects;
+  }, []);
+
+  // Group Data (persisted)
+  const [groupData, setGroupData] = useState<WidgetGroupData>(() => {
+    const saved = localStorage.getItem('widget_groups');
+    return saved ? JSON.parse(saved) : { groups: [], relativeTransforms: {} };
+  });
+
+  // Persist group data
+  useEffect(() => {
+    localStorage.setItem('widget_groups', JSON.stringify(groupData));
+    const channel = new BroadcastChannel('tcg_remote_sync');
+    channel.postMessage({ type: 'WIDGET_GROUP_UPDATE', value: groupData });
+    channel.close();
+  }, [groupData]);
+
+  // Sync group data from other windows
+  useEffect(() => {
+    const channel = new BroadcastChannel('tcg_remote_sync');
+    const handler = (e: MessageEvent) => {
+      if (e.data.type === 'WIDGET_GROUP_UPDATE') {
+        setGroupData(e.data.value);
+      }
+    };
+    channel.addEventListener('message', handler);
+    return () => { channel.removeEventListener('message', handler); channel.close(); };
+  }, []);
+
+  // External state map for group member sync
+  const [externalStates, setExternalStates] = useState<Record<WidgetId, WidgetState>>({});
+
+  // Widget visibility map
+  const getVisibilityMap = useCallback((): Record<WidgetId, boolean> => ({
+    card_widget: isCardWidgetVisible,
+    yugioh: isLPVisible,
+    hololive_sp_marker: isSPMarkerVisible && !showSPMarkerForceHidden,
+    dice: isDiceVisible,
+    coin: isCoinVisible,
+  }), [isCardWidgetVisible, isLPVisible, isSPMarkerVisible, showSPMarkerForceHidden, isDiceVisible, isCoinVisible]);
+
+  // Resolve active anchor (handles hidden anchor)
+  const resolveActiveAnchor = useCallback((group: WidgetGroup): WidgetId | null => {
+    const vis = getVisibilityMap();
+    if (vis[group.anchorId]) return group.anchorId;
+    return group.memberIds.find(id => vis[id]) ?? null;
+  }, [getVisibilityMap]);
+
+  // Find group for a widget
+  const findGroupForWidget = useCallback((widgetId: WidgetId): WidgetGroup | undefined => {
+    return groupData.groups.find(g => g.memberIds.includes(widgetId));
+  }, [groupData]);
+
+  // Group widgets
+  const groupWidgets = useCallback((widgetIds: WidgetId[]) => {
+    if (widgetIds.length < 2) return;
+
+    const groupId = crypto.randomUUID();
+    const anchorId = widgetIds[0];
+
+    // Read current states from localStorage
+    const states: Record<WidgetId, WidgetState> = {};
+    for (const id of widgetIds) {
+      const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
+      states[id] = saved ? JSON.parse(saved) : { px: 0, py: 0, scale: 1, rotation: 0 };
+    }
+
+    const anchorState = states[anchorId];
+    const newRelativeTransforms: Record<WidgetId, RelativeTransform> = {};
+
+    for (const id of widgetIds) {
+      if (id === anchorId) {
+        newRelativeTransforms[id] = { dx: 0, dy: 0, dRotation: 0, dScale: 1 };
+      } else {
+        newRelativeTransforms[id] = {
+          dx: states[id].px - anchorState.px,
+          dy: states[id].py - anchorState.py,
+          dRotation: states[id].rotation - anchorState.rotation,
+          dScale: anchorState.scale !== 0 ? states[id].scale / anchorState.scale : 1,
+        };
+      }
+    }
+
+    const newGroup: WidgetGroup = { id: groupId, memberIds: widgetIds, anchorId };
+
+    setGroupData(prev => ({
+      groups: [...prev.groups, newGroup],
+      relativeTransforms: { ...prev.relativeTransforms, ...newRelativeTransforms },
+    }));
+
+    clearSelection();
+  }, [clearSelection]);
+
+  // Ungroup
+  const ungroupWidgets = useCallback((groupId: string) => {
+    setGroupData(prev => {
+      const group = prev.groups.find(g => g.id === groupId);
+      if (!group) return prev;
+      const newTransforms = { ...prev.relativeTransforms };
+      for (const id of group.memberIds) {
+        delete newTransforms[id];
+      }
+      return {
+        groups: prev.groups.filter(g => g.id !== groupId),
+        relativeTransforms: newTransforms,
+      };
+    });
+  }, []);
+
+  // Handle state change from anchor widget (propagate to group members)
+  const handleWidgetStateChange = useCallback((id: WidgetId, newState: WidgetState) => {
+    const group = groupData.groups.find(g => {
+      const activeAnchor = resolveActiveAnchor(g);
+      return activeAnchor === id;
+    });
+    if (!group) return;
+
+    const newExternalStates: Record<WidgetId, WidgetState> = {};
+    for (const memberId of group.memberIds) {
+      if (memberId === id) continue;
+      const rel = groupData.relativeTransforms[memberId];
+      if (!rel) continue;
+      newExternalStates[memberId] = {
+        px: newState.px + rel.dx,
+        py: newState.py + rel.dy,
+        rotation: newState.rotation + rel.dRotation,
+        scale: newState.scale * rel.dScale,
+      };
+    }
+    setExternalStates(prev => ({ ...prev, ...newExternalStates }));
+  }, [groupData, resolveActiveAnchor]);
+
+  // Helper to get group props for a widget
+  const getGroupProps = useCallback((widgetId: WidgetId) => {
+    const group = findGroupForWidget(widgetId);
+    if (!group) return { isGrouped: false, isGroupAnchor: false };
+    const activeAnchor = resolveActiveAnchor(group);
+    return {
+      isGrouped: true,
+      isGroupAnchor: activeAnchor === widgetId,
+    };
+  }, [findGroupForWidget, resolveActiveAnchor]);
 
 
   // Apply OBS mode class to body
@@ -227,10 +399,13 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      // Settings Menu toggle
+      // Settings / Selection toggle
       if (e.key === 'Escape') {
+        if (selectedWidgetIds.size > 0) {
+          clearSelection();
+          return;
+        }
         setShowSettings(prev => !prev);
-        // If closing settings and we are adjusting video, close adjustment mode too
         if (showSettings && isAdjustingVideo) {
           setIsAdjustingVideo(false);
         }
@@ -255,6 +430,12 @@ function App() {
       if (gameMode === 'hololive' && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
         toggleSPMarkerForceHidden();
+      }
+
+      // G key: Group selected widgets
+      if ((e.key === 'g' || e.key === 'G') && selectedWidgetIds.size >= 2) {
+        e.preventDefault();
+        groupWidgets(Array.from(selectedWidgetIds));
       }
 
       // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
@@ -357,7 +538,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo]);
+  }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupWidgets]);
 
 
   if (import.meta.env.DEV) {
@@ -477,11 +658,41 @@ function App() {
       />
 
       {/* 2 & 3. GB and Widgets Layer */}
-      <main className="absolute inset-0 flex flex-col overflow-hidden pointer-events-none z-10">
+      <main
+        className="absolute inset-0 flex flex-col overflow-hidden pointer-events-none z-10"
+        style={{ pointerEvents: isSelecting ? 'auto' : undefined }}
+        onMouseDown={(e) => {
+          // Only start rect selection on direct background click (not on widgets)
+          if (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget) {
+            if (!(e.target as HTMLElement).closest('.pointer-events-auto')) {
+              startRectSelection(e);
+            }
+          }
+        }}
+        onMouseMove={(e) => {
+          if (isSelecting) {
+            updateRectSelection(e);
+          }
+        }}
+        onMouseUp={() => {
+          if (isSelecting) {
+            finishRectSelection(getWidgetRects);
+          }
+        }}
+      >
 
         {/* Independent Card Widget */}
         {isCardWidgetVisible && (
-          <OverlayWidget gameMode="card_widget">
+          <OverlayWidget
+            gameMode="card_widget"
+            instanceId="card_widget"
+            isSelected={selectedWidgetIds.has('card_widget')}
+            {...getGroupProps('card_widget')}
+            onSelect={toggleSelect}
+            onStateChange={handleWidgetStateChange}
+            containerRefCallback={containerRefCallback}
+            externalState={externalStates['card_widget']}
+          >
             <CardWidget
               hasAccess={hasAccess}
               isScanning={isScanning}
@@ -492,33 +703,20 @@ function App() {
           </OverlayWidget>
         )}
 
-        {/* Game Mode Widgets: Hololive */}
-        {gameMode === 'hololive' && (
-          <OverlayWidget gameMode="hololive">
-            <div className="pointer-events-auto">
-              <HololiveTools
-                key="hololive-tools"
-                isOverlay={true}
-                diceValue={diceValue}
-                coinValue={coinValue === 1 ? '表' : '裏'}
-                diceKey={diceKey}
-                coinKey={coinKey}
-                onDiceClick={handleRollDice}
-                onCoinClick={handleFlipCoin}
-                obsMode={obsMode}
-                localCards={cards}
-                metadataOrder={metadataOrder}
-                mergeSameFileCards={mergeSameFileCards}
-                isDiceVisible={false}
-                isCoinVisible={false}
-              />
-            </div>
-          </OverlayWidget>
-        )}
+
 
         {/* Life Points Widget (YugiohTools) */}
         {isLPVisible && (
-          <OverlayWidget gameMode="yugioh">
+          <OverlayWidget
+            gameMode="yugioh"
+            instanceId="yugioh"
+            isSelected={selectedWidgetIds.has('yugioh')}
+            {...getGroupProps('yugioh')}
+            onSelect={toggleSelect}
+            onStateChange={handleWidgetStateChange}
+            containerRefCallback={containerRefCallback}
+            externalState={externalStates['yugioh']}
+          >
             <div className="pointer-events-auto">
               <YugiohTools
                 key="yugioh-tools"
@@ -542,7 +740,16 @@ function App() {
 
         {/* Independent SP Marker Widget */}
         {isSPMarkerVisible && !showSPMarkerForceHidden && (
-          <OverlayWidget gameMode="hololive_sp_marker">
+          <OverlayWidget
+            gameMode="hololive_sp_marker"
+            instanceId="hololive_sp_marker"
+            isSelected={selectedWidgetIds.has('hololive_sp_marker')}
+            {...getGroupProps('hololive_sp_marker')}
+            onSelect={toggleSelect}
+            onStateChange={handleWidgetStateChange}
+            containerRefCallback={containerRefCallback}
+            externalState={externalStates['hololive_sp_marker']}
+          >
             <div className="pointer-events-auto">
               <SPMarkerWidget
                 face={spMarkerFace}
@@ -554,7 +761,16 @@ function App() {
 
         {/* 4. Independent Dice Widget */}
         {isDiceVisible && (
-          <OverlayWidget gameMode="dice">
+          <OverlayWidget
+            gameMode="dice"
+            instanceId="dice"
+            isSelected={selectedWidgetIds.has('dice')}
+            {...getGroupProps('dice')}
+            onSelect={toggleSelect}
+            onStateChange={handleWidgetStateChange}
+            containerRefCallback={containerRefCallback}
+            externalState={externalStates['dice']}
+          >
             <div className="pointer-events-auto">
               <OverlayDisplay
                 diceValue={diceValue}
@@ -572,7 +788,16 @@ function App() {
 
         {/* 5. Independent Coin Widget */}
         {isCoinVisible && (
-          <OverlayWidget gameMode="coin">
+          <OverlayWidget
+            gameMode="coin"
+            instanceId="coin"
+            isSelected={selectedWidgetIds.has('coin')}
+            {...getGroupProps('coin')}
+            onSelect={toggleSelect}
+            onStateChange={handleWidgetStateChange}
+            containerRefCallback={containerRefCallback}
+            externalState={externalStates['coin']}
+          >
             <div className="pointer-events-auto">
               <OverlayDisplay
                 diceValue={diceValue}
@@ -587,7 +812,38 @@ function App() {
             </div>
           </OverlayWidget>
         )}
+
+        {/* Rectangle Selection Overlay */}
+        {isSelecting && selectionRect && (
+          <div
+            className="fixed pointer-events-none z-[400] border-2 border-blue-400/60 bg-blue-400/10 rounded-sm"
+            style={{
+              left: Math.min(selectionRect.startX, selectionRect.currentX),
+              top: Math.min(selectionRect.startY, selectionRect.currentY),
+              width: Math.abs(selectionRect.currentX - selectionRect.startX),
+              height: Math.abs(selectionRect.currentY - selectionRect.startY),
+            }}
+          />
+        )}
       </main>
+
+      {/* Selection Action Bar */}
+      <SelectionActionBar
+        selectedCount={selectedWidgetIds.size}
+        hasGroupedSelection={Array.from(selectedWidgetIds).some(id => findGroupForWidget(id) !== undefined)}
+        onGroup={() => groupWidgets(Array.from(selectedWidgetIds))}
+        onUngroup={() => {
+          // Ungroup all groups that contain selected widgets
+          const groupIds = new Set<string>();
+          selectedWidgetIds.forEach(id => {
+            const group = findGroupForWidget(id);
+            if (group) groupIds.add(group.id);
+          });
+          groupIds.forEach(gid => ungroupWidgets(gid));
+          clearSelection();
+        }}
+        onClearSelection={clearSelection}
+      />
 
       {/* 4. Removed Initial Help Screen (now in Settings Guide tab) */}
 
