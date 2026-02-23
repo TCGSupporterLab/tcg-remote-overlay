@@ -872,6 +872,7 @@ function App() {
             isSelected={selectedWidgetIds.has(group.id)}
             widgetRefsMap={widgetRefsMap}
             onAnchorStateChange={handleGroupDrag}
+            onUngroup={ungroupWidgets}
           />
         );
       })}
