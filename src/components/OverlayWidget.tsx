@@ -19,7 +19,9 @@ interface OverlayWidgetProps {
     /** Whether this widget is part of a larger active selection (multiple items) */
     isPartOfMultiSelection?: boolean;
     onManipulationStart?: () => void;
+    onManipulationEnd?: () => void;
     parentManipulationNonce?: number;
+    isGlobalManipulating?: boolean;
 }
 
 export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
@@ -35,7 +37,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     externalState,
     isPartOfMultiSelection = false,
     onManipulationStart,
+    onManipulationEnd,
     parentManipulationNonce = 0,
+    isGlobalManipulating = false,
 }) => {
     // Persistent state
     const [state, setState] = useState<WidgetState>(() => {
@@ -320,6 +324,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                     return current;
                 });
             }
+
+            onManipulationEnd?.();
         };
 
         window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -334,7 +340,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     const syncTimeoutRef = useRef<any>(null);
 
     const finalScale = state.scale;
-    const shouldDisableTransition = isDragging || isResizing || isRotating || isWindowResizing || isSyncing;
+    const shouldDisableTransition = isDragging || isResizing || isRotating || isWindowResizing || isSyncing || isGlobalManipulating;
 
     const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 });
     const [yOffset, setYOffset] = useState(60);
@@ -344,9 +350,19 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     useLayoutEffect(() => {
         if (!containerRef.current || !handleBarRef.current) return;
 
-        // 1. Calculate dynamic Y offset based on rotated bounding box
-        const contentRect = containerRef.current.getBoundingClientRect();
-        const nextYOffset = (contentRect.height / 2) + 40;
+        // 1. Calculate dynamic Y offset based on MATH (not potentially transitioning DOM)
+        // Rotated Bounding Box height formula: H_bbox = |W * sin(theta)| + |H * cos(theta)|
+        const rad = (state.rotation * Math.PI) / 180;
+        const sin = Math.abs(Math.sin(rad));
+        const cos = Math.abs(Math.cos(rad));
+
+        // offsetWidth/Height are layout-based and unaffected by CSS transforms
+        const baseW = containerRef.current.offsetWidth;
+        const baseH = containerRef.current.offsetHeight;
+
+        const rotatedHeight = (baseW * sin + baseH * cos) * finalScale;
+        const nextYOffset = (rotatedHeight / 2) + 40;
+
         if (Math.abs(nextYOffset - yOffset) > 1) {
             setYOffset(nextYOffset);
         }

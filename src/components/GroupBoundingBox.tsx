@@ -10,10 +10,12 @@ interface GroupBoundingBoxProps {
     widgetRefsMap: React.RefObject<Map<WidgetId, HTMLDivElement>>;
     onAnchorStateChange: (anchorId: WidgetId, newState: WidgetState, memberIds: WidgetId[]) => void;
     onManipulationStart?: () => void;
+    onManipulationEnd?: () => void;
     onUngroup?: (groupId: string) => void;
     onGroup?: (memberIds: WidgetId[]) => void;
     externalAnchorState?: WidgetState;
     isDeactivated?: boolean;
+    isGlobalManipulating?: boolean;
 }
 
 
@@ -26,10 +28,12 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     widgetRefsMap,
     onAnchorStateChange,
     onManipulationStart,
+    onManipulationEnd,
     onUngroup,
     onGroup,
     externalAnchorState,
-    isDeactivated = false
+    isDeactivated = false,
+    isGlobalManipulating = false
 }) => {
 
 
@@ -315,6 +319,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             setIsResizing(false);
             setIsRotating(false);
             setVisualRotateAngle(0);
+            onManipulationEnd?.();
         };
 
 
@@ -389,14 +394,14 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                     transform: `translate3d(${renderBbox.x}px, ${renderBbox.y}px, 0)`,
                     boxShadow: isSelected ? '0 0 16px rgba(96, 165, 250, 0.35)' : 'none',
                     opacity: isSelected ? 1 : 0.5,
-                    transition: (isDragging || isResizing || isRotating) ? 'none' : 'opacity 0.2s',
+                    transition: (isDragging || isResizing || isRotating || isGlobalManipulating) ? 'none' : 'opacity 0.2s',
                 }}
             />
 
             {/* Handles below the bounding box */}
             <div
                 ref={handleBarRef}
-                className={`absolute pointer-events-auto flex items-center gap-2 ${(isDragging || isResizing || isRotating) ? '' : 'animate-in fade-in zoom-in duration-200'
+                className={`absolute pointer-events-auto flex items-center gap-2 ${(isDragging || isResizing || isRotating || isGlobalManipulating) ? '' : 'animate-in fade-in zoom-in duration-200'
                     }`}
                 style={{
                     left: 0,

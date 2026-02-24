@@ -141,6 +141,7 @@ function App() {
 
 
   const [manipulationNonce, setManipulationNonce] = useState(0);
+  const [isAnyManipulating, setIsAnyManipulating] = useState(false);
 
   // Group Data (persisted)
   const [groupData, setGroupData] = useState<WidgetGroupData>(() => {
@@ -251,6 +252,7 @@ function App() {
     manipulationStartStatesRef.current = snapshot;
 
     // Reset sync ignore on all children
+    setIsAnyManipulating(true);
     setManipulationNonce(n => n + 1);
 
     if (import.meta.env.DEV) {
@@ -261,6 +263,10 @@ function App() {
       });
     }
   }, [externalStates]);
+
+  const handleManipulationEnd = useCallback(() => {
+    setIsAnyManipulating(false);
+  }, []);
 
 
 
@@ -1088,7 +1094,9 @@ function App() {
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
+            onManipulationEnd={handleManipulationEnd}
             parentManipulationNonce={manipulationNonce}
+            isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['card_widget']}
           >
@@ -1115,7 +1123,9 @@ function App() {
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
+            onManipulationEnd={handleManipulationEnd}
             parentManipulationNonce={manipulationNonce}
+            isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['yugioh']}
           >
@@ -1151,7 +1161,9 @@ function App() {
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
+            onManipulationEnd={handleManipulationEnd}
             parentManipulationNonce={manipulationNonce}
+            isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['hololive_sp_marker']}
           >
@@ -1175,7 +1187,9 @@ function App() {
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
+            onManipulationEnd={handleManipulationEnd}
             parentManipulationNonce={manipulationNonce}
+            isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['dice']}
           >
@@ -1205,7 +1219,9 @@ function App() {
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
+            onManipulationEnd={handleManipulationEnd}
             parentManipulationNonce={manipulationNonce}
+            isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['coin']}
           >
@@ -1260,9 +1276,11 @@ function App() {
               widgetRefsMap={widgetRefsMap}
               onAnchorStateChange={handleGroupDrag}
               onManipulationStart={handleManipulationStart}
+              onManipulationEnd={handleManipulationEnd}
               onUngroup={ungroupWidgets}
               externalAnchorState={externalStates[activeAnchor]}
               isDeactivated={isPartOfLargerSelection}
+              isGlobalManipulating={isAnyManipulating}
             />
           );
         })
@@ -1279,8 +1297,10 @@ function App() {
             widgetRefsMap={widgetRefsMap}
             onAnchorStateChange={handleTransientDrag}
             onManipulationStart={handleManipulationStart}
+            onManipulationEnd={handleManipulationEnd}
             onGroup={() => groupWidgets(effectiveSelectionMembers)}
             externalAnchorState={externalStates[effectiveSelectionMembers[0]]}
+            isGlobalManipulating={isAnyManipulating}
           />
 
 
