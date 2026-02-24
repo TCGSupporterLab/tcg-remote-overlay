@@ -231,6 +231,7 @@ export const MoveableController: React.FC = () => {
                 selectByClick={true}
                 selectFromInside={false}
                 toggleContinueSelect={['ctrlKey', 'metaKey']}
+                continueSelect={true}
                 ratio={0}
                 dragCondition={(e) => {
                     const target = e.inputEvent.target as Element;
@@ -239,6 +240,20 @@ export const MoveableController: React.FC = () => {
                     const isWidget = !!target.closest('[data-widget-id]');
                     const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
                     return !isWidget || isCtrl;
+                }}
+                onDragStart={(e) => {
+                    const target = e.inputEvent.target as Element;
+                    const isWidget = !!target.closest('[data-widget-id]');
+                    const isMoveable = !!target.closest('[class*="moveable-"]');
+                    const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
+
+                    // ウィジェットでもMoveable操作ハンドルでもなく、かつCtrl同時押しでない場合は選択を解除
+                    if (!isWidget && !isMoveable && !isCtrl) {
+                        setSelectedWidgets([]);
+                        // Selecto 自身の内部的な選択状態（selectedTargets）もクリアしないと、
+                        // continueSelect によって次の瞬間に再選択されてしまう
+                        e.currentTarget.setSelectedTargets([]);
+                    }
                 }}
                 onSelectEnd={(e) => {
                     const selected = e.selected.map(el => el.getAttribute('data-widget-id') as WidgetId);
