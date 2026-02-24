@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
-import { YugiohTools } from './components/YugiohTools';
+import { LPCalculator } from './components/LPCalculator';
 
 import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
+import { useWidgetSettings, type DisplayPreset } from './hooks/useWidgetSettings';
+import { useSPMarkerState } from './hooks/useSPMarkerState';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { SettingsMenu } from './components/SettingsMenu';
 import { OverlayWidget } from './components/OverlayWidget';
@@ -17,7 +19,6 @@ import type { WidgetId, WidgetState, WidgetGroupData, WidgetGroup, RelativeTrans
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
 
-type GameMode = 'yugioh' | 'hololive' | 'none';
 type ObsMode = 'normal' | 'green';
 
 const TAB_ID = crypto.randomUUID();
@@ -42,32 +43,40 @@ function App() {
   } = useLocalCards();
 
   const {
+    isSyncing,
+    pinnedCards,
+    selectedCard,
+    displayCardNo,
+    setDisplayCardNo,
+    rootFolderName,
+    setRootFolderName
+  } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
+
+  const {
     isSPMarkerVisible,
     spMarkerFace,
     toggleSPMarkerMode,
     toggleSPMarkerFace,
     toggleSPMarkerForceHidden,
     showSPMarkerForceHidden,
-    isSyncing,
-    pinnedCards,
-    selectedCard,
-    displayCardNo,
-    setDisplayCardNo,
+  } = useSPMarkerState();
+
+  const {
     isDiceVisible,
-    setIsDiceVisible,
+    setDiceVisible,
     isCoinVisible,
-    setIsCoinVisible,
+    setCoinVisible,
     isLPVisible,
-    setIsLPVisible,
+    setLPVisible,
     isCardWidgetVisible,
-    setIsCardWidgetVisible,
+    setCardWidgetVisible,
     initialLP,
     setInitialLP,
     onlyShowPlayer1,
     setOnlyShowPlayer1,
-    rootFolderName,
-    setRootFolderName
-  } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
+    activePreset,
+    setActivePreset
+  } = useWidgetSettings();
 
   // Sync folder name for caching logic
   const prevFolderRef = useRef(rootFolderName);
@@ -84,10 +93,7 @@ function App() {
     }
   }, [rootHandle?.name, savedRootName, rootFolderName, setRootFolderName]);
 
-  // Widget States
-  const [gameMode, setGameMode] = useState<GameMode>(() => {
-    return (localStorage.getItem('tcg_remote_game_mode') as GameMode) || 'yugioh';
-  });
+
   const [diceValue, setDiceValue] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [coinValue, setCoinValue] = useState<1 | 0>(1);
   const [diceKey, setDiceKey] = useState(0); // For forcing re-render of dice roll animation
@@ -221,7 +227,7 @@ function App() {
     // 3. IMPORTANT: Ensure all widgets have AT LEAST a default state in the snapshot
     // If a widget has never been moved, it might be missing from externalStates.
     // We should populate it with defaults so group transformations can apply to it.
-    const allKnownIds: WidgetId[] = ['card_widget', 'yugioh', 'hololive_sp_marker', 'dice', 'coin'];
+    const allKnownIds: WidgetId[] = ['card_widget', 'lp_calculator', 'sp_marker', 'dice', 'coin'];
     for (const id of allKnownIds) {
       if (!snapshot[id]) {
         snapshot[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
@@ -257,8 +263,8 @@ function App() {
   // Widget visibility map
   const getVisibilityMap = useCallback((): Record<WidgetId, boolean> => ({
     card_widget: isCardWidgetVisible,
-    yugioh: isLPVisible,
-    hololive_sp_marker: isSPMarkerVisible && !showSPMarkerForceHidden,
+    lp_calculator: isLPVisible,
+    sp_marker: isSPMarkerVisible && !showSPMarkerForceHidden,
     dice: isDiceVisible,
     coin: isCoinVisible,
   }), [isCardWidgetVisible, isLPVisible, isSPMarkerVisible, showSPMarkerForceHidden, isDiceVisible, isCoinVisible]);
@@ -708,10 +714,10 @@ function App() {
   }, [videoSource]);
 
   // Shared State
-  // Persist gameMode
+  // Persist activePreset
   useEffect(() => {
-    localStorage.setItem('tcg_remote_game_mode', gameMode);
-  }, [gameMode]);
+    localStorage.setItem('tcg_remote_active_preset', activePreset);
+  }, [activePreset]);
 
   // Persistent Tool State
   const lastDotTapRef = useRef<number>(0);
@@ -754,8 +760,8 @@ function App() {
     };
   }, [isSearchView]);
 
-  const handleGameModeChange = (mode: GameMode) => {
-    setGameMode(mode);
+  const handlePresetChange = (preset: DisplayPreset) => {
+    setActivePreset(preset);
   };
 
   const handleRollDice = useCallback(() => {
@@ -844,7 +850,7 @@ function App() {
       if (e.key === 'a' || e.key === 'A') {
         toggleAdjustmentMode();
       }
-      if (gameMode === 'hololive' && (e.key === 'o' || e.key === 'O')) {
+      if (activePreset === 'hololive' && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
         toggleSPMarkerForceHidden();
       }
@@ -861,7 +867,7 @@ function App() {
         const now = Date.now();
         const diff = now - lastDotTapRef.current;
 
-        if (gameMode === 'yugioh') {
+        if (activePreset === 'yugioh') {
           if (diff > 0 && diff < 150) {
             // Double tap!
             if (dotTimerRef.current) {
@@ -956,7 +962,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [gameMode, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupWidgets]);
+  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupWidgets]);
 
 
   if (import.meta.env.DEV) {
@@ -1126,7 +1132,7 @@ function App() {
         {/* Independent Card Widget */}
         {isCardWidgetVisible && (
           <OverlayWidget
-            gameMode="card_widget"
+            widgetId="card_widget"
             instanceId="card_widget"
             isSelected={selectedWidgetIds.has('card_widget')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('card_widget')}
@@ -1155,11 +1161,11 @@ function App() {
         {/* Life Points Widget (YugiohTools) */}
         {isLPVisible && (
           <OverlayWidget
-            gameMode="yugioh"
-            instanceId="yugioh"
-            isSelected={selectedWidgetIds.has('yugioh')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('yugioh')}
-            {...getGroupProps('yugioh')}
+            widgetId="lp_calculator"
+            instanceId="lp_calculator"
+            isSelected={selectedWidgetIds.has('lp_calculator')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('lp_calculator')}
+            {...getGroupProps('lp_calculator')}
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
@@ -1167,11 +1173,11 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['yugioh']}
+            externalState={externalStates['lp_calculator']}
           >
             <div className="pointer-events-auto">
-              <YugiohTools
-                key="yugioh-tools"
+              <LPCalculator
+                key="lp-calculator"
                 isOverlay={true}
                 diceValue={diceValue}
                 coinValue={coinValue === 1 ? '表' : '裏'}
@@ -1193,11 +1199,11 @@ function App() {
         {/* Independent SP Marker Widget */}
         {isSPMarkerVisible && !showSPMarkerForceHidden && (
           <OverlayWidget
-            gameMode="hololive_sp_marker"
-            instanceId="hololive_sp_marker"
-            isSelected={selectedWidgetIds.has('hololive_sp_marker')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('hololive_sp_marker')}
-            {...getGroupProps('hololive_sp_marker')}
+            widgetId="sp_marker"
+            instanceId="sp_marker"
+            isSelected={selectedWidgetIds.has('sp_marker')}
+            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('sp_marker')}
+            {...getGroupProps('sp_marker')}
             onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
@@ -1205,7 +1211,7 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['hololive_sp_marker']}
+            externalState={externalStates['sp_marker']}
           >
             <div className="pointer-events-auto">
               <SPMarkerWidget
@@ -1219,7 +1225,7 @@ function App() {
         {/* 4. Independent Dice Widget */}
         {isDiceVisible && (
           <OverlayWidget
-            gameMode="dice"
+            widgetId="dice"
             instanceId="dice"
             isSelected={selectedWidgetIds.has('dice')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('dice')}
@@ -1251,7 +1257,7 @@ function App() {
         {/* 5. Independent Coin Widget */}
         {isCoinVisible && (
           <OverlayWidget
-            gameMode="coin"
+            widgetId="coin"
             instanceId="coin"
             isSelected={selectedWidgetIds.has('coin')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('coin')}
@@ -1360,8 +1366,8 @@ function App() {
             onVideoSourceChange={setVideoSource}
             isAdjustingVideo={isAdjustingVideo}
             onToggleVideoAdjust={toggleAdjustmentMode}
-            gameMode={gameMode}
-            onGameModeChange={handleGameModeChange}
+            activePreset={activePreset}
+            onPresetChange={handlePresetChange}
             obsMode={obsMode}
             onObsModeChange={setObsMode}
             // Tab State Props (Lifted)
@@ -1379,17 +1385,17 @@ function App() {
             localCards={cards}
             metadataOrder={metadataOrder}
             isCardWidgetVisible={isCardWidgetVisible}
-            onToggleCardWidgetVisible={setIsCardWidgetVisible}
+            onToggleCardWidgetVisible={() => setCardWidgetVisible(!isCardWidgetVisible)}
             isDiceVisible={isDiceVisible}
-            onToggleDiceVisible={setIsDiceVisible}
+            onToggleDiceVisible={() => setDiceVisible(!isDiceVisible)}
             isCoinVisible={isCoinVisible}
-            onToggleCoinVisible={setIsCoinVisible}
+            onToggleCoinVisible={() => setCoinVisible(!isCoinVisible)}
             isLPVisible={isLPVisible}
-            onToggleLPVisible={setIsLPVisible}
+            onToggleLPVisible={() => setLPVisible(!isLPVisible)}
             initialLP={initialLP}
             onChangeInitialLP={setInitialLP}
             onlyShowPlayer1={onlyShowPlayer1}
-            onToggleOnlyShowPlayer1={setOnlyShowPlayer1}
+            onToggleOnlyShowPlayer1={() => setOnlyShowPlayer1(!onlyShowPlayer1)}
             isSPMarkerVisible={isSPMarkerVisible}
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}

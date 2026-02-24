@@ -4,16 +4,19 @@
 本システムは、操作を行う「コントローラー窓」と、配信ソフト（OBS等）に表示する「オーバーレイ窓」の間でリアルタイムなデータ同期を行います。
 
 ### 同信方式
-- **BroadcastChannel API**: `tcg_remote_sync` および `tcg_remote_sync_yugioh` のチャンネルを使用して、同一ブラウザ内の別タブ・別ウィンドウ間でメッセージを送信します。
+- **BroadcastChannel API**: 以下の複数の目的別チャンネルを使用して、同一ブラウザ内の別タブ・別ウィンドウ間でメッセージを送信します。
+    - `tcg_remote_sync`: ウィジェットのグループ化（Grouping）情報の同期
+    - `tcg_remote_search_sync`: カード検索状態、ピン留め、パス階層、表示番号の同期
+    - `tcg_remote_sync_lp`: ライフポイント（P1/P2/ターゲット/入力中数値）の同期
+    - `tcg_remote_widget_settings`: 全ウィジェット（ダイス、コイン、LP、カード）の表示ON/OFF、初期ライフ設定の同期
+    - `tcg_remote_sp_marker_sync`: SPマーカーの状態（表示ON/OFF、表裏面、強制非表示）の同期
 - **同期されるデータ**:
-    - ゲームモード（Yu-Gi-Oh! / Hololive）
-    - 各プレイヤーのライフポイント
-    - ダイス・コインの実行結果
-    - 背景表示モード（Normal / Green）
-    - ビデオ背景設定（ソース・反転・クロップ情報）
-    - ビデオ調整モードのON/OFF状態
-    - 選択中のカード情報
-    - カードウィジェットの表示番号 (`displayCardNo`)
+    - 各ウィジェットの表示・非表示
+    - ライフポイント、ログ、入力中の計算数値
+    - 検索フィルタ、ピン留めカードリスト、現在のパス
+    - 選択中のカード、表示番号（Shift+数字キーによる操作）
+    - ビデオ背景設定（ソース・ズーム・回転・反転・トリミング）
+    - ウィンドウ・マネージャー（単一インスタンス管理）
 
 ### オーバーレイ操作 (OverlayWidget)
 - **自由な配置と変形**: オーバーレイウィンドウ上のコンテンツは、マウス操作で自由に移動・拡大縮小・回転が可能です。
@@ -71,20 +74,26 @@
 - **直感的なアイコン**: 回転・反転操作には、機能がひと目でわかる専用のインダストリアルデザインのSVGアイコンが採用されています。
 
 ## 3. データの永続化
-以下のデータは `localStorage` に保存され、ブラウザのリロードや再起動後も保持されます。
-- `tcg_remote_obs_mode`: 背景モード
-- `hololive_search_filters`: ホロライブの検索条件
-- `hololive_pinned_cards`: ピン留めされたカードデータ
-- `hololive_selected_card`: 最後に選択したカード
-- `yugioh_p1_state` / `yugioh_p2_state`: 遊戯王のライフ・ログ
-- `overlay_widget_v4_yugioh`: 遊戯王オーバーレイの配置状態
-- `overlay_widget_v4_hololive`: ホロライブオーバーレイの配置状態
-- `overlay_widget_v4_card_widget`: カードウィジェットの配置状態
-- `tcg_remote_display_card_no`: カードウィジェットの表示番号
-- `tcg_remote_video_source`: ビデオソース選択（none / camera / screen）
-- `tcg_remote_video_crop`: ビデオの位置・ズーム・回転・反転・トリミング情報（JSON形式）
+本システムでは `localStorage` および `IndexedDB` (idb-keyval) を併用してデータを保存します。
 
-※ **`showSPMarkerForceHidden`** (Oキーによる表示/非表示トグル) は、利便性と予期せぬトラブル防止のため、永続化（保存）対象から除外されています。
+### localStorage 保存項目
+- `tcg_remote_obs_mode`: 背景モード（通常/GB/Video）
+- `tcg_remote_video_source`: ビデオソース
+- `tcg_remote_video_crop`: ビデオ調整詳細（ズーム、回転、トリミング等）
+- `tcg_remote_widget_settings_v4`: **ウィジェット表示設定**（ダイス、コイン、LP、カード表示のON/OFF、初期LP設定、Player1のみ表示等）
+- `tcg_remote_sp_marker_state_v4`: **SPマーカーの状態**（表示ON/OFF、表面/裏面状態）
+- `overlay_widget_v4_***`: 各ウィジェット（lp_calculator, card_widget等の配置座標、スケール、回転角
+- `widget_groups`: ウィジェットのグループ化構成情報
+
+### IndexedDB (idb-keyval) 保存項目
+カードデータ等の容量が大きなデータや、フォルダごとの状態管理に使用されます。
+- `tcg_remote_pinned_cards_v2`: ピン留めされた全カードデータリスト
+- `tcg_remote_current_path_v2`: 最後に開いていたフォルダの階層パス
+- `tcg_remote_selected_card_v2`: 最後に選択（クリック）したカード情報
+- `tcg_remote_display_card_no_v2`: カードウィジェットに現在表示中の番号
+- `tcg_remote_folder_cache_v1`: フォルダごとに独立した「ピン留め」「選択中カード」「現在地」のキャッシュ（最大5件）
+
+※ **`isForceHidden`** (Oキーによる一時的な非表示) は、利便性と予期せぬトラブル防止（再起動時に消えたままになるのを防ぐ）のため、永続化対象から除外されています。
 
 ## 4. キャッシュ制御
 アプリケーションの更新を確実に反映させるため、以下の仕組みを導入しています。

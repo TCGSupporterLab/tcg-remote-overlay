@@ -14,16 +14,16 @@ TCG Remote Overlayは、リモート環境でのカードゲーム対戦をサ�
 - [ホロライブデータ開発ルール (Data Development Rule)](./core/hololive_data_development_rule.md)
 - [カードデータ形式仕様 (Card Data Format)](./core/data_format.md)
 
-### 2. [ホロライブOCGツール仕様 (Hololive Toolset)](./features/hololive_toolset.md)
+### 2. [カード検索 & SPマーカー仕様 (Card Search & SP Marker)](./features/hololive_toolset.md)
 - カード検索エンジン（正規化、ひらがな対応、複数条件フィルタ）
 - ピン留め機能（最大1,000枚制限）とドラッグ＆ドロップ並び替え
 - 独立カードウィジェットとShift+数字キーによる高速切替
-- ライフポイント管理とオーバーレイ同期
+- SPマーカーの状態管理と表示
 
-### 3. [遊戯王ツール仕様 (Yu-Gi-Oh! Toolset)](./features/yugioh_toolset.md)
+### 3. [ライフ計算機仕様 (LP Calculator Widget)](./features/yugioh_toolset.md)
 - ライフポイント管理（P1/P2）
 - 計算機機能と履歴（Undo/Redo）
-- ショートカットキー操作、ログ記録
+- ショートカットキー操作、ログ記録、反転設定
 
 ### 4. [共通ツール仕様 (Common Tools)](./features/common_tools.md)
 - ダイスロール（3Dアニメーション）

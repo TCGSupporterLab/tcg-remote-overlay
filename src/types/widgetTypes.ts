@@ -1,4 +1,4 @@
-// ウィジェットの識別子。OverlayWidget の gameMode と同値。
+// ウィジェットの識別子。
 // 新ウィジェット追加時は新しい文字列を割り当てるだけで自動的にグループ化対象になる。
 export type WidgetId = string;
 

@@ -10,9 +10,9 @@ interface PlayerState {
     isRotated?: boolean;
 }
 
-const CHANNEL_NAME = 'tcg_remote_sync_yugioh';
+const CHANNEL_NAME = 'tcg_remote_sync_lp';
 
-interface YugiohToolsProps {
+interface LPCalculatorProps {
     isOverlay?: boolean;
     diceValue?: number;
     coinValue?: string;
@@ -29,7 +29,7 @@ interface YugiohToolsProps {
     onlyShowPlayer1?: boolean;
 }
 
-export const YugiohTools: React.FC<YugiohToolsProps> = ({
+export const LPCalculator: React.FC<LPCalculatorProps> = ({
     isOverlay = false,
     diceValue = 1, coinValue = '表', diceKey = 0, coinKey = 0,
     onDiceClick, onCoinClick,
@@ -39,7 +39,7 @@ export const YugiohTools: React.FC<YugiohToolsProps> = ({
     isLPVisible = true,
     initialLP = 8000,
     onlyShowPlayer1 = false
-}: YugiohToolsProps) => {
+}: LPCalculatorProps) => {
     const [p1, setP1] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [p2, setP2] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [inputValue, setInputValue] = useState<string>('');

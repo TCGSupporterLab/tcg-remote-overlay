@@ -1,4 +1,4 @@
-# ホロライブOCGツール仕様
+# カード検索 & SPマーカーウィジェット仕様 (Card Search & SP Marker Widgets)
 
 ## 1. カード検索エンジン
 

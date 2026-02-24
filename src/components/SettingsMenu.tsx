@@ -13,7 +13,7 @@ import { SettingsTabs } from './SettingsMenu/SettingsTabs';
 import type { TabType } from './SettingsMenu/SettingsTabs';
 
 type ObsMode = 'normal' | 'green';
-type GameMode = 'yugioh' | 'hololive' | 'none';
+type DisplayPreset = 'yugioh' | 'hololive' | 'none';
 
 interface SettingsMenuProps {
     onClose: () => void;
@@ -23,8 +23,8 @@ interface SettingsMenuProps {
     isAdjustingVideo: boolean;
     onToggleVideoAdjust: () => void;
     // Core App Props
-    gameMode: GameMode;
-    onGameModeChange: (mode: GameMode) => void;
+    activePreset: DisplayPreset;
+    onPresetChange: (preset: DisplayPreset) => void;
     obsMode: ObsMode;
     onObsModeChange: (mode: ObsMode) => void;
     // File System Access Props
@@ -137,8 +137,8 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
 
                         {props.activeTab === 'general' && (
                             <GeneralTab
-                                gameMode={props.gameMode}
-                                onGameModeChange={props.onGameModeChange}
+                                activePreset={props.activePreset}
+                                onPresetChange={props.onPresetChange}
                                 obsMode={props.obsMode}
                                 onObsModeChange={props.onObsModeChange}
                             />

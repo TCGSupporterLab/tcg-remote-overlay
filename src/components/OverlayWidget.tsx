@@ -4,7 +4,7 @@ import type { WidgetState, WidgetId } from '../types/widgetTypes';
 
 interface OverlayWidgetProps {
     children: React.ReactNode;
-    gameMode: string;
+    widgetId: string;
     // Group & Selection props (optional for backward compat)
     instanceId?: WidgetId;
     groupId?: string;
@@ -26,7 +26,7 @@ interface OverlayWidgetProps {
 
 export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     children,
-    gameMode,
+    widgetId,
     instanceId,
     groupId,
     isSelected = false,
@@ -46,7 +46,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         // Prefer external initial state (from App.tsx memory cache) to avoid jumps on mount
         if (externalState) return externalState;
 
-        const saved = localStorage.getItem(`overlay_widget_v4_${gameMode}`);
+        const saved = localStorage.getItem(`overlay_widget_v4_${widgetId}`);
         return saved ? JSON.parse(saved) : { px: 0, py: 0, scale: 1, rotation: 0 };
     });
 
@@ -92,7 +92,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 if (import.meta.env.DEV && (isDragging || isResizing || isRotating)) {
                     // This is normal during local drag
                 } else if (import.meta.env.DEV && ignoreExternalSyncRef.current) {
-                    console.log(`[WidgetSync] [${gameMode}] Ignored external update (Ignore Period Active)`);
+                    console.log(`[WidgetSync] [${widgetId}] Ignored external update (Ignore Period Active)`);
                 }
                 return;
             }
@@ -122,8 +122,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         if (isDragging || isResizing || isRotating) return;
 
         // ALWAYS save to localStorage when state changes and we are not busy
-        localStorage.setItem(`overlay_widget_v4_${gameMode}`, JSON.stringify(state));
-    }, [state, gameMode, isDragging, isResizing, isRotating]);
+        localStorage.setItem(`overlay_widget_v4_${widgetId}`, JSON.stringify(state));
+    }, [state, widgetId, isDragging, isResizing, isRotating]);
 
 
 
@@ -149,7 +149,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     useEffect(() => {
         const channel = new BroadcastChannel('tcg_remote_sync');
         channel.onmessage = (event) => {
-            if (event.data.type === 'WIDGET_STATE_UPDATE' && event.data.value.gameMode === gameMode) {
+            if (event.data.type === 'WIDGET_STATE_UPDATE' && event.data.value.widgetId === widgetId) {
                 // Ignore messages sent by our own tab to avoid double-processing
                 if (event.data.senderId === (window as any).TAB_ID) return;
 
@@ -162,13 +162,13 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                         Math.abs(newState.scale - state.scale) > 0.001) {
 
                         if (import.meta.env.DEV) {
-                            console.log(`[WidgetSync] [${gameMode}] Received REMOTE update, source -> sync`);
+                            console.log(`[WidgetSync] [${widgetId}] Received REMOTE update, source -> sync`);
                         }
                         lastUpdateSourceRef.current = 'sync';
                         setState(newState);
                     }
                 } else if (import.meta.env.DEV) {
-                    // console.log(`[WidgetSync] [${gameMode}] Sync ignored:`, { isDragging, ignorePeriod: ignoreExternalSyncRef.current });
+                    // console.log(`[WidgetSync] [${widgetId}] Sync ignored:`, { isDragging, ignorePeriod: ignoreExternalSyncRef.current });
                 }
             }
 
@@ -182,7 +182,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             if (ignoreTimeoutRef.current) clearTimeout(ignoreTimeoutRef.current);
         };
 
-    }, [gameMode, isDragging, isResizing, isRotating]);
+    }, [widgetId, isDragging, isResizing, isRotating]);
 
     const handleDragStart = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -305,9 +305,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             }, 150);
 
             // Notify parent of final state for group sync
-            if (onStateChange && (instanceId || gameMode)) {
+            if (onStateChange && (instanceId || widgetId)) {
                 setState(current => {
-                    onStateChange(instanceId || gameMode, current);
+                    onStateChange(instanceId || widgetId, current);
                     return current;
                 });
             }
@@ -321,7 +321,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging, isResizing, isRotating, winSize, onStateChange, instanceId, gameMode]);
+    }, [isDragging, isResizing, isRotating, winSize, onStateChange, instanceId, widgetId]);
 
     const [isSyncing, setIsSyncing] = useState(false);
     const syncTimeoutRef = useRef<any>(null);
@@ -398,8 +398,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             // Grouped widgets: select the group, not the individual widget
             if (isGrouped && groupId) {
                 onSelect(groupId, true);
-            } else if (instanceId || gameMode) {
-                onSelect(instanceId || gameMode, true);
+            } else if (instanceId || widgetId) {
+                onSelect(instanceId || widgetId, true);
             }
         }
     };
@@ -411,11 +411,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
 
     // Register container ref for rect selection
     useEffect(() => {
-        if (containerRefCallback && (instanceId || gameMode)) {
-            containerRefCallback(instanceId || gameMode, containerRef.current);
-            return () => containerRefCallback(instanceId || gameMode, null);
+        if (containerRefCallback && (instanceId || widgetId)) {
+            containerRefCallback(instanceId || widgetId, containerRef.current);
+            return () => containerRefCallback(instanceId || widgetId, null);
         }
-    }, [containerRefCallback, instanceId, gameMode]);
+    }, [containerRefCallback, instanceId, widgetId]);
 
     return (
         <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
@@ -507,7 +507,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                                 setState(newState);
 
                                 // Tell parent immediately
-                                onStateChange?.(instanceId || gameMode, newState);
+                                onStateChange?.(instanceId || widgetId, newState);
 
                                 // Ignore external updates for a short duration to let App's state catch up
                                 ignoreExternalSyncRef.current = true;

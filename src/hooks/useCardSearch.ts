@@ -36,21 +36,9 @@ interface SharedState {
     remoteCard: Card | null;
     overlayMode: 'on' | 'off';
     overlayForcedCard: Card | null;
-    spMarkerFace: 'front' | 'back';
-    isSPMarkerVisible: boolean;
-    remoteSPMarkerState: any;
-    independentMarkerState: any;
-    showSPMarkerForceHidden: boolean;
     userInteracted: boolean;
     displayCardNo: number;
     rootFolderName: string;
-    // Widget Visibility & Settings
-    isDiceVisible: boolean;
-    isCoinVisible: boolean;
-    isLPVisible: boolean;
-    isCardWidgetVisible: boolean;
-    initialLP: number;
-    onlyShowPlayer1: boolean;
 }
 
 const IS_OVERLAY = new URLSearchParams(window.location.search).get('view') === 'overlay';
@@ -59,7 +47,6 @@ const PINNED_STORAGE_KEY = 'tcg_remote_pinned_cards_v2';
 const PATH_STORAGE_KEY = 'tcg_remote_current_path_v2';
 const SELECTED_CARD_STORAGE_KEY = 'tcg_remote_selected_card_v2';
 const DISPLAY_NO_STORAGE_KEY = 'tcg_remote_display_card_no_v2';
-const WIDGET_SETTINGS_KEY = 'tcg_remote_widget_settings_v3';
 const FOLDER_CACHE_KEY = 'tcg_remote_folder_cache_v1';
 
 const channel = new BroadcastChannel(CHANNEL_NAME);
@@ -72,20 +59,9 @@ const INITIAL_STATE: SharedState = {
     remoteCard: null,
     overlayMode: 'on',
     overlayForcedCard: null,
-    isSPMarkerVisible: false,
-    spMarkerFace: 'front',
-    remoteSPMarkerState: null,
-    independentMarkerState: { x: 50, y: 50, scale: 1, rotation: 0 },
-    showSPMarkerForceHidden: false,
     userInteracted: false,
     displayCardNo: 0,
-    rootFolderName: '',
-    isDiceVisible: true,
-    isCoinVisible: true,
-    isLPVisible: true,
-    isCardWidgetVisible: true,
-    initialLP: 8000,
-    onlyShowPlayer1: false
+    rootFolderName: ''
 };
 
 let sharedState: SharedState = { ...INITIAL_STATE };
@@ -123,33 +99,8 @@ const updateShared = (patch: Partial<SharedState>) => {
         });
     }
 
-    // Widget settings persistence
-    const widgetUpdated = patch.isDiceVisible !== undefined ||
-        patch.isCoinVisible !== undefined ||
-        patch.isLPVisible !== undefined ||
-        patch.isCardWidgetVisible !== undefined ||
-        patch.initialLP !== undefined ||
-        patch.onlyShowPlayer1 !== undefined ||
-        patch.isSPMarkerVisible !== undefined ||
-        patch.spMarkerFace !== undefined ||
-        patch.showSPMarkerForceHidden !== undefined;
+    // Widget settings persistence handled by separate hook
 
-    if (widgetUpdated) {
-        const settings = {
-            isDiceVisible: sharedState.isDiceVisible,
-            isCoinVisible: sharedState.isCoinVisible,
-            isLPVisible: sharedState.isLPVisible,
-            isCardWidgetVisible: sharedState.isCardWidgetVisible,
-            initialLP: sharedState.initialLP,
-            onlyShowPlayer1: sharedState.onlyShowPlayer1,
-            isSPMarkerVisible: sharedState.isSPMarkerVisible,
-            spMarkerFace: sharedState.spMarkerFace,
-            showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden
-        };
-        set(WIDGET_SETTINGS_KEY, settings).catch(err => {
-            console.error('[Sync] Failed to persist widget settings:', err);
-        });
-    }
 
 
     // フォルダ名が変更された場合のキャッシュ処理（保存のみ・復元はApp.tsx側で行う）
@@ -190,9 +141,6 @@ interface FolderCacheEntry {
     selectedCard: Card | null;
     currentPath: string;
     displayCardNo: number;
-    isSPMarkerVisible?: boolean;
-    spMarkerFace?: 'front' | 'back';
-    showSPMarkerForceHidden?: boolean;
     lastOpened: number;
 }
 
@@ -211,9 +159,6 @@ function saveFolderCache(folderName: string, state: Partial<FolderCacheEntry>) {
             selectedCard: state.selectedCard || null,
             currentPath: state.currentPath || '',
             displayCardNo: state.displayCardNo || 0,
-            isSPMarkerVisible: sharedState.isSPMarkerVisible,
-            spMarkerFace: sharedState.spMarkerFace,
-            showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
             lastOpened: Date.now()
         };
 
@@ -244,10 +189,7 @@ export async function restoreFolderCache(folderName: string): Promise<boolean> {
                 pinnedCards: entry.pinnedCards || [],
                 selectedCard: entry.selectedCard || null,
                 currentPath: entry.currentPath || '',
-                displayCardNo: entry.displayCardNo || 0,
-                isSPMarkerVisible: entry.isSPMarkerVisible ?? sharedState.isSPMarkerVisible,
-                spMarkerFace: entry.spMarkerFace ?? sharedState.spMarkerFace,
-                showSPMarkerForceHidden: entry.showSPMarkerForceHidden ?? sharedState.showSPMarkerForceHidden
+                displayCardNo: entry.displayCardNo || 0
             });
             // 開いた日時を更新
             entry.lastOpened = Date.now();
@@ -293,12 +235,7 @@ if (!IS_OVERLAY) {
         }
     }).catch(err => console.error('[Sync] Failed to load display card no:', err));
 
-    // ウィジェット設定
-    get(WIDGET_SETTINGS_KEY).then(saved => {
-        if (saved && typeof saved === 'object') {
-            updateShared(saved as Partial<SharedState>);
-        }
-    }).catch(err => console.error('[Sync] Failed to load widget settings:', err));
+    // Widget settings handled by useWidgetSettings
 }
 
 const normalizeText = (text: string) => {
@@ -785,10 +722,6 @@ export const useCardSearch = (
         selectedCard: sharedState.selectedCard,
         overlayCard: IS_OVERLAY ? sharedState.remoteCard : (sharedState.overlayForcedCard || sharedState.selectedCard),
         overlayMode: sharedState.overlayMode,
-        isSPMarkerVisible: sharedState.isSPMarkerVisible,
-        spMarkerFace: sharedState.spMarkerFace,
-        spMarkerState: sharedState.independentMarkerState,
-        showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
         dynamicFilterOptions,
         setKeyword: (keyword: string) => updateShared({ filters: { ...sharedState.filters, keyword } }),
         updateFilter: (category: FilterCategory, value: string) => {
@@ -851,28 +784,9 @@ export const useCardSearch = (
         setSelectedCard: (card: Card | null) => updateShared({ selectedCard: card }),
         setOverlayForcedCard: (card: Card | null) => updateShared({ overlayForcedCard: card }),
         toggleOverlayMode: () => updateShared({ overlayMode: sharedState.overlayMode === 'off' ? 'on' : 'off' }),
-        toggleSPMarkerMode: () => {
-            updateShared({ isSPMarkerVisible: !sharedState.isSPMarkerVisible });
-        },
-        toggleSPMarkerFace: () => updateShared({ spMarkerFace: sharedState.spMarkerFace === 'front' ? 'back' : 'front' }),
-        toggleSPMarkerForceHidden: () => updateShared({ showSPMarkerForceHidden: !sharedState.showSPMarkerForceHidden }),
-        updateIndependentMarkerState: (s: any) => updateShared({ independentMarkerState: s }),
         resetFilters: () => updateShared({ filters: { keyword: '', categories: {} } }),
         displayCardNo: sharedState.displayCardNo,
         setDisplayCardNo: (no: number) => updateShared({ displayCardNo: no }),
-        // Widget Settings
-        isDiceVisible: sharedState.isDiceVisible,
-        setIsDiceVisible: (visible: boolean) => updateShared({ isDiceVisible: visible }),
-        isCoinVisible: sharedState.isCoinVisible,
-        setIsCoinVisible: (visible: boolean) => updateShared({ isCoinVisible: visible }),
-        isLPVisible: sharedState.isLPVisible,
-        setIsLPVisible: (visible: boolean) => updateShared({ isLPVisible: visible }),
-        isCardWidgetVisible: sharedState.isCardWidgetVisible,
-        setIsCardWidgetVisible: (visible: boolean) => updateShared({ isCardWidgetVisible: visible }),
-        initialLP: sharedState.initialLP,
-        setInitialLP: (lp: number) => updateShared({ initialLP: lp }),
-        onlyShowPlayer1: sharedState.onlyShowPlayer1,
-        setOnlyShowPlayer1: (visible: boolean) => updateShared({ onlyShowPlayer1: visible }),
         rootFolderName: sharedState.rootFolderName,
         setRootFolderName: (name: string) => updateShared({ rootFolderName: name })
     };

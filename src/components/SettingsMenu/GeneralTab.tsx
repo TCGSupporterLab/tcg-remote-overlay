@@ -1,18 +1,18 @@
 import { Layers, Monitor } from 'lucide-react';
 
-type GameMode = 'yugioh' | 'hololive' | 'none';
+type DisplayPreset = 'yugioh' | 'hololive' | 'none';
 type ObsMode = 'normal' | 'green';
 
 interface GeneralTabProps {
-    gameMode: GameMode;
-    onGameModeChange: (mode: GameMode) => void;
+    activePreset: DisplayPreset;
+    onPresetChange: (preset: DisplayPreset) => void;
     obsMode: ObsMode;
     onObsModeChange: (mode: ObsMode) => void;
 }
 
 export const GeneralTab = ({
-    gameMode,
-    onGameModeChange,
+    activePreset,
+    onPresetChange,
     obsMode,
     onObsModeChange
 }: GeneralTabProps) => (
@@ -20,33 +20,33 @@ export const GeneralTab = ({
         <section className="space-y-[8px]">
             <h3 className="text-lg font-bold mb-[8px] flex items-center gap-[6px] border-b border-white/10 pb-[8px]">
                 <Layers size={18} className="text-secondary" />
-                ゲームモード
+                表示プリセット
             </h3>
             <div className="flex gap-[8px]">
                 <button
-                    className={`flex-1 py-[8px] px-[12px] rounded-lg font-bold transition-all text-sm ${gameMode === 'none'
+                    className={`flex-1 py-[8px] px-[12px] rounded-lg font-bold transition-all text-sm ${activePreset === 'none'
                         ? 'bg-blue-600 text-white shadow-lg'
                         : 'bg-white/5 text-gray-400 hover:bg-white/10'
                         }`}
-                    onClick={() => onGameModeChange('none')}
+                    onClick={() => onPresetChange('none')}
                 >
-                    なし
+                    解除 (すべて表示)
                 </button>
                 <button
-                    className={`flex-1 py-[8px] px-[12px] rounded-lg font-bold transition-all text-sm ${gameMode === 'yugioh'
+                    className={`flex-1 py-[8px] px-[12px] rounded-lg font-bold transition-all text-sm ${activePreset === 'yugioh'
                         ? 'bg-blue-600 text-white shadow-lg'
                         : 'bg-white/5 text-gray-400 hover:bg-white/10'
                         }`}
-                    onClick={() => onGameModeChange('yugioh')}
+                    onClick={() => onPresetChange('yugioh')}
                 >
                     遊戯王
                 </button>
                 <button
-                    className={`flex-1 py-[8px] px-[12px] rounded-lg font-bold transition-all text-sm ${gameMode === 'hololive'
+                    className={`flex-1 py-[8px] px-[12px] rounded-lg font-bold transition-all text-sm ${activePreset === 'hololive'
                         ? 'bg-blue-600 text-white shadow-lg'
                         : 'bg-white/5 text-gray-400 hover:bg-white/10'
                         }`}
-                    onClick={() => onGameModeChange('hololive')}
+                    onClick={() => onPresetChange('hololive')}
                 >
                     ホロカ
                 </button>
