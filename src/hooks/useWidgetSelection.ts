@@ -17,6 +17,7 @@ interface UseWidgetSelectionReturn {
     updateRectSelection: (e: React.MouseEvent) => void;
     finishRectSelection: (getWidgetRects: () => Map<WidgetId, DOMRect>, transformSelection?: (ids: Set<WidgetId>) => Set<WidgetId>) => void;
     clearSelection: () => void;
+    selectIds: (ids: WidgetId[]) => void;
 }
 
 export const useWidgetSelection = (): UseWidgetSelectionReturn => {
@@ -128,6 +129,10 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
         selectionRectRef.current = null;
     }, []);
 
+    const selectIds = useCallback((ids: WidgetId[]) => {
+        setSelectedWidgetIds(new Set(ids));
+    }, []);
+
     return {
         selectedWidgetIds,
         isSelecting,
@@ -137,5 +142,6 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
         updateRectSelection,
         finishRectSelection,
         clearSelection,
+        selectIds,
     };
 };

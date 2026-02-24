@@ -118,6 +118,7 @@ function App() {
     updateRectSelection,
     finishRectSelection,
     clearSelection,
+    selectIds,
   } = useWidgetSelection();
 
   const widgetRefsMap = useRef<Map<WidgetId, HTMLDivElement>>(new Map());
@@ -482,8 +483,15 @@ function App() {
       let changed = false;
       const next = { ...prev };
       for (const id in updates) {
-        const u = updates[id as WidgetId];
+        const raw = updates[id as WidgetId];
         const p = prev[id as WidgetId];
+
+        const u = {
+          ...raw,
+          px: Math.min(Math.max(raw.px, -0.52), 0.52),
+          py: Math.min(Math.max(raw.py, -0.52), 0.52),
+        };
+
         liveWidgetStatesRef.current[id as WidgetId] = u;
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
@@ -534,7 +542,15 @@ function App() {
         relativeTransforms: newTransforms,
       };
     });
-  }, []);
+
+    // Maintain selection for released members so they stay visible/accessible
+    const group = groupData.groups.find(g => g.id === groupId);
+    if (group) {
+      selectIds(group.memberIds);
+    } else {
+      clearSelection();
+    }
+  }, [groupData, selectIds, clearSelection]);
 
   // Handle state change from anchor widget (propagate to group members)
   const handleWidgetStateChange = useCallback((id: WidgetId, newState: WidgetState) => {
@@ -581,14 +597,20 @@ function App() {
       const updates = { ...newExternalStates, [id]: newState };
 
       for (const widgetId in updates) {
-        const u = updates[widgetId as WidgetId];
+        const raw = updates[widgetId as WidgetId];
         const p = prev[widgetId as WidgetId];
+
+        // Safety Clamp: Don't let widget center leave screen significantly
+        const u = {
+          ...raw,
+          px: Math.min(Math.max(raw.px, -0.52), 0.52),
+          py: Math.min(Math.max(raw.py, -0.52), 0.52),
+        };
 
         // Batch update the live cache
         liveWidgetStatesRef.current[widgetId as WidgetId] = u;
 
-        // Very small threshold just to prevent JS floating point "noise" loops, 
-        // but large enough to NOT cause visual drifting/jumping.
+        // Very small threshold just to prevent JS floating point "noise" loops
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
           Math.abs(u.py - p.py) > 0.00001 ||
@@ -597,8 +619,6 @@ function App() {
           next[widgetId as WidgetId] = u;
           changed = true;
         }
-
-
       }
       return changed ? next : prev;
     });
@@ -1014,6 +1034,29 @@ function App() {
         className="absolute inset-0 flex flex-col overflow-hidden z-10"
         style={{ pointerEvents: !isAdjustingVideo ? 'auto' : (isSelecting ? 'auto' : 'none') }}
         onMouseDown={(e) => {
+          // 1. Check if Ctrl+Click on background (hit testing for group bounding boxes)
+          const isCtrl = e.ctrlKey || e.metaKey;
+          if (isCtrl && (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget)) {
+            const rects = getWidgetRects();
+            const hitGroup = groupData.groups.find(group => {
+              const memberRects = group.memberIds.map(id => rects.get(id)).filter(Boolean) as DOMRect[];
+              if (memberRects.length === 0) return false;
+              const left = Math.min(...memberRects.map(r => r.left)) - 8;
+              const top = Math.min(...memberRects.map(r => r.top)) - 8;
+              const right = Math.max(...memberRects.map(r => r.right)) + 8;
+              const bottom = Math.max(...memberRects.map(r => r.bottom)) + 8;
+              return e.clientX >= left && e.clientX <= right && e.clientY >= top && e.clientY <= bottom;
+            });
+
+            if (hitGroup) {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleSelect(hitGroup.id, true);
+              return; // Avoid starting rect selection
+            }
+          }
+
+          // 2. Standard rectangle selection start
           // Only start rect selection on direct background click (not on widgets)
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget) {
             if (!(e.target as HTMLElement).closest('.pointer-events-auto')) {

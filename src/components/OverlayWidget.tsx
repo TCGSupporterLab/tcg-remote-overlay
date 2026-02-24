@@ -449,7 +449,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 {showHandles && (
                     <div
                         ref={handleBarRef}
-                        className="absolute pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap flex items-center gap-2"
+                        className={`absolute pointer-events-auto transition-opacity z-50 whitespace-nowrap flex items-center gap-2 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                         style={{
                             left: '50%',
                             top: '50%',

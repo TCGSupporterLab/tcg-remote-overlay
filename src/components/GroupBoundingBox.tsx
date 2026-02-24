@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Move, Maximize2, RotateCw, Undo2, Unlink, Link } from 'lucide-react';
 import type { WidgetId, WidgetState } from '../types/widgetTypes';
 
@@ -39,6 +39,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     const [isResizing, setIsResizing] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
     const [visualRotateAngle, setVisualRotateAngle] = useState(0);
+    const [clampedOffset, setClampedOffset] = useState({ x: 0, y: 0 });
 
     const mouseRef = useRef({ x: 0, y: 0 });
     const manipRef = useRef<{
@@ -58,6 +59,8 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         rotateStartAngle: 0,
         initialBbox: null,
     });
+
+    const handleBarRef = useRef<HTMLDivElement>(null);
 
 
     // Track mouse position globally for hover detection
@@ -324,6 +327,41 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         };
     }, [isDragging, isResizing, isRotating, anchorId, onAnchorStateChange]);
 
+    // Viewport Clamping for group handles
+    useLayoutEffect(() => {
+        if (!handleBarRef.current || !bbox) return;
+
+        const isActivelyRotating = isRotating && manipRef.current.initialBbox;
+        const activeBbox = isActivelyRotating ? manipRef.current.initialBbox! : bbox;
+
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+
+        // Ideal position (center-bottom of bbox)
+        const margin = 12;
+        const idealX = activeBbox.x + activeBbox.w / 2;
+        const idealY = activeBbox.y + activeBbox.h + margin;
+
+        const handleWidth = handleBarRef.current.offsetWidth;
+        const handleHeight = handleBarRef.current.offsetHeight;
+        const screenMargin = 12;
+
+        const minX = screenMargin + handleWidth / 2;
+        const maxX = viewportW - screenMargin - handleWidth / 2;
+        const minY = screenMargin + handleHeight / 2;
+        const maxY = viewportH - screenMargin - handleHeight / 2;
+
+        const clampedX = Math.min(Math.max(idealX, minX), maxX);
+        const clampedY = Math.min(Math.max(idealY, minY), maxY);
+
+        const dx = clampedX - idealX;
+        const dy = clampedY - idealY;
+
+        if (Math.abs(dx - clampedOffset.x) > 0.5 || Math.abs(dy - clampedOffset.y) > 0.5) {
+            setClampedOffset({ x: dx, y: dy });
+        }
+    }, [bbox, isRotating, clampedOffset.x, clampedOffset.y]);
+
     const isActive = (isSelected || isHovered || isDragging || isResizing || isRotating) && !isDeactivated;
 
     if (!bbox || !isActive) return null;
@@ -357,12 +395,13 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
 
             {/* Handles below the bounding box */}
             <div
+                ref={handleBarRef}
                 className={`absolute pointer-events-auto flex items-center gap-2 ${(isDragging || isResizing || isRotating) ? '' : 'animate-in fade-in zoom-in duration-200'
                     }`}
                 style={{
                     left: 0,
                     top: 0,
-                    transform: `translate3d(${renderBbox.x + renderBbox.w / 2}px, ${renderBbox.h + renderBbox.y + 12}px, 0) translateX(-50%)`,
+                    transform: `translate3d(${renderBbox.x + renderBbox.w / 2 + clampedOffset.x}px, ${renderBbox.h + renderBbox.y + 12 + clampedOffset.y}px, 0) translateX(-50%)`,
                 }}
             >
 
