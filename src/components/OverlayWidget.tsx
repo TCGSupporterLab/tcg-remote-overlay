@@ -383,7 +383,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         if (Math.abs(dx - clampedOffset.x) > 0.5 || Math.abs(dy - clampedOffset.y) > 0.5) {
             setClampedOffset({ x: dx, y: dy });
         }
-    }, [state, winSize, finalScale, yOffset, clampedOffset.x, clampedOffset.y]);
+    }, [state, winSize, finalScale, yOffset, clampedOffset.x, clampedOffset.y, isGrouped, isPartOfMultiSelection]);
 
     // Determine if handles should be shown (hidden for ALL grouped widgets or multi-selected items)
     const showHandles = !isGrouped && !isPartOfMultiSelection;
