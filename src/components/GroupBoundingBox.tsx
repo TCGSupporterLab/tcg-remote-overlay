@@ -13,6 +13,7 @@ interface GroupBoundingBoxProps {
     onUngroup?: (groupId: string) => void;
     onGroup?: (memberIds: WidgetId[]) => void;
     externalAnchorState?: WidgetState;
+    isDeactivated?: boolean;
 }
 
 
@@ -27,7 +28,8 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     onManipulationStart,
     onUngroup,
     onGroup,
-    externalAnchorState
+    externalAnchorState,
+    isDeactivated = false
 }) => {
 
 
@@ -322,7 +324,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         };
     }, [isDragging, isResizing, isRotating, anchorId, onAnchorStateChange]);
 
-    const isActive = isSelected || isHovered || isDragging || isResizing || isRotating;
+    const isActive = (isSelected || isHovered || isDragging || isResizing || isRotating) && !isDeactivated;
 
     if (!bbox || !isActive) return null;
 

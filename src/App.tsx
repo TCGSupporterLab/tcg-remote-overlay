@@ -1179,8 +1179,9 @@ function App() {
 
           // HIDE individual group box if we are in a multi-selection that includes more than just this group.
           // This prevents multiple overlapping bounding boxes.
-          const isPartOfLargerSelection = selectedWidgetIds.size > 1 && selectedWidgetIds.has(group.id);
-          if (isPartOfLargerSelection) return null;
+          const isPartOfLargerSelection = isMultiSelectionActive &&
+            effectiveSelectionMembers.length > group.memberIds.length &&
+            group.memberIds.every(id => effectiveSelectionMembers.includes(id));
 
           return (
             <GroupBoundingBox
@@ -1194,6 +1195,7 @@ function App() {
               onManipulationStart={handleManipulationStart}
               onUngroup={ungroupWidgets}
               externalAnchorState={externalStates[activeAnchor]}
+              isDeactivated={isPartOfLargerSelection}
             />
           );
         })
