@@ -129,7 +129,10 @@ const updateShared = (patch: Partial<SharedState>) => {
         patch.isLPVisible !== undefined ||
         patch.isCardWidgetVisible !== undefined ||
         patch.initialLP !== undefined ||
-        patch.onlyShowPlayer1 !== undefined;
+        patch.onlyShowPlayer1 !== undefined ||
+        patch.isSPMarkerVisible !== undefined ||
+        patch.spMarkerFace !== undefined ||
+        patch.showSPMarkerForceHidden !== undefined;
 
     if (widgetUpdated) {
         const settings = {
@@ -138,7 +141,10 @@ const updateShared = (patch: Partial<SharedState>) => {
             isLPVisible: sharedState.isLPVisible,
             isCardWidgetVisible: sharedState.isCardWidgetVisible,
             initialLP: sharedState.initialLP,
-            onlyShowPlayer1: sharedState.onlyShowPlayer1
+            onlyShowPlayer1: sharedState.onlyShowPlayer1,
+            isSPMarkerVisible: sharedState.isSPMarkerVisible,
+            spMarkerFace: sharedState.spMarkerFace,
+            showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden
         };
         set(WIDGET_SETTINGS_KEY, settings).catch(err => {
             console.error('[Sync] Failed to persist widget settings:', err);
@@ -184,6 +190,9 @@ interface FolderCacheEntry {
     selectedCard: Card | null;
     currentPath: string;
     displayCardNo: number;
+    isSPMarkerVisible?: boolean;
+    spMarkerFace?: 'front' | 'back';
+    showSPMarkerForceHidden?: boolean;
     lastOpened: number;
 }
 
@@ -202,6 +211,9 @@ function saveFolderCache(folderName: string, state: Partial<FolderCacheEntry>) {
             selectedCard: state.selectedCard || null,
             currentPath: state.currentPath || '',
             displayCardNo: state.displayCardNo || 0,
+            isSPMarkerVisible: sharedState.isSPMarkerVisible,
+            spMarkerFace: sharedState.spMarkerFace,
+            showSPMarkerForceHidden: sharedState.showSPMarkerForceHidden,
             lastOpened: Date.now()
         };
 
@@ -232,7 +244,10 @@ export async function restoreFolderCache(folderName: string): Promise<boolean> {
                 pinnedCards: entry.pinnedCards || [],
                 selectedCard: entry.selectedCard || null,
                 currentPath: entry.currentPath || '',
-                displayCardNo: entry.displayCardNo || 0
+                displayCardNo: entry.displayCardNo || 0,
+                isSPMarkerVisible: entry.isSPMarkerVisible ?? sharedState.isSPMarkerVisible,
+                spMarkerFace: entry.spMarkerFace ?? sharedState.spMarkerFace,
+                showSPMarkerForceHidden: entry.showSPMarkerForceHidden ?? sharedState.showSPMarkerForceHidden
             });
             // 開いた日時を更新
             entry.lastOpened = Date.now();
