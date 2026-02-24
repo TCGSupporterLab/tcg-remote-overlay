@@ -69,6 +69,7 @@ export const MoveableController: React.FC = () => {
                         top: rect.top,
                         width: rect.width,
                         height: rect.height,
+                        rotation: rect.rotation,
                     });
                 }
             }, 0);
@@ -196,6 +197,7 @@ export const MoveableController: React.FC = () => {
                 top: rect.top,
                 width: rect.width,
                 height: rect.height,
+                rotation: rect.rotation,
             });
         }
     }, [updateWidgetState, viewSize, setActiveMoveableRect]);
@@ -264,6 +266,7 @@ export const MoveableController: React.FC = () => {
                             top: mRect.top,
                             width: mRect.width,
                             height: mRect.height,
+                            rotation: mRect.rotation,
                         });
                     }
                 }}
@@ -283,10 +286,18 @@ export const MoveableController: React.FC = () => {
                     // 操作バーへの操作は Selecto 側で無視する
                     if (target.closest('.selection-action-bar')) return false;
 
-                    const isMoveableElement = !!target.closest('[class*="moveable-"]');
-                    if (isMoveableElement) return false;
-                    const isWidget = !!target.closest('[data-widget-id]');
                     const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
+                    const isMoveableElement = !!target.closest('[class*="moveable-"]');
+                    const isControl = !!target.closest('[class*="moveable-control"]');
+
+                    // Moveableのコントロール（ハンドル）は常に避ける。
+                    // それ以外の要素（area 等）は Ctrl クリック時のみ Selecto に通す（背後のウィジェットを選択するため）。
+                    if (isMoveableElement) {
+                        if (isControl) return false;
+                        if (!isCtrl) return false;
+                    }
+
+                    const isWidget = !!target.closest('[data-widget-id]');
                     return !isWidget || isCtrl;
                 }}
                 onDragStart={(e) => {
@@ -303,20 +314,70 @@ export const MoveableController: React.FC = () => {
                     // ウィジェットでもMoveable操作ハンドルでもなく、かつCtrl同時押しでない場合は選択を解除
                     if (!isWidget && !isMoveable && !isCtrl) {
                         setSelectedWidgets([]);
-                        // Selecto 自身の内部的な選択状態（selectedTargets）もクリアしないと、
-                        // continueSelect によって次の瞬間に再選択されてしまう
                         e.currentTarget.setSelectedTargets([]);
                     }
                 }}
                 onSelectEnd={(e) => {
-                    const selected = e.selected.map(el => el.getAttribute('data-widget-id') as WidgetId);
+                    const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
+
+                    // 1. クリック位置からターゲットウィジェットを特定（Moveableエリア越しに対応）
+                    let clickedEl = e.inputEvent.target as HTMLElement;
+                    if (clickedEl.closest('[class*="moveable-area"]')) {
+                        const mouseEvent = e.inputEvent as MouseEvent;
+                        const elements = document.elementsFromPoint(mouseEvent.clientX, mouseEvent.clientY);
+                        const widget = elements.find(el => el.hasAttribute('data-widget-id'));
+                        if (widget) clickedEl = widget as HTMLElement;
+                    }
+
+                    const widgetEl = clickedEl.closest('[data-widget-id]');
+                    const clickedId = widgetEl?.getAttribute('data-widget-id') as WidgetId | undefined;
+                    const clickedGroup = clickedId ? groupData.groups.find(g => g.memberIds.includes(clickedId)) : null;
+                    const clickedTargetId = clickedGroup ? clickedGroup.id : clickedId;
+
+                    // 2. 選択状態の計算
                     const nextIds = new Set<WidgetId>();
-                    selected.forEach(id => {
-                        const group = groupData.groups.find(g => g.memberIds.includes(id));
-                        if (group) nextIds.add(group.id);
-                        else nextIds.add(id);
-                    });
-                    setSelectedWidgets(Array.from(nextIds));
+
+                    // ドラッグ範囲選択の場合は、Selecto の結果を正規化して採用
+                    if (e.rect.width > 2 || e.rect.height > 2) {
+                        e.selected.forEach(el => {
+                            const id = el.getAttribute('data-widget-id') as WidgetId;
+                            const group = groupData.groups.find(g => g.memberIds.includes(id));
+                            nextIds.add(group ? group.id : id);
+                        });
+                    } else {
+                        // クリック（単一選択またはトグル動作）の場合
+                        const currentIds = new Set(selectedWidgetIds);
+                        if (clickedTargetId) {
+                            if (isCtrl) {
+                                // トグル動作
+                                if (currentIds.has(clickedTargetId)) {
+                                    currentIds.delete(clickedTargetId);
+                                } else {
+                                    currentIds.add(clickedTargetId);
+                                }
+                            } else {
+                                // 通常クリック（これのみを選択）
+                                currentIds.clear();
+                                currentIds.add(clickedTargetId);
+                            }
+                        } else if (!isCtrl) {
+                            // 何もない場所をクリック
+                            currentIds.clear();
+                        }
+                        currentIds.forEach(id => nextIds.add(id));
+                    }
+
+                    const finalIds = Array.from(nextIds);
+                    setSelectedWidgets(finalIds);
+
+                    // 3. Selecto 内部の状態を実際の要素リストに同期
+                    const finalElements = finalIds.flatMap(id => {
+                        const group = groupData.groups.find(g => g.id === id);
+                        return group ? group.memberIds : [id];
+                    }).map(mid => document.querySelector(`[data-widget-id="${mid}"]`))
+                        .filter((el): el is HTMLElement => el !== null);
+
+                    e.currentTarget.setSelectedTargets(finalElements);
                 }}
             />
         </div>

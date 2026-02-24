@@ -19,6 +19,7 @@ interface MoveableRect {
     top: number;
     width: number;
     height: number;
+    rotation: number;
 }
 
 interface WidgetStoreState {

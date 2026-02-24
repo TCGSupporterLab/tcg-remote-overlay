@@ -18,15 +18,51 @@ export const SelectionActionBar: React.FC = () => {
     );
 
     // 配置位置の計算
-    // Moveable の Rect が取得できている場合はその直下に。
-    // そうでない場合はフォールバックとして画面下中央。
     const style: React.CSSProperties = activeMoveableRect
-        ? {
-            position: 'fixed',
-            left: `${activeMoveableRect.left + activeMoveableRect.width / 2}px`,
-            top: `${activeMoveableRect.top + activeMoveableRect.height + 12}px`,
-            transform: 'translateX(-50%)',
-        }
+        ? (() => {
+            const rect = activeMoveableRect;
+            const barHeight = 56; // 概算の高さ
+            const gap = 12;
+
+            // 回転角度の正規化 (0-360)
+            const normRotation = ((rect.rotation % 360) + 360) % 360;
+            // ハンドルが「下側」に来る角度か判定（180度付近）
+            const isHandleAtBottom = normRotation > 90 && normRotation < 270;
+
+            // デフォルトはハンドルの反対側
+            let useTop = isHandleAtBottom;
+
+            // 画面外チェック
+            const spaceAtBottom = window.innerHeight - (rect.top + rect.height + gap + barHeight);
+            const spaceAtTop = rect.top - gap - barHeight;
+
+            if (useTop && spaceAtTop < 0 && spaceAtBottom > spaceAtTop) {
+                // 上に置きたいが上が狭く、下の方が広い場合は下に切り替え
+                useTop = false;
+            } else if (!useTop && spaceAtBottom < 0 && spaceAtTop > spaceAtBottom) {
+                // 下に置きたいが下が狭く、上の方が広い場合は上に切り替え
+                useTop = true;
+            }
+
+            let topPos = useTop
+                ? rect.top - gap - barHeight
+                : rect.top + rect.height + gap;
+
+            // 最終ガード: 画面内に収める
+            topPos = Math.max(gap, Math.min(window.innerHeight - barHeight - gap, topPos));
+
+            // 左右もはみ出さないようにガード（概算幅240px）
+            const halfWidth = 120;
+            let leftPos = rect.left + rect.width / 2;
+            leftPos = Math.max(halfWidth + gap, Math.min(window.innerWidth - halfWidth - gap, leftPos));
+
+            return {
+                position: 'fixed' as const,
+                left: `${leftPos}px`,
+                top: `${topPos}px`,
+                transform: 'translateX(-50%)',
+            };
+        })()
         : {
             position: 'fixed',
             bottom: '32px',
