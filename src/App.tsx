@@ -3,8 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LPCalculator } from './components/LPCalculator';
 
 import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
-import { useWidgetSettings, type DisplayPreset } from './hooks/useWidgetSettings';
-import { useSPMarkerState } from './hooks/useSPMarkerState';
+import { useWidgetStore, type DisplayPreset } from './store/useWidgetStore';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { SettingsMenu } from './components/SettingsMenu';
 import { OverlayWidget } from './components/OverlayWidget';
@@ -15,11 +14,9 @@ import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
 import { GroupBoundingBox } from './components/GroupBoundingBox';
 import { useWidgetSelection } from './hooks/useWidgetSelection';
-import type { WidgetId, WidgetState, WidgetGroupData, WidgetGroup, RelativeTransform } from './types/widgetTypes';
+import type { WidgetId, WidgetState, WidgetGroup } from './types/widgetTypes';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
-
-type ObsMode = 'normal' | 'green';
 
 const TAB_ID = crypto.randomUUID();
 (window as any).TAB_ID = TAB_ID;
@@ -53,30 +50,54 @@ function App() {
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
   const {
-    isSPMarkerVisible,
-    spMarkerFace,
-    toggleSPMarkerMode,
-    toggleSPMarkerFace,
-    toggleSPMarkerForceHidden,
-    showSPMarkerForceHidden,
-  } = useSPMarkerState();
+    visibility,
+    settings,
+    obsMode,
+    videoSource,
+    videoCrop,
+    diceValue,
+    coinValue,
+    groupData,
+    selectedWidgetIds,
+    widgetStates,
+    setVisibility,
+    setSettings,
+    setObsMode,
+    setVideoSource,
+    setVideoCrop,
+    setDiceValue,
+    setCoinValue,
+    setGroupData,
+    updateWidgetState,
+  } = useWidgetStore();
 
   const {
     isDiceVisible,
-    setDiceVisible,
     isCoinVisible,
-    setCoinVisible,
     isLPVisible,
-    setLPVisible,
     isCardWidgetVisible,
-    setCardWidgetVisible,
+    isSPMarkerVisible,
+    showSPMarkerForceHidden,
+  } = visibility;
+
+  const {
     initialLP,
-    setInitialLP,
     onlyShowPlayer1,
-    setOnlyShowPlayer1,
     activePreset,
-    setActivePreset
-  } = useWidgetSettings();
+    spMarkerFace,
+  } = settings;
+
+  // Actions for compatibility or simplified calling
+  const setDiceVisible = (val: boolean) => setVisibility({ isDiceVisible: val });
+  const setCoinVisible = (val: boolean) => setVisibility({ isCoinVisible: val });
+  const setLPVisible = (val: boolean) => setVisibility({ isLPVisible: val });
+  const setCardWidgetVisible = (val: boolean) => setVisibility({ isCardWidgetVisible: val });
+  const setInitialLP = (val: number) => setSettings({ initialLP: val });
+  const setOnlyShowPlayer1 = (val: boolean) => setSettings({ onlyShowPlayer1: val });
+  const setActivePreset = (preset: DisplayPreset) => setSettings({ activePreset: preset });
+  const toggleSPMarkerMode = () => setVisibility({ isSPMarkerVisible: !isSPMarkerVisible });
+  const toggleSPMarkerFace = () => setSettings({ spMarkerFace: spMarkerFace === 'front' ? 'back' : 'front' });
+  const toggleSPMarkerForceHidden = () => setVisibility({ showSPMarkerForceHidden: !showSPMarkerForceHidden });
 
   // Sync folder name for caching logic
   const prevFolderRef = useRef(rootFolderName);
@@ -94,29 +115,15 @@ function App() {
   }, [rootHandle?.name, savedRootName, rootFolderName, setRootFolderName]);
 
 
-  const [diceValue, setDiceValue] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
-  const [coinValue, setCoinValue] = useState<1 | 0>(1);
   const [diceKey, setDiceKey] = useState(0); // For forcing re-render of dice roll animation
   const [coinKey, setCoinKey] = useState(0);
 
-  const [obsMode, setObsMode] = useState<ObsMode>(() => {
-    const saved = localStorage.getItem('tcg_remote_obs_mode') || 'normal';
-    return saved as ObsMode;
-  });
-  const [videoSource, setVideoSource] = useState<VideoSourceType>(() => {
-    return (localStorage.getItem('tcg_remote_video_source') || localStorage.getItem('remote_duel_video_source')) as VideoSourceType || 'none';
-  });
-  const [videoCrop, setVideoCrop] = useState<CropConfig>(() => {
-    const saved = localStorage.getItem('tcg_remote_video_crop') || localStorage.getItem('remote_duel_video_crop');
-    return saved ? JSON.parse(saved) : { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
-  });
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'guide' | 'general' | 'widgets' | 'video' | 'about'>('guide');
 
   // Widget Selection & Grouping
   const {
-    selectedWidgetIds,
     isSelecting,
     selectionRect,
     toggleSelect,
@@ -144,114 +151,30 @@ function App() {
     return rects;
   }, []);
 
-
-
   const [manipulationNonce, setManipulationNonce] = useState(0);
   const [isAnyManipulating, setIsAnyManipulating] = useState(false);
 
-  // Group Data (persisted)
-  const [groupData, setGroupData] = useState<WidgetGroupData>(() => {
-    const saved = localStorage.getItem('widget_groups');
-    return saved ? JSON.parse(saved) : { groups: [], relativeTransforms: {} };
-  });
-
-  // Persist group data
-  useEffect(() => {
-    localStorage.setItem('widget_groups', JSON.stringify(groupData));
-    const channel = new BroadcastChannel('tcg_remote_sync');
-    channel.postMessage({ type: 'WIDGET_GROUP_UPDATE', value: groupData, senderId: TAB_ID });
-    channel.close();
-  }, [groupData]);
-
-
-  // Sync group data from other windows
-  useEffect(() => {
-    const channel = new BroadcastChannel('tcg_remote_sync');
-    const handler = (e: MessageEvent) => {
-      if (e.data.senderId === TAB_ID) return; // Prevent loopback
-
-      if (e.data.type === 'WIDGET_GROUP_UPDATE') {
-        const newValue = e.data.value;
-        // Deep equality check for group data to prevent infinite reload loops
-        if (JSON.stringify(groupData) !== JSON.stringify(newValue)) {
-          setGroupData(newValue);
-        }
-      }
-
-
-    };
-
-    channel.addEventListener('message', handler);
-    return () => { channel.removeEventListener('message', handler); channel.close(); };
-  }, [groupData]);
-
-
-
-  // External state map for group member sync
-  const [externalStates, setExternalStates] = useState<Record<WidgetId, WidgetState>>(() => {
-    const initial: Record<WidgetId, WidgetState> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('overlay_widget_v4_')) {
-        const id = key.replace('overlay_widget_v4_', '');
-        try {
-          const saved = localStorage.getItem(key);
-          if (saved) initial[id as WidgetId] = JSON.parse(saved);
-        } catch (e) {
-          console.error("Failed to parse localStorage for", key, e);
-        }
-      }
-    }
-    return initial;
-  });
-
-  // Fix for rotation drift and infinite loop stabilization
+  // Cache for all widgets to avoid Store reads during rapid manipulation
+  const liveWidgetStatesRef = useRef<Record<WidgetId, WidgetState>>({});
   const manipulationStartStatesRef = useRef<Record<WidgetId, WidgetState>>({});
 
-  // Cache for all widgets to avoid localStorage reads during manipulation
-  const liveWidgetStatesRef = useRef<Record<WidgetId, WidgetState>>(externalStates);
-
-  // Sync internal cache if externalStates changes (though it's initialized above)
   useEffect(() => {
-    liveWidgetStatesRef.current = { ...externalStates };
-  }, [externalStates]);
-
+    liveWidgetStatesRef.current = widgetStates;
+  }, [widgetStates]);
 
   const handleManipulationStart = useCallback(() => {
-    // 1. Force sync live cache with latest externalStates
-    const currentStates = { ...externalStates };
-
-    // 2. Capture snapshot
-    const snapshot = { ...currentStates };
-
-    // 3. IMPORTANT: Ensure all widgets have AT LEAST a default state in the snapshot
-    // If a widget has never been moved, it might be missing from externalStates.
-    // We should populate it with defaults so group transformations can apply to it.
+    const snapshot = { ...widgetStates };
     const allKnownIds: WidgetId[] = ['card_widget', 'lp_calculator', 'sp_marker', 'dice', 'coin'];
     for (const id of allKnownIds) {
       if (!snapshot[id]) {
         snapshot[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
-        if (import.meta.env.DEV) {
-          console.log(`[App] Manipulation Start: Populated default for missing widget [${id}]`);
-        }
       }
     }
-
     liveWidgetStatesRef.current = snapshot;
     manipulationStartStatesRef.current = snapshot;
-
-    // Reset sync ignore on all children
     setIsAnyManipulating(true);
     setManipulationNonce(n => n + 1);
-
-    if (import.meta.env.DEV) {
-      console.log("[App] Manipulation Start Snapshot:", {
-        checkpoint: "Start",
-        snapshotIds: Object.keys(manipulationStartStatesRef.current),
-        states: manipulationStartStatesRef.current
-      });
-    }
-  }, [externalStates]);
+  }, [widgetStates]);
 
   const handleManipulationEnd = useCallback(() => {
     setIsAnyManipulating(false);
@@ -283,7 +206,7 @@ function App() {
 
   // Helper to map selected widget IDs to their group IDs if they belong to one.
   // This ensures that selecting ANY member of a group selects the WHOLE group.
-  const mapSelectionToGroups = useCallback((ids: Set<WidgetId>) => {
+  const mapSelectionToGroups = useCallback((ids: WidgetId[]): WidgetId[] => {
     const next = new Set<WidgetId>();
     ids.forEach(id => {
       const group = groupData.groups.find(g => g.memberIds.includes(id));
@@ -293,7 +216,7 @@ function App() {
         next.add(id);
       }
     });
-    return next;
+    return Array.from(next);
   }, [groupData.groups]);
 
   // Wrap toggleSelect to handle group mapping automatically for single-click selection
@@ -303,84 +226,6 @@ function App() {
     toggleSelect(targetId, ctrlKey);
   }, [toggleSelect, findGroupForWidget]);
 
-  // Group widgets
-  const groupWidgets = useCallback((widgetIds: WidgetId[]) => {
-    if (widgetIds.length < 2) return;
-
-    const groupId = crypto.randomUUID();
-    const anchorId = widgetIds[0];
-
-    // Read current states from the live unified cache (NOT localStorage which might be stale)
-    const states: Record<WidgetId, WidgetState> = {};
-    for (const id of widgetIds) {
-      states[id] = liveWidgetStatesRef.current[id] || { px: 0, py: 0, scale: 1, rotation: 0 };
-    }
-
-    const anchorState = states[anchorId];
-    const newRelativeTransforms: Record<WidgetId, RelativeTransform> = {};
-
-    const aspect = window.innerWidth / window.innerHeight;
-
-    for (const id of widgetIds) {
-      if (id === anchorId) {
-        newRelativeTransforms[id] = { dx: 0, dy: 0, dRotation: 0, dScale: 1 };
-      } else {
-        const dx_world = (states[id].px - anchorState.px) * aspect;
-        const dy_world = states[id].py - anchorState.py;
-        const rad = -anchorState.rotation * (Math.PI / 180);
-        const cos = Math.cos(rad);
-        const sin = Math.sin(rad);
-
-        newRelativeTransforms[id] = {
-          dx: (dx_world * cos - dy_world * sin) / anchorState.scale,
-          dy: (dx_world * sin + dy_world * cos) / anchorState.scale,
-          dRotation: states[id].rotation - anchorState.rotation,
-          dScale: anchorState.scale !== 0 ? states[id].scale / anchorState.scale : 1,
-        };
-      }
-    }
-
-    const newGroup: WidgetGroup = {
-      id: groupId,
-      memberIds: widgetIds,
-      anchorId,
-      initialAnchorState: { ...anchorState },
-      initialRelativeTransforms: { ...newRelativeTransforms }
-    };
-
-    if (import.meta.env.DEV) {
-      console.log(`[GroupDebug] Creating Group [${groupId}] - Anchor: ${anchorId}, Members: ${widgetIds.join(', ')}`);
-    }
-
-    setGroupData(prev => {
-      // Find and remove any existing groups that contain any of the widgets in this new group
-      const affectedGroupIds = new Set<string>();
-      prev.groups.forEach(g => {
-        if (g.memberIds.some(m => widgetIds.includes(m))) {
-          affectedGroupIds.add(g.id);
-        }
-      });
-
-      const otherGroups = prev.groups.filter(g => !affectedGroupIds.has(g.id));
-      const newTransforms = { ...prev.relativeTransforms };
-
-      // Clean up relative transforms for all members of the dissolved groups
-      for (const g of prev.groups) {
-        if (affectedGroupIds.has(g.id)) {
-          for (const mId of g.memberIds) {
-            delete newTransforms[mId];
-          }
-        }
-      }
-
-      return {
-        groups: [...otherGroups, newGroup],
-        relativeTransforms: { ...newTransforms, ...newRelativeTransforms },
-      };
-    });
-
-    clearSelection();
-  }, [clearSelection]);
 
   const effectiveSelectionMembers = useMemo(() => {
     const members = new Set<WidgetId>();
@@ -418,6 +263,41 @@ function App() {
   }, [isMultiSelectionActive, effectiveSelectionMembers]);
 
 
+
+  const groupWidgets = useCallback((ids: WidgetId[]) => {
+    const groupId = `group_${Date.now()}`;
+    const nextTransforms = { ...groupData.relativeTransforms };
+    const nextGroups = [...groupData.groups];
+
+    // Add new group
+    nextGroups.push({
+      id: groupId as WidgetId,
+      memberIds: ids,
+      anchorId: ids[0],
+    });
+
+    // Calc relative transforms
+    ids.forEach(id => {
+      const ms = widgetStates[id];
+      const as = widgetStates[ids[0]];
+      if (ms && as) {
+        const aspect = window.innerWidth / window.innerHeight;
+        nextTransforms[id] = {
+          dx: (ms.px - as.px) * aspect,
+          dy: ms.py - as.py,
+          dScale: ms.scale / as.scale,
+          dRotation: ms.rotation - as.rotation,
+        };
+      }
+    });
+
+    setGroupData({
+      groups: nextGroups,
+      relativeTransforms: nextTransforms,
+    });
+
+    selectIds([groupId as WidgetId]);
+  }, [groupData, widgetStates, setGroupData, selectIds]);
 
   // Handle manipulation for any selection (even if not a formal group)
   const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState, memberIds: WidgetId[]) => {
@@ -479,32 +359,27 @@ function App() {
       };
     }
 
-    setExternalStates(prev => {
-      let changed = false;
-      const next = { ...prev };
-      for (const id in updates) {
-        const raw = updates[id as WidgetId];
-        const p = prev[id as WidgetId];
+    memberIds.forEach(id => {
+      const raw = updates[id];
+      const p = widgetStates[id];
+      if (!raw) return;
 
-        const u = {
-          ...raw,
-          px: Math.min(Math.max(raw.px, -0.52), 0.52),
-          py: Math.min(Math.max(raw.py, -0.52), 0.52),
-        };
+      const u = {
+        ...raw,
+        px: Math.min(Math.max(raw.px, -0.52), 0.52),
+        py: Math.min(Math.max(raw.py, -0.52), 0.52),
+      };
 
-        liveWidgetStatesRef.current[id as WidgetId] = u;
-        if (!p ||
-          Math.abs(u.px - p.px) > 0.00001 ||
-          Math.abs(u.py - p.py) > 0.00001 ||
-          Math.abs(u.scale - p.scale) > 0.00001 ||
-          Math.abs(u.rotation - p.rotation) > 0.0001) {
-          next[id as WidgetId] = u;
-          changed = true;
-        }
+      liveWidgetStatesRef.current[id] = u;
+      if (!p ||
+        Math.abs(u.px - p.px) > 0.00001 ||
+        Math.abs(u.py - p.py) > 0.00001 ||
+        Math.abs(u.scale - p.scale) > 0.00001 ||
+        Math.abs(u.rotation - p.rotation) > 0.0001) {
+        updateWidgetState(id, u);
       }
-      return changed ? next : prev;
     });
-  }, []);
+  }, [widgetStates, updateWidgetState]);
 
 
 
@@ -513,44 +388,29 @@ function App() {
     if (import.meta.env.DEV) {
       console.log(`[GroupDebug] Dissolving Group [${groupId}]`);
     }
-    setGroupData(prev => {
-      const group = prev.groups.find(g => g.id === groupId);
-      if (!group) return prev;
+    const group = groupData.groups.find(g => g.id === groupId);
+    if (!group) return;
 
-      // Force refresh externalStates from current live cache for these members
-      // to ensure they have a clean, up-to-date baseline after dismissal.
-      setExternalStates(prevStates => {
-        const next = { ...prevStates };
-        for (const id of group.memberIds) {
-          const currentLive = liveWidgetStatesRef.current[id];
-          if (currentLive) {
-            next[id] = currentLive;
-            if (import.meta.env.DEV) {
-              console.log(`[GroupDebug] Member [${id}] released at:`, currentLive);
-            }
-          }
-        }
-        return next;
-      });
-
-      const newTransforms = { ...prev.relativeTransforms };
-      for (const id of group.memberIds) {
-        delete newTransforms[id];
+    // Force refresh Store values from current live cache for these members
+    group.memberIds.forEach(id => {
+      const currentLive = liveWidgetStatesRef.current[id];
+      if (currentLive) {
+        updateWidgetState(id, currentLive);
       }
-      return {
-        groups: prev.groups.filter(g => g.id !== groupId),
-        relativeTransforms: newTransforms,
-      };
+    });
+
+    const nextTransforms = { ...groupData.relativeTransforms };
+    for (const id of group.memberIds) {
+      delete nextTransforms[id];
+    }
+    setGroupData({
+      groups: groupData.groups.filter(g => g.id !== groupId),
+      relativeTransforms: nextTransforms,
     });
 
     // Maintain selection for released members so they stay visible/accessible
-    const group = groupData.groups.find(g => g.id === groupId);
-    if (group) {
-      selectIds(group.memberIds);
-    } else {
-      clearSelection();
-    }
-  }, [groupData, selectIds, clearSelection]);
+    selectIds(group.memberIds);
+  }, [groupData, selectIds, updateWidgetState, setGroupData]);
 
   const resetGroup = useCallback((groupId: string) => {
     const group = groupData.groups.find(g => g.id === groupId);
@@ -562,10 +422,10 @@ function App() {
 
     // 1. Update relative transforms in persistent state if we have initial ones
     if (useInitial) {
-      setGroupData(prev => ({
-        ...prev,
-        relativeTransforms: { ...prev.relativeTransforms, ...rels }
-      }));
+      setGroupData({
+        ...groupData,
+        relativeTransforms: { ...groupData.relativeTransforms, ...rels }
+      });
     }
 
     // 2. Calculate and batch update externalStates for everyone
@@ -593,15 +453,11 @@ function App() {
       };
     }
 
-    setExternalStates(prev => {
-      const next = { ...prev };
-      for (const id in updates) {
-        const u = updates[id as WidgetId];
-        next[id as WidgetId] = u;
-        liveWidgetStatesRef.current[id as WidgetId] = u;
-      }
-      return next;
-    });
+    for (const id in updates) {
+      const u = updates[id as WidgetId];
+      updateWidgetState(id as WidgetId, u);
+      liveWidgetStatesRef.current[id as WidgetId] = u;
+    }
   }, [groupData]);
 
   // Handle state change from anchor widget (propagate to group members)
@@ -642,39 +498,28 @@ function App() {
       }
     }
 
-    setExternalStates(prev => {
-      let changed = false;
-      const next = { ...prev };
-      // Include BOTH the anchor and any members in updates for local cache
-      const updates = { ...newExternalStates, [id]: newState };
+    const updates = { ...newExternalStates, [id]: newState };
+    for (const widgetId in updates) {
+      const raw = updates[widgetId as WidgetId];
+      const p = widgetStates[widgetId as WidgetId];
 
-      for (const widgetId in updates) {
-        const raw = updates[widgetId as WidgetId];
-        const p = prev[widgetId as WidgetId];
+      const u = {
+        ...raw,
+        px: Math.min(Math.max(raw.px, -0.52), 0.52),
+        py: Math.min(Math.max(raw.py, -0.52), 0.52),
+      };
 
-        // Safety Clamp: Don't let widget center leave screen significantly
-        const u = {
-          ...raw,
-          px: Math.min(Math.max(raw.px, -0.52), 0.52),
-          py: Math.min(Math.max(raw.py, -0.52), 0.52),
-        };
+      liveWidgetStatesRef.current[widgetId as WidgetId] = u;
 
-        // Batch update the live cache
-        liveWidgetStatesRef.current[widgetId as WidgetId] = u;
-
-        // Very small threshold just to prevent JS floating point "noise" loops
-        if (!p ||
-          Math.abs(u.px - p.px) > 0.00001 ||
-          Math.abs(u.py - p.py) > 0.00001 ||
-          Math.abs(u.scale - p.scale) > 0.00001 ||
-          Math.abs(u.rotation - p.rotation) > 0.001) {
-          next[widgetId as WidgetId] = u;
-          changed = true;
-        }
+      if (!p ||
+        Math.abs(u.px - p.px) > 0.00001 ||
+        Math.abs(u.py - p.py) > 0.00001 ||
+        Math.abs(u.scale - p.scale) > 0.00001 ||
+        Math.abs(u.rotation - p.rotation) > 0.001) {
+        updateWidgetState(widgetId as WidgetId, u);
       }
-      return changed ? next : prev;
-    });
-  }, [groupData, resolveActiveAnchor]);
+    }
+  }, [groupData, resolveActiveAnchor, widgetStates, updateWidgetState]);
 
 
 
@@ -824,7 +669,7 @@ function App() {
 
       // Settings / Selection toggle
       if (e.key === 'Escape') {
-        if (selectedWidgetIds.size > 0) {
+        if (selectedWidgetIds.length > 0) {
           clearSelection();
           return;
         }
@@ -856,9 +701,9 @@ function App() {
       }
 
       // G key: Group selected widgets
-      if ((e.key === 'g' || e.key === 'G') && selectedWidgetIds.size >= 2) {
+      if ((e.key === 'g' || e.key === 'G') && selectedWidgetIds.length >= 2) {
         e.preventDefault();
-        groupWidgets(Array.from(selectedWidgetIds));
+        groupWidgets(selectedWidgetIds);
       }
 
       // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
@@ -1134,7 +979,7 @@ function App() {
           <OverlayWidget
             widgetId="card_widget"
             instanceId="card_widget"
-            isSelected={selectedWidgetIds.has('card_widget')}
+            isSelected={selectedWidgetIds.includes('card_widget')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('card_widget')}
             {...getGroupProps('card_widget')}
             onSelect={handleToggleSelect}
@@ -1144,7 +989,7 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['card_widget']}
+            externalState={widgetStates['card_widget']}
           >
             <CardWidget
               hasAccess={hasAccess}
@@ -1163,7 +1008,7 @@ function App() {
           <OverlayWidget
             widgetId="lp_calculator"
             instanceId="lp_calculator"
-            isSelected={selectedWidgetIds.has('lp_calculator')}
+            isSelected={selectedWidgetIds.includes('lp_calculator')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('lp_calculator')}
             {...getGroupProps('lp_calculator')}
             onSelect={handleToggleSelect}
@@ -1173,7 +1018,7 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['lp_calculator']}
+            externalState={widgetStates['lp_calculator']}
           >
             <div className="pointer-events-auto">
               <LPCalculator
@@ -1201,7 +1046,7 @@ function App() {
           <OverlayWidget
             widgetId="sp_marker"
             instanceId="sp_marker"
-            isSelected={selectedWidgetIds.has('sp_marker')}
+            isSelected={selectedWidgetIds.includes('sp_marker')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('sp_marker')}
             {...getGroupProps('sp_marker')}
             onSelect={handleToggleSelect}
@@ -1211,7 +1056,7 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['sp_marker']}
+            externalState={widgetStates['sp_marker']}
           >
             <div className="pointer-events-auto">
               <SPMarkerWidget
@@ -1227,7 +1072,7 @@ function App() {
           <OverlayWidget
             widgetId="dice"
             instanceId="dice"
-            isSelected={selectedWidgetIds.has('dice')}
+            isSelected={selectedWidgetIds.includes('dice')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('dice')}
             {...getGroupProps('dice')}
             onSelect={handleToggleSelect}
@@ -1237,7 +1082,7 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['dice']}
+            externalState={widgetStates['dice']}
           >
             <div className="pointer-events-auto">
               <OverlayDisplay
@@ -1259,7 +1104,7 @@ function App() {
           <OverlayWidget
             widgetId="coin"
             instanceId="coin"
-            isSelected={selectedWidgetIds.has('coin')}
+            isSelected={selectedWidgetIds.includes('coin')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('coin')}
             {...getGroupProps('coin')}
             onSelect={handleToggleSelect}
@@ -1269,7 +1114,7 @@ function App() {
             parentManipulationNonce={manipulationNonce}
             isGlobalManipulating={isAnyManipulating}
             containerRefCallback={containerRefCallback}
-            externalState={externalStates['coin']}
+            externalState={widgetStates['coin']}
           >
             <div className="pointer-events-auto">
               <OverlayDisplay
@@ -1318,14 +1163,14 @@ function App() {
               groupId={group.id}
               memberIds={group.memberIds}
               anchorId={activeAnchor}
-              isSelected={selectedWidgetIds.has(group.id)}
+              isSelected={selectedWidgetIds.includes(group.id)}
               widgetRefsMap={widgetRefsMap}
               onAnchorStateChange={handleGroupDrag}
               onManipulationStart={handleManipulationStart}
               onManipulationEnd={handleManipulationEnd}
               onUngroup={ungroupWidgets}
               onReset={resetGroup}
-              externalAnchorState={externalStates[activeAnchor]}
+              externalAnchorState={widgetStates[activeAnchor]}
               isDeactivated={isPartOfLargerSelection}
               isGlobalManipulating={isAnyManipulating}
             />
@@ -1335,7 +1180,7 @@ function App() {
 
       {/* Transient Selection Bounding Box (for multiple selected independent gadgets) */}
       {
-        isMultiSelectionActive && !groupData.groups.some(g => selectedWidgetIds.has(g.id) && g.memberIds.length === effectiveSelectionMembers.length) && (
+        isMultiSelectionActive && !groupData.groups.some(g => selectedWidgetIds.includes(g.id) && g.memberIds.length === effectiveSelectionMembers.length) && (
           <GroupBoundingBox
             groupId="transient-selection"
             memberIds={effectiveSelectionMembers}
@@ -1346,7 +1191,7 @@ function App() {
             onManipulationStart={handleManipulationStart}
             onManipulationEnd={handleManipulationEnd}
             onGroup={() => groupWidgets(effectiveSelectionMembers)}
-            externalAnchorState={externalStates[effectiveSelectionMembers[0]]}
+            externalAnchorState={widgetStates[effectiveSelectionMembers[0]]}
             isGlobalManipulating={isAnyManipulating}
           />
 

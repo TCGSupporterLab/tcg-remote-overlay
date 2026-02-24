@@ -20,10 +20,14 @@
     "puppeteer": "^24.37.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-moveable": "^0.56.0",
+    "react-selecto": "^1.26.3",
+    "selecto": "^1.26.3",
     "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

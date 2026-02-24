@@ -1,55 +1,52 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import type { WidgetId } from '../types/widgetTypes';
-
-interface SelectionRect {
-    startX: number;
-    startY: number;
-    currentX: number;
-    currentY: number;
-}
+import { useWidgetStore } from '../store/useWidgetStore';
 
 interface UseWidgetSelectionReturn {
-    selectedWidgetIds: Set<WidgetId>;
+    selectedWidgetIds: WidgetId[];
     isSelecting: boolean;
-    selectionRect: SelectionRect | null;
+    selectionRect: { startX: number; startY: number; currentX: number; currentY: number } | null;
     toggleSelect: (id: WidgetId, ctrlKey: boolean) => void;
     startRectSelection: (e: React.MouseEvent) => void;
     updateRectSelection: (e: React.MouseEvent) => void;
-    finishRectSelection: (getWidgetRects: () => Map<WidgetId, DOMRect>, transformSelection?: (ids: Set<WidgetId>) => Set<WidgetId>) => void;
+    finishRectSelection: (getWidgetRects: () => Map<WidgetId, DOMRect>, transformSelection?: (ids: WidgetId[]) => WidgetId[]) => void;
     clearSelection: () => void;
     selectIds: (ids: WidgetId[]) => void;
 }
 
 export const useWidgetSelection = (): UseWidgetSelectionReturn => {
-    const [selectedWidgetIds, setSelectedWidgetIds] = useState<Set<WidgetId>>(new Set());
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
-    const selectionRectRef = useRef<SelectionRect | null>(null);
+    const {
+        selectedWidgetIds,
+        isSelecting,
+        selectionRect,
+        setSelectedWidgets,
+        setIsSelecting,
+        setSelectionRect
+    } = useWidgetStore();
+
+    const selectionRectRef = useRef(selectionRect);
+    selectionRectRef.current = selectionRect;
 
     const toggleSelect = useCallback((id: WidgetId, ctrlKey: boolean) => {
-        setSelectedWidgetIds(prev => {
-            if (ctrlKey) {
-                // Ctrl+Click: toggle selection
-                const next = new Set(prev);
-                if (next.has(id)) {
-                    next.delete(id);
-                } else {
-                    next.add(id);
-                }
-                return next;
+        if (ctrlKey) {
+            // Ctrl+Click: toggle selection
+            const next = selectedWidgetIds.includes(id)
+                ? selectedWidgetIds.filter(i => i !== id)
+                : [...selectedWidgetIds, id];
+            setSelectedWidgets(next);
+        } else {
+            // Normal click: single select (clear others)
+            if (selectedWidgetIds.length === 1 && selectedWidgetIds.includes(id)) {
+                // Clicking the same single-selected widget: deselect
+                setSelectedWidgets([]);
             } else {
-                // Normal click: single select (clear others)
-                if (prev.size === 1 && prev.has(id)) {
-                    // Clicking the same single-selected widget: deselect
-                    return new Set();
-                }
-                return new Set([id]);
+                setSelectedWidgets([id]);
             }
-        });
-    }, []);
+        }
+    }, [selectedWidgetIds, setSelectedWidgets]);
 
     const startRectSelection = useCallback((e: React.MouseEvent) => {
-        const rect: SelectionRect = {
+        const rect = {
             startX: e.clientX,
             startY: e.clientY,
             currentX: e.clientX,
@@ -57,23 +54,21 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
         };
         setIsSelecting(true);
         setSelectionRect(rect);
-        selectionRectRef.current = rect;
-    }, []);
+    }, [setIsSelecting, setSelectionRect]);
 
     const updateRectSelection = useCallback((e: React.MouseEvent) => {
         if (!selectionRectRef.current) return;
-        const updated: SelectionRect = {
+        const updated = {
             ...selectionRectRef.current,
             currentX: e.clientX,
             currentY: e.clientY,
         };
         setSelectionRect(updated);
-        selectionRectRef.current = updated;
-    }, []);
+    }, [setSelectionRect]);
 
     const finishRectSelection = useCallback((
         getWidgetRects: () => Map<WidgetId, DOMRect>,
-        transformSelection?: (ids: Set<WidgetId>) => Set<WidgetId>
+        transformSelection?: (ids: WidgetId[]) => WidgetId[]
     ) => {
         if (!selectionRectRef.current) {
             setIsSelecting(false);
@@ -86,52 +81,43 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
         const right = Math.max(sr.startX, sr.currentX);
         const bottom = Math.max(sr.startY, sr.currentY);
 
-        // Only select if drag area is meaningful (> 5px)
         const width = right - left;
         const height = bottom - top;
 
         if (width > 5 && height > 5) {
             const widgetRects = getWidgetRects();
-            let selected = new Set<WidgetId>();
+            const selected: WidgetId[] = [];
 
             widgetRects.forEach((rect, id) => {
-                // Check intersection between selection rect and widget bounding rect
                 const intersects =
                     rect.left < right &&
                     rect.right > left &&
                     rect.top < bottom &&
                     rect.bottom > top;
                 if (intersects) {
-                    selected.add(id);
+                    selected.push(id);
                 }
             });
 
-            // Allow mapping individual widget IDs to Group IDs
-            if (transformSelection) {
-                selected = transformSelection(selected);
-            }
-
-            setSelectedWidgetIds(selected);
+            const finalSelected = transformSelection ? transformSelection(selected) : selected;
+            setSelectedWidgets(finalSelected);
         } else {
-            // Very small drag or simple click on background: clear selection
-            setSelectedWidgetIds(new Set());
+            setSelectedWidgets([]);
         }
 
         setIsSelecting(false);
         setSelectionRect(null);
-        selectionRectRef.current = null;
-    }, []);
+    }, [setSelectedWidgets, setIsSelecting, setSelectionRect]);
 
     const clearSelection = useCallback(() => {
-        setSelectedWidgetIds(new Set());
+        setSelectedWidgets([]);
         setIsSelecting(false);
         setSelectionRect(null);
-        selectionRectRef.current = null;
-    }, []);
+    }, [setSelectedWidgets, setIsSelecting, setSelectionRect]);
 
     const selectIds = useCallback((ids: WidgetId[]) => {
-        setSelectedWidgetIds(new Set(ids));
-    }, []);
+        setSelectedWidgets(ids);
+    }, [setSelectedWidgets]);
 
     return {
         selectedWidgetIds,
