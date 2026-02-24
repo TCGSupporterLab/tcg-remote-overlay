@@ -122,20 +122,6 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
 
         // ALWAYS save to localStorage when state changes and we are not busy
         localStorage.setItem(`overlay_widget_v4_${gameMode}`, JSON.stringify(state));
-
-        // ONLY broadcast (cross-window) if the change originated LOCALLY in this widget
-        // If it came from external (parent) or sync (other window), parent or sender already handled it.
-        if (lastUpdateSourceRef.current === 'local') {
-            const channel = new BroadcastChannel('tcg_remote_sync');
-            const senderId = (window as any).TAB_ID || 'widget-local';
-            channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state }, senderId });
-            channel.close();
-        } else {
-            if (import.meta.env.DEV) {
-                console.log(`[WidgetSource] [${gameMode}] Source was '${lastUpdateSourceRef.current}', resetting to 'local' after sync/external save`);
-            }
-            lastUpdateSourceRef.current = 'local';
-        }
     }, [state, gameMode, isDragging, isResizing, isRotating]);
 
 
@@ -475,6 +461,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                             transition: shouldDisableTransition ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s'
                         }}
                     >
+                        {/* Hover Bridge: Invisible hit area to prevent losing hover when moving mouse from widget to handles */}
+                        <div
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[140%] h-[120px] pointer-events-auto"
+                            style={{ zIndex: -1 }}
+                        />
                         {/* Move Handle */}
                         <div
                             onMouseDown={handleDragStart}
@@ -502,12 +493,26 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                             <Maximize2 size={17} className="rotate-90" />
                         </div>
 
-                        {/* Reset Handle */}
                         <div
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setState({ px: 0, py: 0, scale: 1, rotation: 0 });
+
+                                // Reset locally
+                                lastUpdateSourceRef.current = 'local';
+                                const newState = { px: 0, py: 0, scale: 1, rotation: 0 };
+                                setState(newState);
+
+                                // Tell parent immediately
+                                onStateChange?.(instanceId || gameMode, newState);
+
+                                // Ignore external updates for a short duration to let App's state catch up
+                                ignoreExternalSyncRef.current = true;
+                                if (ignoreTimeoutRef.current) window.clearTimeout(ignoreTimeoutRef.current);
+                                ignoreTimeoutRef.current = window.setTimeout(() => {
+                                    ignoreExternalSyncRef.current = false;
+                                    ignoreTimeoutRef.current = null;
+                                }, 300);
                             }}
                             className="bg-red-600/80 hover:bg-red-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-2"
                             title="初期状態にリセット"

@@ -172,23 +172,6 @@ function App() {
         }
       }
 
-      if (e.data.type === 'WIDGET_STATE_UPDATE') {
-        const { gameMode: widgetId, state: newState } = e.data.value;
-        // 1. Sync external window's widget state to our live cache immediately
-        liveWidgetStatesRef.current[widgetId as WidgetId] = newState;
-
-        // 2. ALSO update externalStates so the UI (like BoundingBox) stays in sync across windows
-        setExternalStates(prev => {
-          const p = prev[widgetId as WidgetId];
-          if (!p ||
-            Math.abs(newState.px - p.px) > 0.00001 ||
-            Math.abs(newState.py - p.py) > 0.00001 ||
-            Math.abs(newState.rotation - p.rotation) > 0.001) {
-            return { ...prev, [widgetId as WidgetId]: newState };
-          }
-          return prev;
-        });
-      }
 
     };
 
@@ -351,11 +334,16 @@ function App() {
       }
     }
 
-    const newGroup: WidgetGroup = { id: groupId, memberIds: widgetIds, anchorId };
+    const newGroup: WidgetGroup = {
+      id: groupId,
+      memberIds: widgetIds,
+      anchorId,
+      initialAnchorState: { ...anchorState },
+      initialRelativeTransforms: { ...newRelativeTransforms }
+    };
 
     if (import.meta.env.DEV) {
       console.log(`[GroupDebug] Creating Group [${groupId}] - Anchor: ${anchorId}, Members: ${widgetIds.join(', ')}`);
-      // console.log(`[GroupDebug] Calculated Transforms:`, newRelativeTransforms);
     }
 
     setGroupData(prev => {
@@ -557,6 +545,58 @@ function App() {
       clearSelection();
     }
   }, [groupData, selectIds, clearSelection]);
+
+  const resetGroup = useCallback((groupId: string) => {
+    const group = groupData.groups.find(g => g.id === groupId);
+    if (!group) return;
+
+    const useInitial = !!(group.initialAnchorState && group.initialRelativeTransforms);
+    const anchorState = useInitial ? group.initialAnchorState! : { px: 0, py: 0, scale: 1, rotation: 0 };
+    const rels = useInitial ? group.initialRelativeTransforms! : groupData.relativeTransforms;
+
+    // 1. Update relative transforms in persistent state if we have initial ones
+    if (useInitial) {
+      setGroupData(prev => ({
+        ...prev,
+        relativeTransforms: { ...prev.relativeTransforms, ...rels }
+      }));
+    }
+
+    // 2. Calculate and batch update externalStates for everyone
+    const updates: Record<WidgetId, WidgetState> = {};
+    updates[group.anchorId] = anchorState;
+
+    const rad = anchorState.rotation * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const aspect = window.innerWidth / window.innerHeight;
+
+    for (const memberId of group.memberIds) {
+      if (memberId === group.anchorId) continue;
+      const rel = rels[memberId];
+      if (!rel) continue;
+
+      const dx_new = (rel.dx * cos - rel.dy * sin) * anchorState.scale;
+      const dy_new = (rel.dx * sin + rel.dy * cos) * anchorState.scale;
+
+      updates[memberId] = {
+        px: anchorState.px + (dx_new / aspect),
+        py: anchorState.py + dy_new,
+        rotation: anchorState.rotation + rel.dRotation,
+        scale: anchorState.scale * rel.dScale,
+      };
+    }
+
+    setExternalStates(prev => {
+      const next = { ...prev };
+      for (const id in updates) {
+        const u = updates[id as WidgetId];
+        next[id as WidgetId] = u;
+        liveWidgetStatesRef.current[id as WidgetId] = u;
+      }
+      return next;
+    });
+  }, [groupData]);
 
   // Handle state change from anchor widget (propagate to group members)
   const handleWidgetStateChange = useCallback((id: WidgetId, newState: WidgetState) => {
@@ -1278,6 +1318,7 @@ function App() {
               onManipulationStart={handleManipulationStart}
               onManipulationEnd={handleManipulationEnd}
               onUngroup={ungroupWidgets}
+              onReset={resetGroup}
               externalAnchorState={externalStates[activeAnchor]}
               isDeactivated={isPartOfLargerSelection}
               isGlobalManipulating={isAnyManipulating}

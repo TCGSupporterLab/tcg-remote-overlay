@@ -7,6 +7,8 @@ export interface WidgetGroup {
     id: string;            // グループのUUID
     memberIds: WidgetId[]; // 所属ウィジェットのID一覧
     anchorId: WidgetId;    // 基準ウィジェット
+    initialAnchorState?: WidgetState; // 結合時のアンカーの状態
+    initialRelativeTransforms?: Record<WidgetId, RelativeTransform>; // 結合時の相対座標
 }
 
 // グループ内での相対Transform（anchorからの差分）

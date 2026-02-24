@@ -16,6 +16,7 @@ interface GroupBoundingBoxProps {
     externalAnchorState?: WidgetState;
     isDeactivated?: boolean;
     isGlobalManipulating?: boolean;
+    onReset?: (groupId: string) => void;
 }
 
 
@@ -33,7 +34,8 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     onGroup,
     externalAnchorState,
     isDeactivated = false,
-    isGlobalManipulating = false
+    isGlobalManipulating = false,
+    onReset
 }) => {
 
 
@@ -106,9 +108,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 // Detect hover over bbox area
                 const mx = mouseRef.current.x;
                 const my = mouseRef.current.y;
-                // Add some bleed for the handle area below (approx 60px)
-                const isOver = mx >= newBbox.x && mx <= newBbox.x + newBbox.w &&
-                    my >= newBbox.y && my <= newBbox.y + newBbox.h + 60;
+                // Add significant bleed for small/thin widgets so handles don't flicker
+                const bleedX = 120;
+                const isOver = mx >= newBbox.x - bleedX && mx <= newBbox.x + newBbox.w + bleedX &&
+                    my >= newBbox.y && my <= newBbox.y + newBbox.h + 80;
                 setIsHovered(isOver);
             } else {
                 setBbox(null);
@@ -202,7 +205,11 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     const handleReset = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        onAnchorStateChange(anchorId, { px: 0, py: 0, scale: 1, rotation: 0 }, memberIds);
+        if (onReset) {
+            onReset(groupId);
+        } else {
+            onAnchorStateChange(anchorId, { px: 0, py: 0, scale: 1, rotation: 0 }, memberIds);
+        }
     };
 
     // Mouse move/up
@@ -431,13 +438,15 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 >
                     <Maximize2 size={17} className="rotate-90" />
                 </div>
-                <div
-                    onClick={handleReset}
-                    className="bg-red-600/80 hover:bg-red-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-2"
-                    title="初期状態にリセット"
-                >
-                    <Undo2 size={17} />
-                </div>
+                {groupId !== 'transient-selection' && (
+                    <div
+                        onClick={handleReset}
+                        className="bg-red-600/80 hover:bg-red-500 p-2 rounded-full shadow-md cursor-pointer text-white transition-transform hover:scale-110 ml-2"
+                        title="初期状態にリセット"
+                    >
+                        <Undo2 size={17} />
+                    </div>
+                )}
                 {onUngroup && (
                     <div
                         onClick={(e) => {
