@@ -28,8 +28,8 @@ OBSなどの配信ソフトでの使用や、Discord等の画面共有を用い�
 
 ### 🎲 共通機能
 - **表示プリセット**: 「遊戯王」「ホロライブ」などのプリセットを選択することで、推奨されるウィジェットの組み合わせを瞬時に呼び出せます。
-- **マルチウィンドウ同期**: `BroadcastChannel API` により、操作画面と表示画面（オーバーレイ）を別ウィンドウに分離して管理可能。
-- **単一インスタンスの保護**: 同一種別の画面が重複して開かれた場合、古いセッションを自動終了させる安全装置を搭載。
+- **カード選択同期**: `BroadcastChannel API` により、検索画面でのカード選択やピン留め状態をオーバーレイ画面へリアルタイムに同期可能。
+- **セッション管理**: 同一種別の画面が重複して開かれた場合、古いインスタンスを自動終了させる安全装置を搭載。
 
 ## 🚀 使い方
 
@@ -85,7 +85,7 @@ OBSなどの配信ソフトでの使用や、Discord等の画面共有を用い�
 - **Styling**: Vanilla CSS / Tailwind CSS
 - **Animation**: CSS Transform / Framer Motion (予定)
 - **Icons**: Lucide React
-- **Sync**: BroadcastChannel API
+- **Sync**: BroadcastChannel API (Card Selection Only)
 
 ## 📝 ライセンス
 

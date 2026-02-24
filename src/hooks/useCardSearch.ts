@@ -99,7 +99,7 @@ const updateShared = (patch: Partial<SharedState>) => {
         });
     }
 
-    // Widget settings persistence handled by separate hook
+    // Widget settings persistence handled by useWidgetStore
 
 
 
@@ -235,7 +235,7 @@ if (!IS_OVERLAY) {
         }
     }).catch(err => console.error('[Sync] Failed to load display card no:', err));
 
-    // Widget settings handled by useWidgetSettings
+    // Widget settings persistence handled by useWidgetStore
 }
 
 const normalizeText = (text: string) => {

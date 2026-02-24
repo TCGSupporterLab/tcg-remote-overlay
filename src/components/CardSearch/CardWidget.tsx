@@ -88,6 +88,7 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
                         <img
                             src={imageUrl}
                             alt={targetCard?.name}
+                            draggable="false"
                             className="h-full w-full object-cover scale-100 animate-in fade-in zoom-in duration-300 transition-transform"
                             onError={() => {
                                 // 画像の読み込みに失敗した場合（Blob URL失効など）

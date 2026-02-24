@@ -12,9 +12,9 @@ import { useLocalCards } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
 import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
-import { GroupBoundingBox } from './components/GroupBoundingBox';
 import { useWidgetSelection } from './hooks/useWidgetSelection';
-import type { WidgetId, WidgetState, WidgetGroup } from './types/widgetTypes';
+import { MoveableController } from './components/MoveableController';
+import { type WidgetId, type WidgetGroup } from './types/widgetTypes';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
 
@@ -49,27 +49,25 @@ function App() {
     setRootFolderName
   } = useCardSearch(cards, metadataOrder, mergeSameFileCards);
 
-  const {
-    visibility,
-    settings,
-    obsMode,
-    videoSource,
-    videoCrop,
-    diceValue,
-    coinValue,
-    groupData,
-    selectedWidgetIds,
-    widgetStates,
-    setVisibility,
-    setSettings,
-    setObsMode,
-    setVideoSource,
-    setVideoCrop,
-    setDiceValue,
-    setCoinValue,
-    setGroupData,
-    updateWidgetState,
-  } = useWidgetStore();
+  const visibility = useWidgetStore(s => s.visibility);
+  const settings = useWidgetStore(s => s.settings);
+  const obsMode = useWidgetStore(s => s.obsMode);
+  const videoSource = useWidgetStore(s => s.videoSource);
+  const videoCrop = useWidgetStore(s => s.videoCrop);
+  const diceValue = useWidgetStore(s => s.diceValue);
+  const coinValue = useWidgetStore(s => s.coinValue);
+  const groupData = useWidgetStore(s => s.groupData);
+  const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
+
+  const setVisibility = useWidgetStore(s => s.setVisibility);
+  const setSettings = useWidgetStore(s => s.setSettings);
+  const setObsMode = useWidgetStore(s => s.setObsMode);
+  const setVideoSource = useWidgetStore(s => s.setVideoSource);
+  const setVideoCrop = useWidgetStore(s => s.setVideoCrop);
+  const setDiceValue = useWidgetStore(s => s.setDiceValue);
+  const setCoinValue = useWidgetStore(s => s.setCoinValue);
+  const setGroupData = useWidgetStore(s => s.setGroupData);
+  const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
 
   const {
     isDiceVisible,
@@ -124,14 +122,7 @@ function App() {
 
   // Widget Selection & Grouping
   const {
-    isSelecting,
-    selectionRect,
-    toggleSelect,
-    startRectSelection,
-    updateRectSelection,
-    finishRectSelection,
     clearSelection,
-    selectIds,
   } = useWidgetSelection();
 
   const widgetRefsMap = useRef<Map<WidgetId, HTMLDivElement>>(new Map());
@@ -143,61 +134,13 @@ function App() {
     }
   }, []);
 
-  const getWidgetRects = useCallback(() => {
-    const rects = new Map<WidgetId, DOMRect>();
-    widgetRefsMap.current.forEach((el, id) => {
-      rects.set(id, el.getBoundingClientRect());
-    });
-    return rects;
-  }, []);
-
-  const [manipulationNonce, setManipulationNonce] = useState(0);
-  const [isAnyManipulating, setIsAnyManipulating] = useState(false);
-
-  // Cache for all widgets to avoid Store reads during rapid manipulation
-  const liveWidgetStatesRef = useRef<Record<WidgetId, WidgetState>>({});
-  const manipulationStartStatesRef = useRef<Record<WidgetId, WidgetState>>({});
-
-  useEffect(() => {
-    liveWidgetStatesRef.current = widgetStates;
-  }, [widgetStates]);
-
-  const handleManipulationStart = useCallback(() => {
-    const snapshot = { ...widgetStates };
-    const allKnownIds: WidgetId[] = ['card_widget', 'lp_calculator', 'sp_marker', 'dice', 'coin'];
-    for (const id of allKnownIds) {
-      if (!snapshot[id]) {
-        snapshot[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
-      }
-    }
-    liveWidgetStatesRef.current = snapshot;
-    manipulationStartStatesRef.current = snapshot;
-    setIsAnyManipulating(true);
-    setManipulationNonce(n => n + 1);
-  }, [widgetStates]);
-
-  const handleManipulationEnd = useCallback(() => {
-    setIsAnyManipulating(false);
-  }, []);
-
-
-
 
   // Widget visibility map
-  const getVisibilityMap = useCallback((): Record<WidgetId, boolean> => ({
-    card_widget: isCardWidgetVisible,
-    lp_calculator: isLPVisible,
-    sp_marker: isSPMarkerVisible && !showSPMarkerForceHidden,
-    dice: isDiceVisible,
-    coin: isCoinVisible,
-  }), [isCardWidgetVisible, isLPVisible, isSPMarkerVisible, showSPMarkerForceHidden, isDiceVisible, isCoinVisible]);
 
-  // Resolve active anchor (handles hidden anchor)
-  const resolveActiveAnchor = useCallback((group: WidgetGroup): WidgetId | null => {
-    const vis = getVisibilityMap();
-    if (vis[group.anchorId]) return group.anchorId;
-    return group.memberIds.find(id => vis[id]) ?? null;
-  }, [getVisibilityMap]);
+
+
+
+
 
   // Find group for a widget
   const findGroupForWidget = useCallback((widgetId: WidgetId): WidgetGroup | undefined => {
@@ -206,25 +149,8 @@ function App() {
 
   // Helper to map selected widget IDs to their group IDs if they belong to one.
   // This ensures that selecting ANY member of a group selects the WHOLE group.
-  const mapSelectionToGroups = useCallback((ids: WidgetId[]): WidgetId[] => {
-    const next = new Set<WidgetId>();
-    ids.forEach(id => {
-      const group = groupData.groups.find(g => g.memberIds.includes(id));
-      if (group) {
-        next.add(group.id);
-      } else {
-        next.add(id);
-      }
-    });
-    return Array.from(next);
-  }, [groupData.groups]);
 
   // Wrap toggleSelect to handle group mapping automatically for single-click selection
-  const handleToggleSelect = useCallback((id: WidgetId, ctrlKey: boolean) => {
-    const group = findGroupForWidget(id);
-    const targetId = group ? group.id : id;
-    toggleSelect(targetId, ctrlKey);
-  }, [toggleSelect, findGroupForWidget]);
 
 
   const effectiveSelectionMembers = useMemo(() => {
@@ -253,12 +179,6 @@ function App() {
   useEffect(() => {
     if (import.meta.env.DEV && isMultiSelectionActive) {
       console.log(`[SelectionDebug] Multiple objects selected: ${effectiveSelectionMembers.join(', ')}`);
-      effectiveSelectionMembers.forEach(id => {
-        const st = liveWidgetStatesRef.current[id as WidgetId];
-        if (st) {
-          console.log(`[SelectionDebug] State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}`);
-        }
-      });
     }
   }, [isMultiSelectionActive, effectiveSelectionMembers]);
 
@@ -277,6 +197,7 @@ function App() {
     });
 
     // Calc relative transforms
+    const { widgetStates } = useWidgetStore.getState();
     ids.forEach(id => {
       const ms = widgetStates[id];
       const as = widgetStates[ids[0]];
@@ -296,249 +217,22 @@ function App() {
       relativeTransforms: nextTransforms,
     });
 
-    selectIds([groupId as WidgetId]);
-  }, [groupData, widgetStates, setGroupData, selectIds]);
+    setSelectedWidgets([groupId as WidgetId]);
+  }, [groupData, setGroupData, setSelectedWidgets]);
 
-  // Handle manipulation for any selection (even if not a formal group)
-  const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState, memberIds: WidgetId[]) => {
-    // 1. Get snapshot state from the start of manipulation
-    const startStates = manipulationStartStatesRef.current;
-    const anchorPrevState = startStates[anchorId];
 
-    if (!anchorPrevState || !anchorPrevState.scale) {
-      if (import.meta.env.DEV) {
-        console.warn(`[App] TransientDrag ABORT: Missing startState for anchor ${anchorId}`, {
-          availableIds: Object.keys(startStates)
-        });
-      }
-      return;
-    }
-
-    if (import.meta.env.DEV) {
-      // console.log(`[App] TransientDrag [${anchorId}] - Members: ${memberIds.join(', ')}`);
-    }
-
-    const updates: Record<WidgetId, WidgetState> = {};
-    updates[anchorId] = newAnchorState;
-
-    // 2. Apply rigid transformation using start-of-drag snapshot
-    const radPrev = -anchorPrevState.rotation * (Math.PI / 180);
-    const cosPrev = Math.cos(radPrev);
-    const sinPrev = Math.sin(radPrev);
-
-    const radNew = newAnchorState.rotation * (Math.PI / 180);
-    const cosNew = Math.cos(radNew);
-    const sinNew = Math.sin(radNew);
-
-    const aspect = window.innerWidth / window.innerHeight;
-
-    for (const memberId of memberIds) {
-      if (memberId === anchorId) continue;
-
-      const memberState = startStates[memberId];
-      if (!memberState || !memberState.scale) continue;
-
-      // Calculate relative position in anchor's ORIGINAL local space
-      const dx_world = (memberState.px - anchorPrevState.px) * aspect;
-      const dy_world = memberState.py - anchorPrevState.py;
-      const lx = (dx_world * cosPrev - dy_world * sinPrev) / anchorPrevState.scale;
-      const ly = (dx_world * sinPrev + dy_world * cosPrev) / anchorPrevState.scale;
-
-      // Map back to world space using anchor's NEW state
-      const dx_new = (lx * cosNew - ly * sinNew) * newAnchorState.scale;
-      const dy_new = (lx * sinNew + ly * cosNew) * newAnchorState.scale;
-
-      const dr = memberState.rotation - anchorPrevState.rotation;
-      const ds = memberState.scale / anchorPrevState.scale;
-
-      updates[memberId] = {
-        px: newAnchorState.px + (dx_new / aspect),
-        py: newAnchorState.py + dy_new,
-        rotation: newAnchorState.rotation + dr,
-        scale: newAnchorState.scale * ds,
-      };
-    }
-
-    memberIds.forEach(id => {
-      const raw = updates[id];
-      const p = widgetStates[id];
-      if (!raw) return;
-
-      const u = {
-        ...raw,
-        px: Math.min(Math.max(raw.px, -0.52), 0.52),
-        py: Math.min(Math.max(raw.py, -0.52), 0.52),
-      };
-
-      liveWidgetStatesRef.current[id] = u;
-      if (!p ||
-        Math.abs(u.px - p.px) > 0.00001 ||
-        Math.abs(u.py - p.py) > 0.00001 ||
-        Math.abs(u.scale - p.scale) > 0.00001 ||
-        Math.abs(u.rotation - p.rotation) > 0.0001) {
-        updateWidgetState(id, u);
-      }
-    });
-  }, [widgetStates, updateWidgetState]);
 
 
 
   // Ungroup
-  const ungroupWidgets = useCallback((groupId: string) => {
-    if (import.meta.env.DEV) {
-      console.log(`[GroupDebug] Dissolving Group [${groupId}]`);
-    }
-    const group = groupData.groups.find(g => g.id === groupId);
-    if (!group) return;
-
-    // Force refresh Store values from current live cache for these members
-    group.memberIds.forEach(id => {
-      const currentLive = liveWidgetStatesRef.current[id];
-      if (currentLive) {
-        updateWidgetState(id, currentLive);
-      }
-    });
-
-    const nextTransforms = { ...groupData.relativeTransforms };
-    for (const id of group.memberIds) {
-      delete nextTransforms[id];
-    }
-    setGroupData({
-      groups: groupData.groups.filter(g => g.id !== groupId),
-      relativeTransforms: nextTransforms,
-    });
-
-    // Maintain selection for released members so they stay visible/accessible
-    selectIds(group.memberIds);
-  }, [groupData, selectIds, updateWidgetState, setGroupData]);
-
-  const resetGroup = useCallback((groupId: string) => {
-    const group = groupData.groups.find(g => g.id === groupId);
-    if (!group) return;
-
-    const useInitial = !!(group.initialAnchorState && group.initialRelativeTransforms);
-    const anchorState = useInitial ? group.initialAnchorState! : { px: 0, py: 0, scale: 1, rotation: 0 };
-    const rels = useInitial ? group.initialRelativeTransforms! : groupData.relativeTransforms;
-
-    // 1. Update relative transforms in persistent state if we have initial ones
-    if (useInitial) {
-      setGroupData({
-        ...groupData,
-        relativeTransforms: { ...groupData.relativeTransforms, ...rels }
-      });
-    }
-
-    // 2. Calculate and batch update externalStates for everyone
-    const updates: Record<WidgetId, WidgetState> = {};
-    updates[group.anchorId] = anchorState;
-
-    const rad = anchorState.rotation * (Math.PI / 180);
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    const aspect = window.innerWidth / window.innerHeight;
-
-    for (const memberId of group.memberIds) {
-      if (memberId === group.anchorId) continue;
-      const rel = rels[memberId];
-      if (!rel) continue;
-
-      const dx_new = (rel.dx * cos - rel.dy * sin) * anchorState.scale;
-      const dy_new = (rel.dx * sin + rel.dy * cos) * anchorState.scale;
-
-      updates[memberId] = {
-        px: anchorState.px + (dx_new / aspect),
-        py: anchorState.py + dy_new,
-        rotation: anchorState.rotation + rel.dRotation,
-        scale: anchorState.scale * rel.dScale,
-      };
-    }
-
-    for (const id in updates) {
-      const u = updates[id as WidgetId];
-      updateWidgetState(id as WidgetId, u);
-      liveWidgetStatesRef.current[id as WidgetId] = u;
-    }
-  }, [groupData]);
-
-  // Handle state change from anchor widget (propagate to group members)
-  const handleWidgetStateChange = useCallback((id: WidgetId, newState: WidgetState) => {
-    if (import.meta.env.DEV) {
-      console.log(`[App] StateChange [${id}] - Final State Received:`, newState);
-    }
-    // 1. ALWAYS update the live cache first, regardless of group membership
-    liveWidgetStatesRef.current[id] = newState;
-
-    const group = groupData.groups.find(g => {
-      const activeAnchor = resolveActiveAnchor(g);
-      return activeAnchor === id;
-    });
-
-    const newExternalStates: Record<WidgetId, WidgetState> = {};
-    if (group) {
-      const rad = newState.rotation * (Math.PI / 180);
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-      const aspect = window.innerWidth / window.innerHeight;
-
-      for (const memberId of group.memberIds) {
-        if (memberId === id) continue;
-        const rel = groupData.relativeTransforms[memberId];
-        if (!rel) continue;
-
-        // Apply rigid transform using local offsets stored in rel.dx, rel.dy
-        const dx_new = (rel.dx * cos - rel.dy * sin) * newState.scale;
-        const dy_new = (rel.dx * sin + rel.dy * cos) * newState.scale;
-
-        newExternalStates[memberId] = {
-          px: newState.px + (dx_new / aspect),
-          py: newState.py + dy_new,
-          rotation: newState.rotation + rel.dRotation,
-          scale: newState.scale * rel.dScale,
-        };
-      }
-    }
-
-    const updates = { ...newExternalStates, [id]: newState };
-    for (const widgetId in updates) {
-      const raw = updates[widgetId as WidgetId];
-      const p = widgetStates[widgetId as WidgetId];
-
-      const u = {
-        ...raw,
-        px: Math.min(Math.max(raw.px, -0.52), 0.52),
-        py: Math.min(Math.max(raw.py, -0.52), 0.52),
-      };
-
-      liveWidgetStatesRef.current[widgetId as WidgetId] = u;
-
-      if (!p ||
-        Math.abs(u.px - p.px) > 0.00001 ||
-        Math.abs(u.py - p.py) > 0.00001 ||
-        Math.abs(u.scale - p.scale) > 0.00001 ||
-        Math.abs(u.rotation - p.rotation) > 0.001) {
-        updateWidgetState(widgetId as WidgetId, u);
-      }
-    }
-  }, [groupData, resolveActiveAnchor, widgetStates, updateWidgetState]);
 
 
 
 
 
-  // Handle group drag (from GroupBoundingBox handles)
-  // We use exactly the same rigid transformation logic as transient drag
-  const handleGroupDrag = handleTransientDrag;
 
 
-  // Helper to get group props for a widget
-  const getGroupProps = useCallback((widgetId: WidgetId) => {
-    const group = findGroupForWidget(widgetId);
-    if (!group) return { isGrouped: false, groupId: undefined };
-    return {
-      isGrouped: true,
-      groupId: group.id,
-    };
-  }, [findGroupForWidget]);
+
 
 
   // Apply OBS mode class to body
@@ -549,19 +243,10 @@ function App() {
     }
   }, [obsMode]);
 
-  // Persist OBS mode & Video settings
-  useEffect(() => {
-    localStorage.setItem('tcg_remote_obs_mode', obsMode);
-  }, [obsMode]);
-
-  useEffect(() => {
-    localStorage.setItem('tcg_remote_video_source', videoSource);
-  }, [videoSource]);
-
   // Shared State
   // Persist activePreset
   useEffect(() => {
-    localStorage.setItem('tcg_remote_active_preset', activePreset);
+    // Already handled by useWidgetStore subscriber
   }, [activePreset]);
 
   // Persistent Tool State
@@ -929,49 +614,7 @@ function App() {
       {/* 2 & 3. GB and Widgets Layer */}
       <main
         className="absolute inset-0 flex flex-col overflow-hidden z-10"
-        style={{ pointerEvents: !isAdjustingVideo ? 'auto' : (isSelecting ? 'auto' : 'none') }}
-        onMouseDown={(e) => {
-          // 1. Check if Ctrl+Click on background (hit testing for group bounding boxes)
-          const isCtrl = e.ctrlKey || e.metaKey;
-          if (isCtrl && (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget)) {
-            const rects = getWidgetRects();
-            const hitGroup = groupData.groups.find(group => {
-              const memberRects = group.memberIds.map(id => rects.get(id)).filter(Boolean) as DOMRect[];
-              if (memberRects.length === 0) return false;
-              const left = Math.min(...memberRects.map(r => r.left)) - 8;
-              const top = Math.min(...memberRects.map(r => r.top)) - 8;
-              const right = Math.max(...memberRects.map(r => r.right)) + 8;
-              const bottom = Math.max(...memberRects.map(r => r.bottom)) + 8;
-              return e.clientX >= left && e.clientX <= right && e.clientY >= top && e.clientY <= bottom;
-            });
-
-            if (hitGroup) {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleSelect(hitGroup.id, true);
-              return; // Avoid starting rect selection
-            }
-          }
-
-          // 2. Standard rectangle selection start
-          // Only start rect selection on direct background click (not on widgets)
-          if (e.target === e.currentTarget || (e.target as HTMLElement).closest('main') === e.currentTarget) {
-            if (!(e.target as HTMLElement).closest('.pointer-events-auto')) {
-              e.preventDefault(); // Prevent browser text selection
-              startRectSelection(e);
-            }
-          }
-        }}
-        onMouseMove={(e) => {
-          if (isSelecting) {
-            updateRectSelection(e);
-          }
-        }}
-        onMouseUp={() => {
-          if (isSelecting) {
-            finishRectSelection(getWidgetRects, mapSelectionToGroups);
-          }
-        }}
+        style={{ pointerEvents: !isAdjustingVideo ? 'auto' : 'none' }}
       >
 
         {/* Independent Card Widget */}
@@ -979,17 +622,9 @@ function App() {
           <OverlayWidget
             widgetId="card_widget"
             instanceId="card_widget"
-            isSelected={selectedWidgetIds.includes('card_widget')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('card_widget')}
-            {...getGroupProps('card_widget')}
-            onSelect={handleToggleSelect}
-            onStateChange={handleWidgetStateChange}
-            onManipulationStart={handleManipulationStart}
-            onManipulationEnd={handleManipulationEnd}
-            parentManipulationNonce={manipulationNonce}
-            isGlobalManipulating={isAnyManipulating}
+            isSelected={effectiveSelectionMembers.includes('card_widget')}
+            isGrouped={!!findGroupForWidget('card_widget')}
             containerRefCallback={containerRefCallback}
-            externalState={widgetStates['card_widget']}
           >
             <CardWidget
               hasAccess={hasAccess}
@@ -1008,17 +643,9 @@ function App() {
           <OverlayWidget
             widgetId="lp_calculator"
             instanceId="lp_calculator"
-            isSelected={selectedWidgetIds.includes('lp_calculator')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('lp_calculator')}
-            {...getGroupProps('lp_calculator')}
-            onSelect={handleToggleSelect}
-            onStateChange={handleWidgetStateChange}
-            onManipulationStart={handleManipulationStart}
-            onManipulationEnd={handleManipulationEnd}
-            parentManipulationNonce={manipulationNonce}
-            isGlobalManipulating={isAnyManipulating}
+            isSelected={effectiveSelectionMembers.includes('lp_calculator')}
+            isGrouped={!!findGroupForWidget('lp_calculator')}
             containerRefCallback={containerRefCallback}
-            externalState={widgetStates['lp_calculator']}
           >
             <div className="pointer-events-auto">
               <LPCalculator
@@ -1046,17 +673,9 @@ function App() {
           <OverlayWidget
             widgetId="sp_marker"
             instanceId="sp_marker"
-            isSelected={selectedWidgetIds.includes('sp_marker')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('sp_marker')}
-            {...getGroupProps('sp_marker')}
-            onSelect={handleToggleSelect}
-            onStateChange={handleWidgetStateChange}
-            onManipulationStart={handleManipulationStart}
-            onManipulationEnd={handleManipulationEnd}
-            parentManipulationNonce={manipulationNonce}
-            isGlobalManipulating={isAnyManipulating}
+            isSelected={effectiveSelectionMembers.includes('sp_marker')}
+            isGrouped={!!findGroupForWidget('sp_marker')}
             containerRefCallback={containerRefCallback}
-            externalState={widgetStates['sp_marker']}
           >
             <div className="pointer-events-auto">
               <SPMarkerWidget
@@ -1072,17 +691,9 @@ function App() {
           <OverlayWidget
             widgetId="dice"
             instanceId="dice"
-            isSelected={selectedWidgetIds.includes('dice')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('dice')}
-            {...getGroupProps('dice')}
-            onSelect={handleToggleSelect}
-            onStateChange={handleWidgetStateChange}
-            onManipulationStart={handleManipulationStart}
-            onManipulationEnd={handleManipulationEnd}
-            parentManipulationNonce={manipulationNonce}
-            isGlobalManipulating={isAnyManipulating}
+            isSelected={effectiveSelectionMembers.includes('dice')}
+            isGrouped={!!findGroupForWidget('dice')}
             containerRefCallback={containerRefCallback}
-            externalState={widgetStates['dice']}
           >
             <div className="pointer-events-auto">
               <OverlayDisplay
@@ -1104,17 +715,9 @@ function App() {
           <OverlayWidget
             widgetId="coin"
             instanceId="coin"
-            isSelected={selectedWidgetIds.includes('coin')}
-            isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('coin')}
-            {...getGroupProps('coin')}
-            onSelect={handleToggleSelect}
-            onStateChange={handleWidgetStateChange}
-            onManipulationStart={handleManipulationStart}
-            onManipulationEnd={handleManipulationEnd}
-            parentManipulationNonce={manipulationNonce}
-            isGlobalManipulating={isAnyManipulating}
+            isSelected={effectiveSelectionMembers.includes('coin')}
+            isGrouped={!!findGroupForWidget('coin')}
             containerRefCallback={containerRefCallback}
-            externalState={widgetStates['coin']}
           >
             <div className="pointer-events-auto">
               <OverlayDisplay
@@ -1131,73 +734,9 @@ function App() {
           </OverlayWidget>
         )}
 
-        {/* Rectangle Selection Overlay */}
-        {isSelecting && selectionRect && (
-          <div
-            className="fixed pointer-events-none z-[400] border-2 border-blue-400/60 bg-blue-400/10 rounded-sm"
-            style={{
-              left: Math.min(selectionRect.startX, selectionRect.currentX),
-              top: Math.min(selectionRect.startY, selectionRect.currentY),
-              width: Math.abs(selectionRect.currentX - selectionRect.startX),
-              height: Math.abs(selectionRect.currentY - selectionRect.startY),
-            }}
-          />
-        )}
       </main>
 
-      {/* Group Bounding Boxes */}
-      {
-        groupData.groups.map(group => {
-          const activeAnchor = resolveActiveAnchor(group);
-          if (!activeAnchor) return null;
 
-          // HIDE individual group box if we are in a multi-selection that includes more than just this group.
-          // This prevents multiple overlapping bounding boxes.
-          const isPartOfLargerSelection = isMultiSelectionActive &&
-            effectiveSelectionMembers.length > group.memberIds.length &&
-            group.memberIds.every(id => effectiveSelectionMembers.includes(id));
-
-          return (
-            <GroupBoundingBox
-              key={group.id}
-              groupId={group.id}
-              memberIds={group.memberIds}
-              anchorId={activeAnchor}
-              isSelected={selectedWidgetIds.includes(group.id)}
-              widgetRefsMap={widgetRefsMap}
-              onAnchorStateChange={handleGroupDrag}
-              onManipulationStart={handleManipulationStart}
-              onManipulationEnd={handleManipulationEnd}
-              onUngroup={ungroupWidgets}
-              onReset={resetGroup}
-              externalAnchorState={widgetStates[activeAnchor]}
-              isDeactivated={isPartOfLargerSelection}
-              isGlobalManipulating={isAnyManipulating}
-            />
-          );
-        })
-      }
-
-      {/* Transient Selection Bounding Box (for multiple selected independent gadgets) */}
-      {
-        isMultiSelectionActive && !groupData.groups.some(g => selectedWidgetIds.includes(g.id) && g.memberIds.length === effectiveSelectionMembers.length) && (
-          <GroupBoundingBox
-            groupId="transient-selection"
-            memberIds={effectiveSelectionMembers}
-            anchorId={effectiveSelectionMembers[0]}
-            isSelected={true}
-            widgetRefsMap={widgetRefsMap}
-            onAnchorStateChange={handleTransientDrag}
-            onManipulationStart={handleManipulationStart}
-            onManipulationEnd={handleManipulationEnd}
-            onGroup={() => groupWidgets(effectiveSelectionMembers)}
-            externalAnchorState={widgetStates[effectiveSelectionMembers[0]]}
-            isGlobalManipulating={isAnyManipulating}
-          />
-
-
-        )
-      }
 
 
       {/* 4. Removed Initial Help Screen (now in Settings Guide tab) */}
@@ -1310,6 +849,8 @@ function App() {
           </div>
         )
       }
+
+      {!isSearchView && <MoveableController />}
     </div >
   );
 }

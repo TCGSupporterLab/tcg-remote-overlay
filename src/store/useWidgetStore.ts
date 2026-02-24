@@ -62,6 +62,7 @@ interface WidgetStoreState {
     setCoinValue: (val: 1 | 0) => void;
     setIsSelecting: (val: boolean) => void;
     setSelectionRect: (rect: SelectionRect | null) => void;
+    clearGroups: () => void;
 }
 
 const STORAGE_KEYS = {
@@ -69,8 +70,6 @@ const STORAGE_KEYS = {
     GROUPS: 'widget_groups',
     SETTINGS: 'tcg_remote_settings_v4',
 };
-
-const SYNC_CHANNEL = 'tcg_remote_widget_sync_v3';
 
 const DEFAULT_CROP: CropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
 
@@ -167,42 +166,30 @@ export const useWidgetStore = create<WidgetStoreState>()(
         setCoinValue: (coinValue) => set({ coinValue }),
         setIsSelecting: (isSelecting) => set({ isSelecting }),
         setSelectionRect: (selectionRect) => set({ selectionRect }),
+
+        clearGroups: () => {
+            set({ groupData: { groups: [], relativeTransforms: {} } });
+            localStorage.removeItem(STORAGE_KEYS.GROUPS);
+        },
     }))
 );
 
-let isInternalUpdate = false;
+// 状態変更時の保存処理（保存に特化）
+let updateTimer: ReturnType<typeof setTimeout> | null = null;
 
 useWidgetStore.subscribe(
     (state) => state,
     (state) => {
-        if (isInternalUpdate) return;
-
-        localStorage.setItem(STORAGE_KEYS.WIDGETS, JSON.stringify({
-            widgetStates: state.widgetStates,
-            visibility: state.visibility,
-            settings: state.settings,
-        }));
-        localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(state.groupData));
-
-        const channel = new BroadcastChannel(SYNC_CHANNEL);
-        channel.postMessage({
-            widgetStates: state.widgetStates,
-            visibility: state.visibility,
-            settings: state.settings,
-            groupData: state.groupData,
-            diceValue: state.diceValue,
-            coinValue: state.coinValue,
-            videoCrop: state.videoCrop,
-        });
-        channel.close();
+        if (updateTimer) clearTimeout(updateTimer);
+        updateTimer = setTimeout(() => {
+            // ウィジェットの基本状態を永続化
+            localStorage.setItem(STORAGE_KEYS.WIDGETS, JSON.stringify({
+                widgetStates: state.widgetStates,
+                visibility: state.visibility,
+                settings: state.settings,
+            }));
+            localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(state.groupData));
+            // ビデオ設定等は各アクション側で保存済み
+        }, 100); // 同一ウィンドウ内での保存なので、少し余裕を持たせる
     }
 );
-
-const channel = new BroadcastChannel(SYNC_CHANNEL);
-channel.onmessage = (event) => {
-    isInternalUpdate = true;
-    useWidgetStore.setState({
-        ...event.data
-    });
-    isInternalUpdate = false;
-};

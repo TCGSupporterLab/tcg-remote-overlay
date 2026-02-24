@@ -117,3 +117,51 @@
   box-shadow: 0 0 100px rgba(0, 0, 0, 1) !important;
   backdrop-filter: blur(40px);
 }
+
+/* Moveable controls */
+.moveable-control {
+  width: 14px !important;
+  height: 14px !important;
+  margin-top: -7px !important;
+  margin-left: -7px !important;
+  background: #3b82f6 !important;
+  border: 2px solid #fff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure all moveable UI parts capture pointer events */
+.moveable-control,
+.moveable-line,
+.moveable-area,
+.moveable-guide,
+.moveable-rotation {
+  pointer-events: auto !important;
+}
+
+/* Make handles easier to hit */
+.moveable-control {
+  width: 16px !important;
+  height: 16px !important;
+  margin-top: -8px !important;
+  margin-left: -8px !important;
+}
+
+/* The rotation "stick" hit area */
+.moveable-line.moveable-rotation-line {
+  width: 4px !important;
+  margin-left: -2px !important;
+}
+
+.moveable-line {
+  background: #3b82f6 !important;
+}
+
+/* Selecto rectangle selection box */
+.selecto-selection {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 2px solid rgba(59, 130, 246, 0.6) !important;
+  border-radius: 4px !important;
+  z-index: 1000 !important;
+}
