@@ -112,7 +112,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 const bleedX = 120;
                 const isOver = mx >= newBbox.x - bleedX && mx <= newBbox.x + newBbox.w + bleedX &&
                     my >= newBbox.y && my <= newBbox.y + newBbox.h + 80;
-                setIsHovered(isOver);
+                setIsHovered(isOver && (!isGlobalManipulating || isDragging || isResizing || isRotating));
             } else {
                 setBbox(null);
                 setIsHovered(false);
@@ -121,7 +121,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         };
         animId = requestAnimationFrame(update);
         return () => cancelAnimationFrame(animId);
-    }, [memberIds, widgetRefsMap]);
+    }, [memberIds, widgetRefsMap, isGlobalManipulating, isDragging, isResizing, isRotating]);
 
     // We now rely entirely on Props for the current state to ensure sync
     // with memory-based live states in App.tsx.
@@ -400,7 +400,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                     height: renderBbox.h,
                     transform: `translate3d(${renderBbox.x}px, ${renderBbox.y}px, 0)`,
                     boxShadow: isSelected ? '0 0 16px rgba(96, 165, 250, 0.35)' : 'none',
-                    opacity: isSelected ? 1 : 0.5,
+                    opacity: (isDragging || isResizing || isRotating || ((isSelected || isHovered) && !isGlobalManipulating)) ? (isSelected ? 1 : 0.5) : 0,
                     transition: (isDragging || isResizing || isRotating || isGlobalManipulating) ? 'none' : 'opacity 0.2s',
                 }}
             />
@@ -408,7 +408,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             {/* Handles below the bounding box */}
             <div
                 ref={handleBarRef}
-                className={`absolute pointer-events-auto flex items-center gap-2 ${(isDragging || isResizing || isRotating || isGlobalManipulating) ? '' : 'animate-in fade-in zoom-in duration-200'
+                className={`absolute pointer-events-auto flex items-center gap-2 transition-opacity duration-200 ${(isDragging || isResizing || isRotating || ((isSelected || isHovered) && !isGlobalManipulating)) ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${(isDragging || isResizing || isRotating || isGlobalManipulating) ? '' : 'animate-in fade-in zoom-in duration-200'
                     }`}
                 style={{
                     left: 0,

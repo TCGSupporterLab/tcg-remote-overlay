@@ -54,6 +54,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     const [isResizing, setIsResizing] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
     const [isWindowResizing, setIsWindowResizing] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
 
 
@@ -421,6 +422,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             {/* Translation Base (Center of Widget) */}
             <div
                 className="absolute group"
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
                 style={{
                     transform: `translate3d(${state.px * 100}vw, ${state.py * 100}vh, 0)`,
                     zIndex: 100,
@@ -451,7 +454,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 {showHandles && (
                     <div
                         ref={handleBarRef}
-                        className={`absolute pointer-events-auto transition-opacity z-50 whitespace-nowrap flex items-center gap-2 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                        className={`absolute pointer-events-auto transition-opacity z-50 whitespace-nowrap flex items-center gap-2 ${(isDragging || isResizing || isRotating || ((isSelected || isHovered) && !isGlobalManipulating)) ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                         style={{
                             left: '50%',
                             top: '50%',
