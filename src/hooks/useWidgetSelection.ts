@@ -15,7 +15,7 @@ interface UseWidgetSelectionReturn {
     toggleSelect: (id: WidgetId, ctrlKey: boolean) => void;
     startRectSelection: (e: React.MouseEvent) => void;
     updateRectSelection: (e: React.MouseEvent) => void;
-    finishRectSelection: (getWidgetRects: () => Map<WidgetId, DOMRect>) => void;
+    finishRectSelection: (getWidgetRects: () => Map<WidgetId, DOMRect>, transformSelection?: (ids: Set<WidgetId>) => Set<WidgetId>) => void;
     clearSelection: () => void;
 }
 
@@ -70,7 +70,10 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
         selectionRectRef.current = updated;
     }, []);
 
-    const finishRectSelection = useCallback((getWidgetRects: () => Map<WidgetId, DOMRect>) => {
+    const finishRectSelection = useCallback((
+        getWidgetRects: () => Map<WidgetId, DOMRect>,
+        transformSelection?: (ids: Set<WidgetId>) => Set<WidgetId>
+    ) => {
         if (!selectionRectRef.current) {
             setIsSelecting(false);
             return;
@@ -88,7 +91,7 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
 
         if (width > 5 && height > 5) {
             const widgetRects = getWidgetRects();
-            const selected = new Set<WidgetId>();
+            let selected = new Set<WidgetId>();
 
             widgetRects.forEach((rect, id) => {
                 // Check intersection between selection rect and widget bounding rect
@@ -101,6 +104,11 @@ export const useWidgetSelection = (): UseWidgetSelectionReturn => {
                     selected.add(id);
                 }
             });
+
+            // Allow mapping individual widget IDs to Group IDs
+            if (transformSelection) {
+                selected = transformSelection(selected);
+            }
 
             setSelectedWidgetIds(selected);
         } else {

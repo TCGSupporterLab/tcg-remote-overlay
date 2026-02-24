@@ -137,6 +137,8 @@ function App() {
     return rects;
   }, []);
 
+
+
   const [manipulationNonce, setManipulationNonce] = useState(0);
 
   // Group Data (persisted)
@@ -282,6 +284,28 @@ function App() {
   const findGroupForWidget = useCallback((widgetId: WidgetId): WidgetGroup | undefined => {
     return groupData.groups.find(g => g.memberIds.includes(widgetId));
   }, [groupData]);
+
+  // Helper to map selected widget IDs to their group IDs if they belong to one.
+  // This ensures that selecting ANY member of a group selects the WHOLE group.
+  const mapSelectionToGroups = useCallback((ids: Set<WidgetId>) => {
+    const next = new Set<WidgetId>();
+    ids.forEach(id => {
+      const group = groupData.groups.find(g => g.memberIds.includes(id));
+      if (group) {
+        next.add(group.id);
+      } else {
+        next.add(id);
+      }
+    });
+    return next;
+  }, [groupData.groups]);
+
+  // Wrap toggleSelect to handle group mapping automatically for single-click selection
+  const handleToggleSelect = useCallback((id: WidgetId, ctrlKey: boolean) => {
+    const group = findGroupForWidget(id);
+    const targetId = group ? group.id : id;
+    toggleSelect(targetId, ctrlKey);
+  }, [toggleSelect, findGroupForWidget]);
 
   // Group widgets
   const groupWidgets = useCallback((widgetIds: WidgetId[]) => {
@@ -1005,7 +1029,7 @@ function App() {
         }}
         onMouseUp={() => {
           if (isSelecting) {
-            finishRectSelection(getWidgetRects);
+            finishRectSelection(getWidgetRects, mapSelectionToGroups);
           }
         }}
       >
@@ -1018,7 +1042,7 @@ function App() {
             isSelected={selectedWidgetIds.has('card_widget')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('card_widget')}
             {...getGroupProps('card_widget')}
-            onSelect={toggleSelect}
+            onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
             parentManipulationNonce={manipulationNonce}
@@ -1045,7 +1069,7 @@ function App() {
             isSelected={selectedWidgetIds.has('yugioh')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('yugioh')}
             {...getGroupProps('yugioh')}
-            onSelect={toggleSelect}
+            onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
             parentManipulationNonce={manipulationNonce}
@@ -1081,7 +1105,7 @@ function App() {
             isSelected={selectedWidgetIds.has('hololive_sp_marker')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('hololive_sp_marker')}
             {...getGroupProps('hololive_sp_marker')}
-            onSelect={toggleSelect}
+            onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
             parentManipulationNonce={manipulationNonce}
@@ -1105,7 +1129,7 @@ function App() {
             isSelected={selectedWidgetIds.has('dice')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('dice')}
             {...getGroupProps('dice')}
-            onSelect={toggleSelect}
+            onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
             parentManipulationNonce={manipulationNonce}
@@ -1135,7 +1159,7 @@ function App() {
             isSelected={selectedWidgetIds.has('coin')}
             isPartOfMultiSelection={isMultiSelectionActive && effectiveSelectionMembers.includes('coin')}
             {...getGroupProps('coin')}
-            onSelect={toggleSelect}
+            onSelect={handleToggleSelect}
             onStateChange={handleWidgetStateChange}
             onManipulationStart={handleManipulationStart}
             parentManipulationNonce={manipulationNonce}
