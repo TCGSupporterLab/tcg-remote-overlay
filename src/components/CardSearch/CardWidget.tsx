@@ -55,7 +55,7 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
         setImageError(false);
     }, [imageUrl]);
 
-    const isImageAvailable = !!imageUrl && !imageError;
+    const isImageAvailable = !!imageUrl && !imageError && hasAccess;
 
     // ヘルパー: 検索画面を開く
     const openSearch = (mode: 'tab' | 'window') => {
@@ -91,7 +91,9 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
                             className="h-full w-full object-cover scale-100 animate-in fade-in zoom-in duration-300 transition-transform"
                             onError={() => {
                                 // 画像の読み込みに失敗した場合（Blob URL失効など）
-                                setImageError(true);
+                                if (imageUrl) {
+                                    setImageError(true);
+                                }
                             }}
                         />
                     </div>
