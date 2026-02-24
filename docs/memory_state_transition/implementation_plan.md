@@ -1,31 +1,26 @@
-# メモリ優先の状態管理への移行計画
+# メモリ優先の状態管理への移行計画（修正版）
 
-現在の実装では、グループ操作や回転の開始時に `localStorage` から状態を読み込んでいますが、これは非同期の書き込み完了を待たずに読み込む可能性があり、座標が不連続にジャンプする原因となっていました。
-これを解決するため、すべての操作においてメモリ上のキャッシュを正のデータソースとする方式に移行します。
+## 判明した課題
+1.  **OverlayWidget のローカル同期漏れ**: `GroupBoundingBox` 経由で移動された際、ウィジェットの表示用座標 (`externalState`) は更新されますが、内部の `state` が更新されません。そのため、次にウィジェット単体で動かそうとした瞬間に、古い `state` の位置までジャンプしてしまいます。
+2.  **App.tsx キャッシュ同期の漏れ**: ウィジェット単体で操作した際、そのウィジェットが「グループのアンカー」でない場合、`App.tsx` の `liveWidgetStatesRef` が更新されません。
+3.  **無限ループの懸念**: `App.tsx` で `Maximum update depth exceeded` が発生しており、ステート更新の頻度を下げる必要があります。
 
-## 提案される変更点
-
-### App.tsx
-- **`liveWidgetStatesRef` の導入**: 全ウィジェット (`card_widget`, `yugioh`, `dice`, `coin` 等) の最新の状態を保持する `useRef` を追加します。
-- **キャッシュ同期ロジック**:
-    - `handleWidgetStateChange` (自身のウィンドウでの操作終了時)
-    - `BroadcastChannel` の `WIDGET_STATE_UPDATE` 受信時
-    - これらすべてのタイミングで `liveWidgetStatesRef` を即座に更新します。
-- ** manipulation 開始時の修正**: `handleManipulationStart` 内の `localStorage.getItem` ループを廃止し、`liveWidgetStatesRef.current` からスナップショットを作成するように変更します。
-
-### GroupBoundingBox.tsx
-- **`readAnchorState` の廃止**: `localStorage` を直接読みに行く関数を削除します。
-- **データ供給の完全 Prop 化**: 必要な状態はすべて `App.tsx` から供給されるようにします。すでに `externalAnchorState` を追加済みですが、これを標準のデータソースとして位置づけます。
+## 修正内容
 
 ### OverlayWidget.tsx
-- **localStorage の役割を固定**: `localStorage` は「ブラウザをリロードしたときの復帰用」に限定します。
-- コンポーネント内の `useEffect` による `localStorage.setItem` は維持しますが、他コンポーネントがこれを「リアルタイムの通信路」として使うことを禁止します。
+- **内部ステートの同期**: `externalState` が変更された際、ウィジェットが操作中 (`isDragging` 等が false) でなければ、内部の `state` を `externalState` に同期する `useEffect` を追加します。
+- **BroadcastChannel の厳密化**: 送信元の `senderId` チェックを強化し、自分自身の送信したメッセージを二重処理しないようにします。
+
+### App.tsx
+- **キャッシュ同期の全網羅**: `handleWidgetStateChange` において、グループの有無に関わらず、常に `liveWidgetStatesRef` を最新の状態に更新するようにします。
+- **再レンダリングの最適化**: `setExternalStates` を呼び出す前に、実質的な値の変化（閾値以上）があるかを確認し、不要な `setState` を抑制します。特に `effectiveSelectionMembers` に関連する `useEffect` がループしていないか確認します。
+- **タブ内同期**: `WIDGET_STATE_UPDATE` を受信した際、同じタブ内であっても `liveWidgetStatesRef` は更新するようにし、常にキャッシュを最新に保ちます。
+
+### GroupBoundingBox.tsx
+- ** manipulation 開始時の安全性**: `onManipulationStart` を呼ぶ直前に、最新の状態が `App.tsx` 側に反映されていることを確実にします。
 
 ## 検証計画
+1.  **単体操作 -> グループ操作 -> 単体操作**: どの順序で行っても座標が飛ばないことを確認します。
+2.  **エラーログの消失**: `Maximum update depth exceeded` が出力されないことを確認します。
+3.  **複数ウィンドウ同期**: 同一タブ・別タブの両方で、タイムラグなく状態が同期されることを確認します。
 
-### 1. 動作確認
-- 複数オブジェクトを選択して移動した後、間髪入れずに回転操作を行い、座標がジャンプしないことを確認します。
-- 別ウィンドウを並べ、一方での操作がもう一方に（`BroadcastChannel` 経由でキャッシュを更新して）正しく伝播することを確認します。
-
-### 2. ログ確認
-- `[MoveDebug]` `[RotateDebug]` における `Initial State` が、直前の操作の `Final State` と完全に一致することを確認します。

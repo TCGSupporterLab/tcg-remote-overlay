@@ -18,6 +18,8 @@ interface OverlayWidgetProps {
     externalState?: WidgetState;
     /** Whether this widget is part of a larger active selection (multiple items) */
     isPartOfMultiSelection?: boolean;
+    onManipulationStart?: () => void;
+    parentManipulationNonce?: number;
 }
 
 export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
@@ -32,6 +34,8 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     containerRefCallback,
     externalState,
     isPartOfMultiSelection = false,
+    onManipulationStart,
+    parentManipulationNonce = 0,
 }) => {
     // Persistent state
     const [state, setState] = useState<WidgetState>(() => {
@@ -61,12 +65,32 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
 
     const lastUpdateSourceRef = useRef<'local' | 'external' | 'sync'>('local');
+    const ignoreExternalSyncRef = useRef(false);
+    const ignoreTimeoutRef = useRef<number | null>(null);
+
+    // Reset sync ignore on parent manipulation start
+    useEffect(() => {
+        if (parentManipulationNonce > 0) {
+            ignoreExternalSyncRef.current = false;
+            if (ignoreTimeoutRef.current) {
+                clearTimeout(ignoreTimeoutRef.current);
+                ignoreTimeoutRef.current = null;
+            }
+        }
+    }, [parentManipulationNonce]);
 
     // Sync internal state with externalState (group manipulation or external sync)
     // CRITICAL for preventing jumps and keeping internal state fresh.
     useEffect(() => {
         if (externalState) {
-            if (isDragging || isResizing || isRotating) return;
+            if (isDragging || isResizing || isRotating || ignoreExternalSyncRef.current) {
+                if (import.meta.env.DEV && (isDragging || isResizing || isRotating)) {
+                    // This is normal during local drag
+                } else if (import.meta.env.DEV && ignoreExternalSyncRef.current) {
+                    console.log(`[WidgetSync] [${gameMode}] Ignored external update (Ignore Period Active)`);
+                }
+                return;
+            }
 
             // Only update if actually different to avoid unnecessary re-renders
             if (Math.abs(externalState.px - state.px) > 0.0001 ||
@@ -82,6 +106,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
                 syncTimeoutRef.current = setTimeout(() => setIsSyncing(false), 150);
             }
+        } else {
+            // If external state is removed (ungrouped), ensure we are ready for local changes
+            lastUpdateSourceRef.current = 'local';
         }
     }, [externalState, isDragging, isResizing, isRotating, state.px, state.py, state.rotation, state.scale]);
 
@@ -100,7 +127,9 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             channel.postMessage({ type: 'WIDGET_STATE_UPDATE', value: { gameMode, state }, senderId });
             channel.close();
         } else {
-            // Reset to 'local' for next user interaction
+            if (import.meta.env.DEV) {
+                console.log(`[WidgetSource] [${gameMode}] Source was '${lastUpdateSourceRef.current}', resetting to 'local' after sync/external save`);
+            }
             lastUpdateSourceRef.current = 'local';
         }
     }, [state, gameMode, isDragging, isResizing, isRotating]);
@@ -133,16 +162,22 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 // Ignore messages sent by our own tab to avoid double-processing
                 if (event.data.senderId === (window as any).TAB_ID) return;
 
-                if (!isDragging && !isResizing && !isRotating) {
+                if (!isDragging && !isResizing && !isRotating && !ignoreExternalSyncRef.current) {
                     const newState = event.data.value.state;
                     // Only update if actually different to prevent cycles
                     if (Math.abs(newState.px - state.px) > 0.0001 ||
                         Math.abs(newState.py - state.py) > 0.0001 ||
                         Math.abs(newState.rotation - state.rotation) > 0.01 ||
                         Math.abs(newState.scale - state.scale) > 0.001) {
+
+                        if (import.meta.env.DEV) {
+                            console.log(`[WidgetSync] [${gameMode}] Received REMOTE update, source -> sync`);
+                        }
                         lastUpdateSourceRef.current = 'sync';
                         setState(newState);
                     }
+                } else if (import.meta.env.DEV) {
+                    // console.log(`[WidgetSync] [${gameMode}] Sync ignored:`, { isDragging, ignorePeriod: ignoreExternalSyncRef.current });
                 }
             }
 
@@ -151,7 +186,10 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 setState({ px: 0, py: 0, scale: 1, rotation: 0 });
             }
         };
-        return () => channel.close();
+        return () => {
+            channel.close();
+            if (ignoreTimeoutRef.current) clearTimeout(ignoreTimeoutRef.current);
+        };
 
     }, [gameMode, isDragging, isResizing, isRotating]);
 
@@ -159,6 +197,13 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(true);
+        ignoreExternalSyncRef.current = false;
+        if (ignoreTimeoutRef.current) {
+            clearTimeout(ignoreTimeoutRef.current);
+            ignoreTimeoutRef.current = null;
+        }
+        lastUpdateSourceRef.current = 'local';
+        onManipulationStart?.();
         dragStartRef.current = {
             x: e.clientX,
             y: e.clientY,
@@ -171,6 +216,13 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         e.preventDefault();
         e.stopPropagation();
         setIsResizing(true);
+        ignoreExternalSyncRef.current = false;
+        if (ignoreTimeoutRef.current) {
+            clearTimeout(ignoreTimeoutRef.current);
+            ignoreTimeoutRef.current = null;
+        }
+        lastUpdateSourceRef.current = 'local';
+        onManipulationStart?.();
         resizeStartRef.current = {
             x: e.clientX,
             initialScale: state.scale
@@ -189,6 +241,13 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
         const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
 
         setIsRotating(true);
+        lastUpdateSourceRef.current = 'local';
+        onManipulationStart?.();
+        ignoreExternalSyncRef.current = false;
+        if (ignoreTimeoutRef.current) {
+            clearTimeout(ignoreTimeoutRef.current);
+            ignoreTimeoutRef.current = null;
+        }
         rotateStartRef.current = {
             initialRotation: state.rotation,
             centerX,
@@ -244,6 +303,16 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             setIsDragging(false);
             setIsResizing(false);
             setIsRotating(false);
+
+            // Operation finished - start a brief "ignore external updates" period
+            // to allow parent component to process our change and send back the clean state.
+            // This prevents the widget from flickering back to the old state for one frame.
+            ignoreExternalSyncRef.current = true;
+            if (ignoreTimeoutRef.current) clearTimeout(ignoreTimeoutRef.current);
+            ignoreTimeoutRef.current = window.setTimeout(() => {
+                ignoreExternalSyncRef.current = false;
+            }, 150);
+
             // Notify parent of final state for group sync
             if (onStateChange && (instanceId || gameMode)) {
                 setState(current => {
@@ -259,7 +328,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging, isResizing, isRotating, winSize]);
+    }, [isDragging, isResizing, isRotating, winSize, onStateChange, instanceId, gameMode]);
 
     const [isSyncing, setIsSyncing] = useState(false);
     const syncTimeoutRef = useRef<any>(null);

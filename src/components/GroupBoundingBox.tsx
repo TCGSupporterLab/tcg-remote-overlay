@@ -8,7 +8,7 @@ interface GroupBoundingBoxProps {
     anchorId: WidgetId;
     isSelected: boolean;
     widgetRefsMap: React.RefObject<Map<WidgetId, HTMLDivElement>>;
-    onAnchorStateChange: (anchorId: WidgetId, newState: WidgetState) => void;
+    onAnchorStateChange: (anchorId: WidgetId, newState: WidgetState, memberIds: WidgetId[]) => void;
     onManipulationStart?: () => void;
     onUngroup?: (groupId: string) => void;
     onGroup?: (memberIds: WidgetId[]) => void;
@@ -193,7 +193,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     const handleReset = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        onAnchorStateChange(anchorId, { px: 0, py: 0, scale: 1, rotation: 0 });
+        onAnchorStateChange(anchorId, { px: 0, py: 0, scale: 1, rotation: 0 }, memberIds);
     };
 
     // Mouse move/up
@@ -223,12 +223,12 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                     ...initialState,
                     px: nextPx,
                     py: nextPy,
-                });
+                }, memberIds);
 
             } else if (isResizing) {
                 const dx = e.clientX - manipRef.current.mouseX;
                 const newScale = Math.min(Math.max(initialState.scale + dx / 200, 0.3), 3);
-                onAnchorStateChange(anchorId, { ...initialState, scale: newScale });
+                onAnchorStateChange(anchorId, { ...initialState, scale: newScale }, memberIds);
             } else if (isRotating) {
                 const { rotateCenter, rotateCenterNormalized, rotateStartAngle, initialState } = manipRef.current;
                 const currentAngle = Math.atan2(e.clientY - rotateCenter.y, e.clientX - rotateCenter.x) * (180 / Math.PI);
@@ -240,16 +240,13 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 for (const snap of [0, 90, 180, 270, 360]) {
                     if (Math.abs(newRotation - snap) < 10) {
                         const snapTarget = snap % 360;
-                        const snapAdjustment = snap - newRotation; // Calculate adjustment relative to the literal snap point (e.g. 360)
+                        const snapAdjustment = snap - newRotation;
                         angleDiff += snapAdjustment;
                         newRotation = snapTarget;
                         break;
                     }
                 }
 
-
-                // Revolve the position around normalized rotation center
-                // MUST account for aspect ratio because px/py are normalized
                 const rad = angleDiff * (Math.PI / 180);
                 const cos = Math.cos(rad);
                 const sin = Math.sin(rad);
@@ -263,29 +260,6 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                 const newPx = rotateCenterNormalized.x + (new_dx_px / window.innerWidth);
                 const newPy = rotateCenterNormalized.y + (new_dy_px / window.innerHeight);
 
-                if (import.meta.env.DEV) {
-                    const prevAngleRef = (manipRef.current as any).prevAngleLogged || 0;
-                    if (Math.abs(prevAngleRef - angleDiff) >= 5) {
-                        (manipRef.current as any).prevAngleLogged = angleDiff;
-                        console.log(`[RotateDebug] UPDATE - AngleDiff: ${angleDiff.toFixed(1)}° NewAnchorRotation: ${newRotation.toFixed(1)}°`);
-
-                        memberIds.forEach(id => {
-                            const s = localStorage.getItem(`overlay_widget_v4_${id}`);
-                            if (s) {
-                                const st = JSON.parse(s);
-                                // Calculate pixel distance from rotating center to check for "drifting"
-                                const d_px = Math.sqrt(
-                                    Math.pow((st.px - rotateCenterNormalized.x) * window.innerWidth, 2) +
-                                    Math.pow((st.py - rotateCenterNormalized.y) * window.innerHeight, 2)
-                                );
-                                console.log(`[RotateDebug] State [${id}]: px=${st.px.toFixed(4)}, py=${st.py.toFixed(4)}, rot=${st.rotation.toFixed(1)}, dist=${d_px.toFixed(1)}px`);
-                            }
-                        });
-                    }
-                }
-
-
-
                 setVisualRotateAngle(angleDiff);
 
                 onAnchorStateChange(anchorId, {
@@ -293,7 +267,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
                     px: newPx,
                     py: newPy,
                     rotation: newRotation
-                });
+                }, memberIds);
             }
 
 

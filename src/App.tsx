@@ -137,6 +137,8 @@ function App() {
     return rects;
   }, []);
 
+  const [manipulationNonce, setManipulationNonce] = useState(0);
+
   // Group Data (persisted)
   const [groupData, setGroupData] = useState<WidgetGroupData>(() => {
     const saved = localStorage.getItem('widget_groups');
@@ -223,15 +225,39 @@ function App() {
 
 
   const handleManipulationStart = useCallback(() => {
-    // CAPTURE CURRENT LIVE STATES as the start points for manipulation
-    // We no longer read localStorage here because liveWidgetStatesRef is 
-    // strictly updated on every change/sync message.
-    manipulationStartStatesRef.current = { ...liveWidgetStatesRef.current };
+    // 1. Force sync live cache with latest externalStates
+    const currentStates = { ...externalStates };
+
+    // 2. Capture snapshot
+    const snapshot = { ...currentStates };
+
+    // 3. IMPORTANT: Ensure all widgets have AT LEAST a default state in the snapshot
+    // If a widget has never been moved, it might be missing from externalStates.
+    // We should populate it with defaults so group transformations can apply to it.
+    const allKnownIds: WidgetId[] = ['card_widget', 'yugioh', 'hololive_sp_marker', 'dice', 'coin'];
+    for (const id of allKnownIds) {
+      if (!snapshot[id]) {
+        snapshot[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
+        if (import.meta.env.DEV) {
+          console.log(`[App] Manipulation Start: Populated default for missing widget [${id}]`);
+        }
+      }
+    }
+
+    liveWidgetStatesRef.current = snapshot;
+    manipulationStartStatesRef.current = snapshot;
+
+    // Reset sync ignore on all children
+    setManipulationNonce(n => n + 1);
 
     if (import.meta.env.DEV) {
-      console.log("[App] Manipulation Start Snapshot (Unified Cache):", manipulationStartStatesRef.current);
+      console.log("[App] Manipulation Start Snapshot:", {
+        checkpoint: "Start",
+        snapshotIds: Object.keys(manipulationStartStatesRef.current),
+        states: manipulationStartStatesRef.current
+      });
     }
-  }, []);
+  }, [externalStates]);
 
 
 
@@ -264,11 +290,10 @@ function App() {
     const groupId = crypto.randomUUID();
     const anchorId = widgetIds[0];
 
-    // Read current states from localStorage
+    // Read current states from the live unified cache (NOT localStorage which might be stale)
     const states: Record<WidgetId, WidgetState> = {};
     for (const id of widgetIds) {
-      const saved = localStorage.getItem(`overlay_widget_v4_${id}`);
-      states[id] = saved ? JSON.parse(saved) : { px: 0, py: 0, scale: 1, rotation: 0 };
+      states[id] = liveWidgetStatesRef.current[id] || { px: 0, py: 0, scale: 1, rotation: 0 };
     }
 
     const anchorState = states[anchorId];
@@ -297,10 +322,37 @@ function App() {
 
     const newGroup: WidgetGroup = { id: groupId, memberIds: widgetIds, anchorId };
 
-    setGroupData(prev => ({
-      groups: [...prev.groups, newGroup],
-      relativeTransforms: { ...prev.relativeTransforms, ...newRelativeTransforms },
-    }));
+    if (import.meta.env.DEV) {
+      console.log(`[GroupDebug] Creating Group [${groupId}] - Anchor: ${anchorId}, Members: ${widgetIds.join(', ')}`);
+      // console.log(`[GroupDebug] Calculated Transforms:`, newRelativeTransforms);
+    }
+
+    setGroupData(prev => {
+      // Find and remove any existing groups that contain any of the widgets in this new group
+      const affectedGroupIds = new Set<string>();
+      prev.groups.forEach(g => {
+        if (g.memberIds.some(m => widgetIds.includes(m))) {
+          affectedGroupIds.add(g.id);
+        }
+      });
+
+      const otherGroups = prev.groups.filter(g => !affectedGroupIds.has(g.id));
+      const newTransforms = { ...prev.relativeTransforms };
+
+      // Clean up relative transforms for all members of the dissolved groups
+      for (const g of prev.groups) {
+        if (affectedGroupIds.has(g.id)) {
+          for (const mId of g.memberIds) {
+            delete newTransforms[mId];
+          }
+        }
+      }
+
+      return {
+        groups: [...otherGroups, newGroup],
+        relativeTransforms: { ...newTransforms, ...newRelativeTransforms },
+      };
+    });
 
     clearSelection();
   }, [clearSelection]);
@@ -343,19 +395,22 @@ function App() {
 
 
   // Handle manipulation for any selection (even if not a formal group)
-  const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
+  const handleTransientDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState, memberIds: WidgetId[]) => {
     // 1. Get snapshot state from the start of manipulation
     const startStates = manipulationStartStatesRef.current;
     const anchorPrevState = startStates[anchorId];
 
     if (!anchorPrevState || !anchorPrevState.scale) {
-      // Fallback if snapshot is missing for some reason
-      const saved = localStorage.getItem(`overlay_widget_v4_${anchorId}`);
-      if (!saved) return;
-      const fallback = JSON.parse(saved);
-      if (!fallback.scale) return;
-      manipulationStartStatesRef.current[anchorId] = fallback;
+      if (import.meta.env.DEV) {
+        console.warn(`[App] TransientDrag ABORT: Missing startState for anchor ${anchorId}`, {
+          availableIds: Object.keys(startStates)
+        });
+      }
       return;
+    }
+
+    if (import.meta.env.DEV) {
+      // console.log(`[App] TransientDrag [${anchorId}] - Members: ${memberIds.join(', ')}`);
     }
 
     const updates: Record<WidgetId, WidgetState> = {};
@@ -372,7 +427,7 @@ function App() {
 
     const aspect = window.innerWidth / window.innerHeight;
 
-    for (const memberId of effectiveSelectionMembersRef.current) {
+    for (const memberId of memberIds) {
       if (memberId === anchorId) continue;
 
       const memberState = startStates[memberId];
@@ -399,22 +454,18 @@ function App() {
       };
     }
 
-
     setExternalStates(prev => {
       let changed = false;
       const next = { ...prev };
       for (const id in updates) {
         const u = updates[id as WidgetId];
         const p = prev[id as WidgetId];
-
-        // Synchronously update the live cache during drag to keep it fresh
         liveWidgetStatesRef.current[id as WidgetId] = u;
-
         if (!p ||
           Math.abs(u.px - p.px) > 0.00001 ||
           Math.abs(u.py - p.py) > 0.00001 ||
           Math.abs(u.scale - p.scale) > 0.00001 ||
-          Math.abs(u.rotation - p.rotation) > 0.00001) {
+          Math.abs(u.rotation - p.rotation) > 0.0001) {
           next[id as WidgetId] = u;
           changed = true;
         }
@@ -427,17 +478,29 @@ function App() {
 
   // Ungroup
   const ungroupWidgets = useCallback((groupId: string) => {
+    if (import.meta.env.DEV) {
+      console.log(`[GroupDebug] Dissolving Group [${groupId}]`);
+    }
     setGroupData(prev => {
       const group = prev.groups.find(g => g.id === groupId);
       if (!group) return prev;
-      // Clear external states for members so widgets return to self-managed state
+
+      // Force refresh externalStates from current live cache for these members
+      // to ensure they have a clean, up-to-date baseline after dismissal.
       setExternalStates(prevStates => {
         const next = { ...prevStates };
         for (const id of group.memberIds) {
-          delete next[id];
+          const currentLive = liveWidgetStatesRef.current[id];
+          if (currentLive) {
+            next[id] = currentLive;
+            if (import.meta.env.DEV) {
+              console.log(`[GroupDebug] Member [${id}] released at:`, currentLive);
+            }
+          }
         }
         return next;
       });
+
       const newTransforms = { ...prev.relativeTransforms };
       for (const id of group.memberIds) {
         delete newTransforms[id];
@@ -451,6 +514,9 @@ function App() {
 
   // Handle state change from anchor widget (propagate to group members)
   const handleWidgetStateChange = useCallback((id: WidgetId, newState: WidgetState) => {
+    if (import.meta.env.DEV) {
+      console.log(`[App] StateChange [${id}] - Final State Received:`, newState);
+    }
     // 1. ALWAYS update the live cache first, regardless of group membership
     liveWidgetStatesRef.current[id] = newState;
 
@@ -519,59 +585,8 @@ function App() {
 
 
   // Handle group drag (from GroupBoundingBox handles)
-  const handleGroupDrag = useCallback((anchorId: WidgetId, newAnchorState: WidgetState) => {
-    const group = groupData.groups.find(g => {
-      const active = resolveActiveAnchor(g);
-      return active === anchorId;
-    });
-    if (!group) return;
-
-    const rad = newAnchorState.rotation * (Math.PI / 180);
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-
-    const aspect = window.innerWidth / window.innerHeight;
-
-    const updates: Record<WidgetId, WidgetState> = {};
-    updates[anchorId] = newAnchorState;
-    for (const memberId of group.memberIds) {
-      if (memberId === anchorId) continue;
-      const rel = groupData.relativeTransforms[memberId];
-      if (!rel) continue;
-
-      // Apply rigid transform
-      const dx_new = (rel.dx * cos - rel.dy * sin) * newAnchorState.scale;
-      const dy_new = (rel.dx * sin + rel.dy * cos) * newAnchorState.scale;
-
-      updates[memberId] = {
-        px: newAnchorState.px + (dx_new / aspect),
-        py: newAnchorState.py + dy_new,
-        rotation: newAnchorState.rotation + rel.dRotation,
-        scale: newAnchorState.scale * rel.dScale,
-      };
-    }
-    setExternalStates(prev => {
-      let changed = false;
-      const next = { ...prev };
-      for (const id in updates) {
-        const u = updates[id as WidgetId];
-        const p = prev[id as WidgetId];
-
-        // Synchronously update the live cache during drag
-        liveWidgetStatesRef.current[id as WidgetId] = u;
-
-        if (!p ||
-          Math.abs(u.px - p.px) > 0.00001 ||
-          Math.abs(u.py - p.py) > 0.00001 ||
-          Math.abs(u.scale - p.scale) > 0.00001 ||
-          Math.abs(u.rotation - p.rotation) > 0.00001) {
-          next[id as WidgetId] = u;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [groupData, resolveActiveAnchor]);
+  // We use exactly the same rigid transformation logic as transient drag
+  const handleGroupDrag = handleTransientDrag;
 
 
   // Helper to get group props for a widget
@@ -1005,6 +1020,8 @@ function App() {
             {...getGroupProps('card_widget')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
+            onManipulationStart={handleManipulationStart}
+            parentManipulationNonce={manipulationNonce}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['card_widget']}
           >
@@ -1030,6 +1047,8 @@ function App() {
             {...getGroupProps('yugioh')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
+            onManipulationStart={handleManipulationStart}
+            parentManipulationNonce={manipulationNonce}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['yugioh']}
           >
@@ -1064,6 +1083,8 @@ function App() {
             {...getGroupProps('hololive_sp_marker')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
+            onManipulationStart={handleManipulationStart}
+            parentManipulationNonce={manipulationNonce}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['hololive_sp_marker']}
           >
@@ -1086,6 +1107,8 @@ function App() {
             {...getGroupProps('dice')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
+            onManipulationStart={handleManipulationStart}
+            parentManipulationNonce={manipulationNonce}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['dice']}
           >
@@ -1114,6 +1137,8 @@ function App() {
             {...getGroupProps('coin')}
             onSelect={toggleSelect}
             onStateChange={handleWidgetStateChange}
+            onManipulationStart={handleManipulationStart}
+            parentManipulationNonce={manipulationNonce}
             containerRefCallback={containerRefCallback}
             externalState={externalStates['coin']}
           >
@@ -1147,41 +1172,51 @@ function App() {
       </main>
 
       {/* Group Bounding Boxes */}
-      {groupData.groups.map(group => {
-        const activeAnchor = resolveActiveAnchor(group);
-        if (!activeAnchor) return null;
-        return (
-          <GroupBoundingBox
-            key={group.id}
-            groupId={group.id}
-            memberIds={group.memberIds}
-            anchorId={activeAnchor}
-            isSelected={selectedWidgetIds.has(group.id)}
-            widgetRefsMap={widgetRefsMap}
-            onAnchorStateChange={handleGroupDrag}
-            onManipulationStart={handleManipulationStart}
-            onUngroup={ungroupWidgets}
-            externalAnchorState={externalStates[activeAnchor]}
-          />
-        );
-      })}
+      {
+        groupData.groups.map(group => {
+          const activeAnchor = resolveActiveAnchor(group);
+          if (!activeAnchor) return null;
+
+          // HIDE individual group box if we are in a multi-selection that includes more than just this group.
+          // This prevents multiple overlapping bounding boxes.
+          const isPartOfLargerSelection = selectedWidgetIds.size > 1 && selectedWidgetIds.has(group.id);
+          if (isPartOfLargerSelection) return null;
+
+          return (
+            <GroupBoundingBox
+              key={group.id}
+              groupId={group.id}
+              memberIds={group.memberIds}
+              anchorId={activeAnchor}
+              isSelected={selectedWidgetIds.has(group.id)}
+              widgetRefsMap={widgetRefsMap}
+              onAnchorStateChange={handleGroupDrag}
+              onManipulationStart={handleManipulationStart}
+              onUngroup={ungroupWidgets}
+              externalAnchorState={externalStates[activeAnchor]}
+            />
+          );
+        })
+      }
 
       {/* Transient Selection Bounding Box (for multiple selected independent gadgets) */}
-      {isMultiSelectionActive && !groupData.groups.some(g => selectedWidgetIds.has(g.id) && g.memberIds.length === effectiveSelectionMembers.length) && (
-        <GroupBoundingBox
-          groupId="transient-selection"
-          memberIds={effectiveSelectionMembers}
-          anchorId={effectiveSelectionMembers[0]}
-          isSelected={true}
-          widgetRefsMap={widgetRefsMap}
-          onAnchorStateChange={handleTransientDrag}
-          onManipulationStart={handleManipulationStart}
-          onGroup={() => groupWidgets(effectiveSelectionMembers)}
-          externalAnchorState={externalStates[effectiveSelectionMembers[0]]}
-        />
+      {
+        isMultiSelectionActive && !groupData.groups.some(g => selectedWidgetIds.has(g.id) && g.memberIds.length === effectiveSelectionMembers.length) && (
+          <GroupBoundingBox
+            groupId="transient-selection"
+            memberIds={effectiveSelectionMembers}
+            anchorId={effectiveSelectionMembers[0]}
+            isSelected={true}
+            widgetRefsMap={widgetRefsMap}
+            onAnchorStateChange={handleTransientDrag}
+            onManipulationStart={handleManipulationStart}
+            onGroup={() => groupWidgets(effectiveSelectionMembers)}
+            externalAnchorState={externalStates[effectiveSelectionMembers[0]]}
+          />
 
 
-      )}
+        )
+      }
 
 
       {/* 4. Removed Initial Help Screen (now in Settings Guide tab) */}
@@ -1276,22 +1311,24 @@ function App() {
       }
 
       {/* Debug Info (DEV only) */}
-      {import.meta.env.DEV && !isSearchView && (
-        <div className="fixed bottom-4 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-white/70 pointer-events-none space-y-1">
-          <div className="flex justify-between gap-4">
-            <span>selectedCard:</span>
-            <span className="text-blue-400">{selectedCard ? selectedCard.name : 'null'}</span>
+      {
+        import.meta.env.DEV && !isSearchView && (
+          <div className="fixed bottom-4 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-white/70 pointer-events-none space-y-1">
+            <div className="flex justify-between gap-4">
+              <span>selectedCard:</span>
+              <span className="text-blue-400">{selectedCard ? selectedCard.name : 'null'}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span>pinnedCards:</span>
+              <span className="text-purple-400">{pinnedCards.length} cards</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span>displayCardNo:</span>
+              <span className="text-yellow-400 font-bold">{displayCardNo}</span>
+            </div>
           </div>
-          <div className="flex justify-between gap-4">
-            <span>pinnedCards:</span>
-            <span className="text-purple-400">{pinnedCards.length} cards</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>displayCardNo:</span>
-            <span className="text-yellow-400 font-bold">{displayCardNo}</span>
-          </div>
-        </div>
-      )}
+        )
+      }
     </div >
   );
 }
