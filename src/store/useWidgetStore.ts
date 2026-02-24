@@ -14,6 +14,13 @@ interface SelectionRect {
     currentY: number;
 }
 
+interface MoveableRect {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+}
+
 interface WidgetStoreState {
     // ウィジェットの状態
     widgetStates: Record<WidgetId, WidgetState>;
@@ -39,6 +46,7 @@ interface WidgetStoreState {
     selectionRect: SelectionRect | null;
     // グループ
     groupData: WidgetGroupData;
+    activeMoveableRect: MoveableRect | null;
 
     // システム/ビデオ設定
     obsMode: ObsMode;
@@ -62,7 +70,10 @@ interface WidgetStoreState {
     setCoinValue: (val: 1 | 0) => void;
     setIsSelecting: (val: boolean) => void;
     setSelectionRect: (rect: SelectionRect | null) => void;
+    setActiveMoveableRect: (rect: MoveableRect | null) => void;
     clearGroups: () => void;
+    groupSelectedWidgets: () => void;
+    ungroupSelectedWidgets: () => void;
 }
 
 const STORAGE_KEYS = {
@@ -102,6 +113,7 @@ const getInitialState = () => {
         coinValue: 1 as const,
         isSelecting: false,
         selectionRect: null,
+        activeMoveableRect: null,
     };
 
     if (savedWidgets) {
@@ -143,7 +155,19 @@ export const useWidgetStore = create<WidgetStoreState>()(
             settings: { ...state.settings, ...patch }
         })),
 
-        setSelectedWidgets: (ids) => set({ selectedWidgetIds: ids }),
+        setSelectedWidgets: (ids) => set((state) => {
+            // グループメンバーが含まれている場合、グループ全員を自動的に追加
+            const nextIds = new Set<string>();
+            ids.forEach(id => {
+                const group = state.groupData.groups.find(g => g.id === id || g.memberIds.includes(id));
+                if (group) {
+                    group.memberIds.forEach(mid => nextIds.add(mid));
+                } else {
+                    nextIds.add(id);
+                }
+            });
+            return { selectedWidgetIds: Array.from(nextIds) };
+        }),
 
         setGroupData: (groupData) => set({ groupData }),
 
@@ -166,11 +190,91 @@ export const useWidgetStore = create<WidgetStoreState>()(
         setCoinValue: (coinValue) => set({ coinValue }),
         setIsSelecting: (isSelecting) => set({ isSelecting }),
         setSelectionRect: (selectionRect) => set({ selectionRect }),
+        setActiveMoveableRect: (activeMoveableRect) => set({ activeMoveableRect }),
 
         clearGroups: () => {
             set({ groupData: { groups: [], relativeTransforms: {} } });
             localStorage.removeItem(STORAGE_KEYS.GROUPS);
         },
+
+        groupSelectedWidgets: () => set((state) => {
+            const { selectedWidgetIds, groupData, widgetStates } = state;
+            if (selectedWidgetIds.length < 2) return state;
+
+            const targetIds = new Set<string>();
+            selectedWidgetIds.forEach(id => {
+                const existingGroup = groupData.groups.find(g => g.id === id);
+                if (existingGroup) {
+                    existingGroup.memberIds.forEach(mid => targetIds.add(mid));
+                } else {
+                    targetIds.add(id);
+                }
+            });
+
+            const newMemberIds = Array.from(targetIds);
+            const remainingGroups = groupData.groups.filter(g =>
+                !g.memberIds.some(mid => targetIds.has(mid)) && !targetIds.has(g.id)
+            );
+
+            const groupId = `group_${Date.now()}`;
+            const anchorId = newMemberIds[0] as WidgetId;
+            const anchorState = widgetStates[anchorId];
+
+            const newRelativeTransforms = { ...groupData.relativeTransforms };
+
+            // 相対座標の計算 (アンカーを基準にする)
+            if (anchorState) {
+                const aspect = window.innerWidth / window.innerHeight;
+                newMemberIds.forEach(id => {
+                    const ms = widgetStates[id as WidgetId];
+                    if (ms) {
+                        newRelativeTransforms[id as WidgetId] = {
+                            dx: (ms.px - anchorState.px) * aspect,
+                            dy: ms.py - anchorState.py,
+                            dScale: ms.scale / anchorState.scale,
+                            dRotation: ms.rotation - anchorState.rotation,
+                        };
+                    }
+                });
+            }
+
+            const newGroup = {
+                id: groupId,
+                memberIds: newMemberIds,
+                anchorId: anchorId,
+            };
+
+            return {
+                groupData: {
+                    groups: [...remainingGroups, newGroup],
+                    relativeTransforms: newRelativeTransforms,
+                },
+                selectedWidgetIds: newMemberIds, // メンバー全員を選択状態にする
+            };
+        }),
+
+        ungroupSelectedWidgets: () => set((state) => {
+            const { selectedWidgetIds, groupData } = state;
+
+            // 選択中のIDの中にグループIDが含まれているか、
+            // または選択中のウィジェットがいずれかのグループに属している場合に対象とする
+            const groupIdsToDissolve = new Set<string>();
+            selectedWidgetIds.forEach(id => {
+                const g = groupData.groups.find(g => g.id === id || g.memberIds.includes(id));
+                if (g) groupIdsToDissolve.add(g.id);
+            });
+
+            if (groupIdsToDissolve.size === 0) return state;
+
+            const nextGroups = groupData.groups.filter(g => !groupIdsToDissolve.has(g.id));
+
+            return {
+                groupData: {
+                    ...groupData,
+                    groups: nextGroups,
+                }
+            };
+        }),
     }))
 );
 

@@ -14,6 +14,7 @@ import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
 import { useWidgetSelection } from './hooks/useWidgetSelection';
 import { MoveableController } from './components/MoveableController';
+import { SelectionActionBar } from './components/SelectionActionBar';
 import { type WidgetId, type WidgetGroup } from './types/widgetTypes';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
@@ -68,6 +69,7 @@ function App() {
   const setCoinValue = useWidgetStore(s => s.setCoinValue);
   const setGroupData = useWidgetStore(s => s.setGroupData);
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
+  const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
 
   const {
     isDiceVisible,
@@ -184,41 +186,6 @@ function App() {
 
 
 
-  const groupWidgets = useCallback((ids: WidgetId[]) => {
-    const groupId = `group_${Date.now()}`;
-    const nextTransforms = { ...groupData.relativeTransforms };
-    const nextGroups = [...groupData.groups];
-
-    // Add new group
-    nextGroups.push({
-      id: groupId as WidgetId,
-      memberIds: ids,
-      anchorId: ids[0],
-    });
-
-    // Calc relative transforms
-    const { widgetStates } = useWidgetStore.getState();
-    ids.forEach(id => {
-      const ms = widgetStates[id];
-      const as = widgetStates[ids[0]];
-      if (ms && as) {
-        const aspect = window.innerWidth / window.innerHeight;
-        nextTransforms[id] = {
-          dx: (ms.px - as.px) * aspect,
-          dy: ms.py - as.py,
-          dScale: ms.scale / as.scale,
-          dRotation: ms.rotation - as.rotation,
-        };
-      }
-    });
-
-    setGroupData({
-      groups: nextGroups,
-      relativeTransforms: nextTransforms,
-    });
-
-    setSelectedWidgets([groupId as WidgetId]);
-  }, [groupData, setGroupData, setSelectedWidgets]);
 
 
 
@@ -388,7 +355,7 @@ function App() {
       // G key: Group selected widgets
       if ((e.key === 'g' || e.key === 'G') && selectedWidgetIds.length >= 2) {
         e.preventDefault();
-        groupWidgets(selectedWidgetIds);
+        groupSelectedWidgets();
       }
 
       // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
@@ -492,7 +459,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupWidgets]);
+  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupSelectedWidgets]);
 
 
   if (import.meta.env.DEV) {
@@ -851,6 +818,7 @@ function App() {
       }
 
       {!isSearchView && <MoveableController />}
+      {!isSearchView && <SelectionActionBar />}
     </div >
   );
 }

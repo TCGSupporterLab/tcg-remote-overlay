@@ -20,6 +20,7 @@ export const MoveableController: React.FC = () => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
     const groupData = useWidgetStore(s => s.groupData);
     const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
+    const setActiveMoveableRect = useWidgetStore(s => s.setActiveMoveableRect);
     const updateWidgetState = useWidgetStore(s => s.updateWidgetState);
 
     const [targets, setTargets] = useState<Array<HTMLElement | SVGElement>>([]);
@@ -57,7 +58,24 @@ export const MoveableController: React.FC = () => {
             .filter((el): el is HTMLElement => el !== null);
 
         setTargets(elements);
-    }, [selectedWidgetIds, groupData.groups]);
+
+        // ターゲット変更時に一旦リセット、または初期Rectを設定
+        if (elements.length > 0) {
+            setTimeout(() => {
+                if (moveableRef.current) {
+                    const rect = moveableRef.current.getRect();
+                    setActiveMoveableRect({
+                        left: rect.left,
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                    });
+                }
+            }, 0);
+        } else {
+            setActiveMoveableRect(null);
+        }
+    }, [selectedWidgetIds, groupData.groups, setActiveMoveableRect]);
 
     const startAction = (id: string | null) => {
         if (!id) return;
@@ -169,7 +187,18 @@ export const MoveableController: React.FC = () => {
     const handleEnd = useCallback(() => {
         const ids = Array.from(activeStatesRef.current.keys());
         endAction(ids);
-    }, [updateWidgetState, viewSize]);
+
+        // 操作終了後の最終的な位置を更新
+        if (moveableRef.current) {
+            const rect = moveableRef.current.getRect();
+            setActiveMoveableRect({
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+            });
+        }
+    }, [updateWidgetState, viewSize, setActiveMoveableRect]);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[999]">
@@ -223,6 +252,21 @@ export const MoveableController: React.FC = () => {
                 onRotateGroupStart={handleRotateGroupStart}
                 onRotateGroup={handleRotateGroup}
                 onRotateGroupEnd={handleEnd}
+
+                // --- 選択枠（Rect）の同期 ---
+                onRender={(_e) => {
+                    // getRect() は Moveable 自身の全体領域（回転含む）を取得するため、
+                    // ここでは実際の DOM 座標を元にストアを更新
+                    if (moveableRef.current) {
+                        const mRect = moveableRef.current.getRect();
+                        setActiveMoveableRect({
+                            left: mRect.left,
+                            top: mRect.top,
+                            width: mRect.width,
+                            height: mRect.height,
+                        });
+                    }
+                }}
             />
             <Selecto
                 dragContainer={window}
@@ -235,6 +279,10 @@ export const MoveableController: React.FC = () => {
                 ratio={0}
                 dragCondition={(e) => {
                     const target = e.inputEvent.target as Element;
+
+                    // 操作バーへの操作は Selecto 側で無視する
+                    if (target.closest('.selection-action-bar')) return false;
+
                     const isMoveableElement = !!target.closest('[class*="moveable-"]');
                     if (isMoveableElement) return false;
                     const isWidget = !!target.closest('[data-widget-id]');
@@ -243,6 +291,11 @@ export const MoveableController: React.FC = () => {
                 }}
                 onDragStart={(e) => {
                     const target = e.inputEvent.target as Element;
+                    if (target.closest('.selection-action-bar')) {
+                        e.stop();
+                        return;
+                    }
+
                     const isWidget = !!target.closest('[data-widget-id]');
                     const isMoveable = !!target.closest('[class*="moveable-"]');
                     const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
