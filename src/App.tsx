@@ -332,8 +332,29 @@ function App() {
         return;
       }
 
+      // Handle Ctrl+A (Select All Widgets)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        // Get all widget containers currently in the DOM
+        const allWidgets = document.querySelectorAll('[data-widget-id]');
+        const ids = Array.from(allWidgets)
+          .map(el => el.getAttribute('data-widget-id'))
+          .filter((id): id is string => id !== null);
+
+        if (ids.length > 0) {
+          setSelectedWidgets(ids);
+          if (import.meta.env.DEV) {
+            console.log(`[Shortcut] Select All: found ${ids.length} widgets`);
+          }
+        }
+        return;
+      }
+
       // Allow hotkeys only if settings are closed
       if (showSettings) return;
+
+      // Ignore single-key shortcuts if Ctrl, Meta, or Alt is held
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key === 'd' || e.key === 'D') {
         handleRollDice();

@@ -4,9 +4,11 @@ import Moveable, {
     type OnDragStart,
     type OnScaleStart,
     type OnRotateStart,
+    type OnDragEnd,
     type OnDragGroupStart,
     type OnScaleGroupStart,
-    type OnRotateGroupStart
+    type OnRotateGroupStart,
+    type OnDragGroupEnd
 } from 'react-moveable';
 import Selecto from 'react-selecto';
 import { useWidgetStore } from '../store/useWidgetStore';
@@ -45,8 +47,11 @@ export const MoveableController: React.FC = () => {
                 h: window.innerHeight
             });
         };
+
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     }, []);
 
     useEffect(() => {
@@ -217,7 +222,23 @@ export const MoveableController: React.FC = () => {
 
                 onDragStart={(e) => { handleDragStart(e); }}
                 onDrag={handleDrag}
-                onDragEnd={() => { handleEnd(); }}
+                onDragEnd={(e: OnDragEnd) => {
+                    handleEnd();
+                    // 他の要素が選択されている状態で Ctrl+Click した際の選択解除をサポート (Selecto がバイパスされた場合の補完)
+                    if (!e.isDrag && (e.inputEvent.ctrlKey || e.inputEvent.metaKey)) {
+                        const inputTarget = e.inputEvent.target as HTMLElement;
+                        if (!inputTarget.closest('[class*="moveable-control"]')) {
+                            const widgetEl = inputTarget.closest('[data-widget-id]');
+                            const id = widgetEl?.getAttribute('data-widget-id') as WidgetId;
+                            if (id) {
+                                const current = useWidgetStore.getState().selectedWidgetIds;
+                                const group = groupData.groups.find(g => g.memberIds.includes(id) || g.id === id);
+                                const idsToRemove = group ? [group.id, ...group.memberIds] : [id];
+                                setSelectedWidgets(current.filter(i => !idsToRemove.includes(i)));
+                            }
+                        }
+                    }
+                }}
 
                 onScaleStart={(e) => { handleScaleStart(e); }}
                 onScale={handleScale}
@@ -229,7 +250,23 @@ export const MoveableController: React.FC = () => {
 
                 onDragGroupStart={(e) => { handleDragGroupStart(e); }}
                 onDragGroup={({ events }) => events.forEach(handleDrag)}
-                onDragGroupEnd={() => { handleEnd(); }}
+                onDragGroupEnd={(e: OnDragGroupEnd) => {
+                    handleEnd();
+                    // グループ選択状態で Ctrl+Click した際の選択解除をサポート
+                    if (!e.isDrag && (e.inputEvent.ctrlKey || e.inputEvent.metaKey)) {
+                        const inputTarget = e.inputEvent.target as HTMLElement;
+                        if (!inputTarget.closest('[class*="moveable-control"]')) {
+                            const widgetEl = inputTarget.closest('[data-widget-id]');
+                            const id = widgetEl?.getAttribute('data-widget-id') as WidgetId;
+                            if (id) {
+                                const current = useWidgetStore.getState().selectedWidgetIds;
+                                const group = groupData.groups.find(g => g.memberIds.includes(id) || g.id === id);
+                                const idsToRemove = group ? [group.id, ...group.memberIds] : [id];
+                                setSelectedWidgets(current.filter(i => !idsToRemove.includes(i)));
+                            }
+                        }
+                    }
+                }}
 
                 onScaleGroupStart={(e) => { handleScaleGroupStart(e); }}
                 onScaleGroup={({ events }) => events.forEach(handleScale)}
@@ -272,6 +309,15 @@ export const MoveableController: React.FC = () => {
                         if (!isCtrl) return false;
                     }
                     const isWidget = !!target.closest('[data-widget-id]');
+                    // すでに選択されているウィジェット上で Ctrl を押しながらドラッグを開始した場合は、
+                    // Selecto ではなく Moveable にドラッグ(移動)を任せる
+                    if (isWidget && isCtrl) {
+                        const widgetEl = target.closest('[data-widget-id]');
+                        const id = widgetEl?.getAttribute('data-widget-id');
+                        if (id && selectedWidgetIds.includes(id as WidgetId)) {
+                            return false;
+                        }
+                    }
                     return !isWidget || isCtrl;
                 }}
                 onDragStart={(e) => {
