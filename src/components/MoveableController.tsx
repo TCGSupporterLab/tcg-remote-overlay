@@ -40,6 +40,10 @@ export const MoveableController: React.FC = () => {
     // 手動DOM更新用
     const activeStatesRef = useRef<Map<string, ActiveState>>(new Map());
 
+    // アクションバーのキャッシュ用
+    const actionBarCacheRef = useRef<HTMLElement | null>(null);
+    const configFlagsRef = useRef({ hasMultiple: false, hasGroup: false });
+
     // Moveable の位置状態をストアに同期するヘルパー
     const syncMoveableRect = useCallback(() => {
         if (moveableRef.current) {
@@ -53,6 +57,39 @@ export const MoveableController: React.FC = () => {
             });
         }
     }, [setActiveMoveableRect]);
+
+    // 変形中のアクションバー追従用（DOM直接操作 - パフォーマンス最適化版）
+    const syncActionBarDOM = useCallback((providedRect?: any) => {
+        if (!moveableRef.current) return;
+        const rect = providedRect || moveableRef.current.getRect();
+        const bar = actionBarCacheRef.current || document.querySelector('.selection-action-bar') as HTMLElement;
+        if (!bar) return;
+        actionBarCacheRef.current = bar;
+
+        // SelectionActionBar.tsx と同じ計算ロジック
+        const barHeight = 44;
+        const internalGap = 12;
+        const normRotation = ((rect.rotation % 360) + 360) % 360;
+        const isHandleAtBottom = normRotation > 90 && normRotation < 270;
+        const useTop = isHandleAtBottom;
+
+        let topPos = useTop
+            ? rect.top + internalGap
+            : rect.top + rect.height - barHeight - internalGap;
+
+        const screenMargin = 16;
+        topPos = Math.max(screenMargin, Math.min(window.innerHeight - barHeight - screenMargin, topPos));
+
+        const { hasMultiple, hasGroup } = configFlagsRef.current;
+        const barIconsCount = 1 + (hasMultiple ? (hasGroup ? 2 : 1) : 0);
+        const approximateBarWidth = barIconsCount * 44 + 8;
+        const halfWidth = approximateBarWidth / 2;
+        const horizontalMargin = 16;
+        let leftPos = rect.left + rect.width / 2;
+        leftPos = Math.max(halfWidth + horizontalMargin, Math.min(window.innerWidth - halfWidth - horizontalMargin, leftPos));
+
+        bar.style.transform = `translate3d(${leftPos}px, ${topPos}px, 0) translateX(-50%)`;
+    }, []);
 
 
     // 共通のクランプ処理 (Arrow nudging と Moveable 両方で使用)
@@ -80,33 +117,29 @@ export const MoveableController: React.FC = () => {
 
     // 画面リサイズ監視 & Arrow Key Nudging
     useEffect(() => {
+        let resizeTimer: number | null = null;
         const handleResize = () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            setViewSize({ w, h });
+            if (resizeTimer) window.cancelAnimationFrame(resizeTimer);
+            resizeTimer = window.requestAnimationFrame(() => {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                setViewSize({ w, h });
 
-            // リサイズ時に各ウィジェットの activeState (posX, posY, scale) を再計算
-            // これを行わないと、リサイズ後にドラッグを開始した瞬間に古い座標系でジャンプする
-            activeStatesRef.current.forEach((state, id) => {
-                const s = useWidgetStore.getState().widgetStates[id as WidgetId];
-                if (s) {
-                    const scalingFactor = Math.min(w / SCALING_BASE_W, h / SCALING_BASE_H);
-                    state.posX = s.px * w;
-                    state.posY = s.py * h;
-                    state.scale = s.scale * scalingFactor;
-                }
+                activeStatesRef.current.forEach((state, id) => {
+                    const s = useWidgetStore.getState().widgetStates[id as WidgetId];
+                    if (s) {
+                        const scalingFactor = Math.min(w / SCALING_BASE_W, h / SCALING_BASE_H);
+                        state.posX = s.px * w;
+                        state.posY = s.py * h;
+                        state.scale = s.scale * scalingFactor;
+                    }
+                });
             });
-
-            // リサイズ時に Moveable の枠とアクションバーを強制同期
-            if (moveableRef.current) {
-                moveableRef.current.updateRect();
-                syncMoveableRect();
-            }
         };
 
         window.addEventListener('resize', handleResize);
 
-        // ウィジェット要素自体のサイズ変更も監視（Moveableの枠ズレ対策）
+        // ウィジェット要素自体のサイズ変更も監視
         const resizeObserver = new ResizeObserver(() => {
             if (moveableRef.current) {
                 moveableRef.current.updateRect();
@@ -117,7 +150,7 @@ export const MoveableController: React.FC = () => {
         targets.forEach(t => resizeObserver.observe(t));
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (selectedWidgetIds.length === 0) return;
+            if (selectedWidgetIds.length < 1) return;
             if (document.activeElement?.tagName === 'INPUT' ||
                 document.activeElement?.tagName === 'TEXTAREA' ||
                 (document.activeElement as HTMLElement)?.isContentEditable) {
@@ -135,7 +168,6 @@ export const MoveableController: React.FC = () => {
 
             if (dx === 0 && dy === 0) return;
 
-            // 現在の全メンバーの状態を取得して試算
             const allMemberIds = new Set<string>();
             selectedWidgetIds.forEach(id => {
                 const group = groupData.groups.find(g => g.id === id);
@@ -162,7 +194,6 @@ export const MoveableController: React.FC = () => {
 
             if (items.length === 0) return;
 
-            // 全体で共通の移動制限を計算 (フォーメーション維持)
             const finalDelta = [dx, dy];
             items.forEach(({ state, el }) => {
                 const sw = el.offsetWidth * state.scale;
@@ -183,7 +214,6 @@ export const MoveableController: React.FC = () => {
                 else if (finalDelta[1] < 0) finalDelta[1] = Math.min(0, Math.max(finalDelta[1], minY - state.posY));
             });
 
-            // ストアを更新
             items.forEach(({ id, state }) => {
                 updateWidgetState(id as WidgetId, {
                     px: (state.posX + finalDelta[0]) / window.innerWidth,
@@ -191,31 +221,32 @@ export const MoveableController: React.FC = () => {
                 });
             });
 
-            // Moveable の枠を追従させる
             requestAnimationFrame(() => {
                 if (moveableRef.current) {
                     moveableRef.current.updateRect();
-                    const rect = moveableRef.current.getRect();
-                    setActiveMoveableRect({
-                        left: rect.left,
-                        top: rect.top,
-                        width: rect.width,
-                        height: rect.height,
-                        rotation: rect.rotation,
-                    });
+                    syncMoveableRect();
                 }
             });
         };
 
-        window.addEventListener('resize', handleResize);
         window.addEventListener('keydown', handleKeyDown);
 
         return () => {
+            if (resizeTimer) window.cancelAnimationFrame(resizeTimer);
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('resize', handleResize);
             resizeObserver.disconnect();
         };
-    }, [selectedWidgetIds, viewSize, targets, updateWidgetState, setActiveMoveableRect, setIsTransforming, syncMoveableRect]);
+    }, [selectedWidgetIds, targets, updateWidgetState, setActiveMoveableRect, syncMoveableRect, groupData.groups, SCALING_BASE_H, SCALING_BASE_W, setViewSize]);
+
+    // リサイズやターゲット変更完了後にMoveableの枠を同期
+    useEffect(() => {
+        if (moveableRef.current) {
+            moveableRef.current.updateRect();
+            syncMoveableRect();
+            syncActionBarDOM();
+        }
+    }, [viewSize, targets, syncMoveableRect, syncActionBarDOM]);
 
     useEffect(() => {
         const allMemberIds = new Set<string>();
@@ -231,7 +262,6 @@ export const MoveableController: React.FC = () => {
 
         setTargets(elements);
 
-        // ターゲット変更時に一旦リセット、または初期Rectを設定
         if (elements.length > 0) {
             setTimeout(() => {
                 if (moveableRef.current) {
@@ -255,36 +285,45 @@ export const MoveableController: React.FC = () => {
         const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
         if (!el) return;
 
-        if (!activeStatesRef.current.has(id)) {
-            const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
-            const scalingFactor = Math.min(viewSize.w / SCALING_BASE_W, viewSize.h / SCALING_BASE_H);
-            activeStatesRef.current.set(id, {
-                ...s,
-                posX: s.px * viewSize.w,
-                posY: s.py * viewSize.h,
-                scale: s.scale * scalingFactor, // 表示上のサイズ
-                width: el.offsetWidth,
-                height: el.offsetHeight,
-            });
-        }
+        const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const scalingFactor = Math.min(w / SCALING_BASE_W, h / SCALING_BASE_H);
+
+        activeStatesRef.current.set(id, {
+            ...s,
+            posX: s.px * w,
+            posY: s.py * h,
+            scale: s.scale * scalingFactor,
+            width: el.offsetWidth,
+            height: el.offsetHeight,
+        });
+
+        configFlagsRef.current.hasMultiple = selectedWidgetIds.length > 1;
+        configFlagsRef.current.hasGroup = selectedWidgetIds.some(id =>
+            groupData.groups.some(g => g.id === id || g.memberIds.includes(id))
+        );
+        actionBarCacheRef.current = document.querySelector('.selection-action-bar') as HTMLElement;
+
         setIsTransforming(true);
     };
 
     const endAction = (ids: string[]) => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const scalingFactor = Math.min(w / SCALING_BASE_W, h / SCALING_BASE_H);
+
         ids.forEach(id => {
             const state = activeStatesRef.current.get(id);
             if (state) {
-                // 回転を [-180, 180] に正規化
                 let rot = state.rotation % 360;
                 if (rot > 180) rot -= 360;
                 if (rot < -180) rot += 360;
 
-                const scalingFactor = Math.min(viewSize.w / SCALING_BASE_W, viewSize.h / SCALING_BASE_H);
-
                 updateWidgetState(id as WidgetId, {
-                    px: state.posX / viewSize.w,
-                    py: state.posY / viewSize.h,
-                    scale: state.scale / scalingFactor, // 基準サイズ（1920px時）に戻して保存
+                    px: state.posX / w,
+                    py: state.posY / h,
+                    scale: state.scale / scalingFactor,
                     rotation: rot,
                 });
                 activeStatesRef.current.delete(id);
@@ -298,7 +337,8 @@ export const MoveableController: React.FC = () => {
         startAction(id);
         const state = activeStatesRef.current.get(id || '');
         if (state) e.set([state.posX, state.posY]);
-    }, [viewSize]);
+    }, []);
+
     const handleDrag = useCallback(({ target, beforeDelta }: OnDrag) => {
         const id = target.getAttribute('data-widget-id');
         const state = activeStatesRef.current.get(id || '');
@@ -307,8 +347,7 @@ export const MoveableController: React.FC = () => {
         state.posY += beforeDelta[1];
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-        syncMoveableRect();
-    }, [viewSize.w, viewSize.h, syncMoveableRect]);
+    }, []);
 
     const handleScaleStart = useCallback((e: OnScaleStart) => {
         const id = e.target.getAttribute('data-widget-id');
@@ -318,7 +357,8 @@ export const MoveableController: React.FC = () => {
             e.set(e.dragStart ? [state.scale, state.scale] : [state.scale]);
             if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
         }
-    }, [viewSize]);
+    }, []);
+
     const handleScale = useCallback(({ target, scale, drag }: OnScale) => {
         const id = target.getAttribute('data-widget-id');
         const state = activeStatesRef.current.get(id || '');
@@ -330,8 +370,7 @@ export const MoveableController: React.FC = () => {
         }
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-        syncMoveableRect();
-    }, [viewSize.w, viewSize.h, syncMoveableRect]);
+    }, []);
 
     const handleRotateStart = useCallback((e: OnRotateStart) => {
         const id = e.target.getAttribute('data-widget-id');
@@ -341,7 +380,8 @@ export const MoveableController: React.FC = () => {
             e.set(state.rotation);
             if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
         }
-    }, [viewSize]);
+    }, []);
+
     const handleRotate = useCallback(({ target, rotate, drag }: OnRotate) => {
         const id = target.getAttribute('data-widget-id');
         const state = activeStatesRef.current.get(id || '');
@@ -353,24 +393,16 @@ export const MoveableController: React.FC = () => {
         }
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-        syncMoveableRect();
-    }, [viewSize.w, viewSize.h, syncMoveableRect]);
+    }, []);
 
     const handleEnd = useCallback(() => {
         const ids = Array.from(activeStatesRef.current.keys());
         endAction(ids);
         if (moveableRef.current) {
-            const rect = moveableRef.current.getRect();
-            setActiveMoveableRect({
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height,
-                rotation: rect.rotation,
-            });
+            syncMoveableRect();
         }
         setIsTransforming(false);
-    }, [setActiveMoveableRect, setIsTransforming, viewSize]);
+    }, [setIsTransforming, syncMoveableRect]);
 
     // Group handlers
     const handleDragGroupStart = useCallback(({ events }: OnDragGroupStart) => {
@@ -380,7 +412,7 @@ export const MoveableController: React.FC = () => {
             const state = activeStatesRef.current.get(id || '');
             if (state) e.set([state.posX, state.posY]);
         });
-    }, [viewSize]);
+    }, []);
 
     const handleScaleGroupStart = useCallback(({ events }: OnScaleGroupStart) => {
         events.forEach(e => {
@@ -392,7 +424,7 @@ export const MoveableController: React.FC = () => {
                 if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
             }
         });
-    }, [viewSize]);
+    }, []);
 
     const handleRotateGroupStart = useCallback(({ events }: OnRotateGroupStart) => {
         events.forEach(e => {
@@ -404,7 +436,7 @@ export const MoveableController: React.FC = () => {
                 if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
             }
         });
-    }, [viewSize]);
+    }, []);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[999]">
@@ -425,11 +457,10 @@ export const MoveableController: React.FC = () => {
                 snapRotationDegrees={[0, 90, 180, 270]}
                 snapRotationThreshold={5}
 
-                onDragStart={(e) => { handleDragStart(e); }}
+                onDragStart={handleDragStart}
                 onDrag={handleDrag}
                 onDragEnd={(e: OnDragEnd) => {
                     handleEnd();
-                    // 他の要素が選択されている状態で Ctrl+Click した際の選択解除をサポート (Selecto がバイパスされた場合の補完)
                     if (!e.isDrag && (e.inputEvent.ctrlKey || e.inputEvent.metaKey)) {
                         const inputTarget = e.inputEvent.target as HTMLElement;
                         if (!inputTarget.closest('[class*="moveable-control"]')) {
@@ -445,19 +476,15 @@ export const MoveableController: React.FC = () => {
                     }
                 }}
 
-                onScaleStart={(e) => { handleScaleStart(e); }}
+                onScaleStart={handleScaleStart}
                 onScale={handleScale}
                 onScaleEnd={() => { handleEnd(); }}
 
-                onRotateStart={(e) => {
-                    handleRotateStart(e);
-                }}
+                onRotateStart={handleRotateStart}
                 onRotate={handleRotate}
-                onRotateEnd={() => {
-                    handleEnd();
-                }}
+                onRotateEnd={() => { handleEnd(); }}
 
-                onDragGroupStart={(e) => { handleDragGroupStart(e); }}
+                onDragGroupStart={handleDragGroupStart}
                 onDragGroup={({ events }) => {
                     events.forEach(e => {
                         const id = e.target.getAttribute('data-widget-id') || '';
@@ -468,11 +495,9 @@ export const MoveableController: React.FC = () => {
                             updateDOMTransform(e.target as HTMLElement, state);
                         }
                     });
-                    syncMoveableRect();
                 }}
                 onDragGroupEnd={(e: OnDragGroupEnd) => {
                     handleEnd();
-                    // グループ選択状態で Ctrl+Click した際の選択解除をサポート
                     if (!e.isDrag && (e.inputEvent.ctrlKey || e.inputEvent.metaKey)) {
                         const inputTarget = e.inputEvent.target as HTMLElement;
                         if (!inputTarget.closest('[class*="moveable-control"]')) {
@@ -488,7 +513,7 @@ export const MoveableController: React.FC = () => {
                     }
                 }}
 
-                onScaleGroupStart={(e) => { handleScaleGroupStart(e); }}
+                onScaleGroupStart={handleScaleGroupStart}
                 onScaleGroup={({ events }) => {
                     const activeItems = events.map(e => ({
                         e,
@@ -496,34 +521,28 @@ export const MoveableController: React.FC = () => {
                     })).filter((x): x is { e: any, state: ActiveState } => !!x.state);
 
                     if (activeItems.length > 0) {
-                        // 1. 各要素の移動・拡縮後の「試算」
                         const trials = activeItems.map(({ e, state }) => {
                             const trialX = state.posX + (e.drag?.delta[0] || 0);
                             const trialY = state.posY + (e.drag?.delta[1] || 0);
                             return { e, state, trialX, trialY, scale: e.scale[0] };
                         });
 
-                        // 2. 共通の補正量（位置関係を保つための全体スライド量）を計算
                         let offsetX = 0;
                         let offsetY = 0;
                         trials.forEach(t => {
                             const sw = t.state.width * t.scale;
                             const sh = t.state.height * t.scale;
                             const margin = Math.min(40, sw * 0.5, sh * 0.5);
-                            const halfW = window.innerWidth / 2;
-                            const halfH = window.innerHeight / 2;
-                            const minX = -halfW - sw / 2 + margin;
-                            const maxX = halfW + sw / 2 - margin;
-                            const minY = -halfH - sh / 2 + margin;
-                            const maxY = halfH + sh / 2 - margin;
-
+                            const minX = -window.innerWidth / 2 - sw / 2 + margin;
+                            const maxX = window.innerWidth / 2 + sw / 2 - margin;
+                            const minY = -window.innerHeight / 2 - sh / 2 + margin;
+                            const maxY = window.innerHeight / 2 + sh / 2 - margin;
                             if (t.trialX < minX) offsetX = Math.max(offsetX, minX - t.trialX);
                             if (t.trialX > maxX) offsetX = Math.min(offsetX, maxX - t.trialX);
                             if (t.trialY < minY) offsetY = Math.max(offsetY, minY - t.trialY);
                             if (t.trialY > maxY) offsetY = Math.min(offsetY, maxY - t.trialY);
                         });
 
-                        // 3. 適用。共通補正を入れてもはみ出す場合は最後のみ個別クランプ（崩れを最小限に）
                         trials.forEach(t => {
                             t.state.scale = t.scale;
                             t.state.posX = t.trialX + offsetX;
@@ -535,9 +554,7 @@ export const MoveableController: React.FC = () => {
                 }}
                 onScaleGroupEnd={() => { handleEnd(); }}
 
-                onRotateGroupStart={(e) => {
-                    handleRotateGroupStart(e);
-                }}
+                onRotateGroupStart={handleRotateGroupStart}
                 onRotateGroup={({ events }) => {
                     const activeItems = events.map(e => ({
                         e,
@@ -557,13 +574,10 @@ export const MoveableController: React.FC = () => {
                             const sw = t.state.width * t.state.scale;
                             const sh = t.state.height * t.state.scale;
                             const margin = Math.min(40, sw * 0.5, sh * 0.5);
-                            const halfW = window.innerWidth / 2;
-                            const halfH = window.innerHeight / 2;
-                            const minX = -halfW - sw / 2 + margin;
-                            const maxX = halfW + sw / 2 - margin;
-                            const minY = -halfH - sh / 2 + margin;
-                            const maxY = halfH + sh / 2 - margin;
-
+                            const minX = -window.innerWidth / 2 - sw / 2 + margin;
+                            const maxX = window.innerWidth / 2 + sw / 2 - margin;
+                            const minY = -window.innerHeight / 2 - sh / 2 + margin;
+                            const maxY = window.innerHeight / 2 + sh / 2 - margin;
                             if (t.trialX < minX) offsetX = Math.max(offsetX, minX - t.trialX);
                             if (t.trialX > maxX) offsetX = Math.min(offsetX, maxX - t.trialX);
                             if (t.trialY < minY) offsetY = Math.max(offsetY, minY - t.trialY);
@@ -574,19 +588,15 @@ export const MoveableController: React.FC = () => {
                             t.state.rotation = t.rotation;
                             t.state.posX = t.trialX + offsetX;
                             t.state.posY = t.trialY + offsetY;
-                            // グループ回転での累積誤差を防ぐため、beforeDelta ではなく e.drag.beforeDelta を使う手法もあるが、
-                            // react-moveable の trial 値をそのまま適用
                             clampState(t.state);
                             updateDOMTransform(t.e.target as HTMLElement, t.state);
                         });
                     }
                 }}
-                onRotateGroupEnd={() => {
-                    handleEnd();
-                }}
+                onRotateGroupEnd={() => { handleEnd(); }}
 
-                onRender={syncMoveableRect}
-                onRenderGroup={syncMoveableRect}
+                onRender={(e) => syncActionBarDOM(e.rect)}
+                onRenderGroup={(e) => syncActionBarDOM(e.rect)}
             />
             <Selecto
                 dragContainer={window}
@@ -608,8 +618,6 @@ export const MoveableController: React.FC = () => {
                         if (!isCtrl) return false;
                     }
                     const isWidget = !!target.closest('[data-widget-id]');
-                    // すでに選択されているウィジェット上で Ctrl を押しながらドラッグを開始した場合は、
-                    // Selecto ではなく Moveable にドラッグ(移動)を任せる
                     if (isWidget && isCtrl) {
                         const widgetEl = target.closest('[data-widget-id]');
                         const id = widgetEl?.getAttribute('data-widget-id');
@@ -656,32 +664,24 @@ export const MoveableController: React.FC = () => {
                         });
                     } else {
                         const currentIds = new Set(selectedWidgetIds);
-
-                        // 結合ウィジェット（グループ）の枠内クリック判定（空白部分でもCtrl+クリックで選択可能にする）
                         if (!clickedTargetId && isCtrl) {
                             const inputEvent = e.inputEvent as any;
                             const clientX = inputEvent.clientX ?? inputEvent.touches?.[0]?.clientX;
                             const clientY = inputEvent.clientY ?? inputEvent.touches?.[0]?.clientY;
-
                             if (clientX !== undefined && clientY !== undefined) {
                                 const hitGroup = groupData.groups.find(group => {
                                     const rects = group.memberIds.map(id => {
                                         const el = document.querySelector(`[data-widget-id="${id}"]`);
                                         return el?.getBoundingClientRect();
                                     }).filter((r): r is DOMRect => !!r);
-
                                     if (rects.length === 0) return false;
-
                                     const minX = Math.min(...rects.map(r => r.left));
                                     const minY = Math.min(...rects.map(r => r.top));
                                     const maxX = Math.max(...rects.map(r => r.right));
                                     const maxY = Math.max(...rects.map(r => r.bottom));
-
                                     return clientX >= minX && clientX <= maxX && clientY >= minY && clientY <= maxY;
                                 });
-                                if (hitGroup) {
-                                    clickedTargetId = hitGroup.id as WidgetId;
-                                }
+                                if (hitGroup) clickedTargetId = hitGroup.id as WidgetId;
                             }
                         }
 

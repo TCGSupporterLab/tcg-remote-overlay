@@ -8,9 +8,8 @@ export const SelectionActionBar: React.FC = () => {
     const activeMoveableRect = useWidgetStore(s => s.activeMoveableRect);
     const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
     const ungroupSelectedWidgets = useWidgetStore(s => s.ungroupSelectedWidgets);
-    const isTransforming = useWidgetStore(s => s.isTransforming);
 
-    if (selectedWidgetIds.length < 1 || isTransforming) return null;
+    if (selectedWidgetIds.length < 1) return null;
 
     // 選択中のアイテムがグループに属しているかチェック
     const hasGroup = selectedWidgetIds.some(id =>
