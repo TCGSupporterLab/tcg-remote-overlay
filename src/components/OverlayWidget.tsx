@@ -55,9 +55,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                     transformOrigin: 'center center',
                     zIndex: 100,
                 }}
-                // マルチ選択（Ctrl+クリック）時にウィジェット内のボタン等が反応しないようにキャプチャフェーズで阻止
+                // マルチ選択（Ctrl+クリック）時、または選択済み状態でクリックされた場合に
+                // ウィジェット内のボタン等が反応しないようにキャプチャフェーズで阻止
                 onClickCapture={(e) => {
-                    if (e.ctrlKey || e.metaKey) {
+                    const isSelectedInStore = useWidgetStore.getState().selectedWidgetIds.includes(id as WidgetId);
+                    if (e.ctrlKey || e.metaKey || isSelectedInStore) {
                         e.stopPropagation();
                     }
                 }}
