@@ -145,6 +145,21 @@ export const MoveableController: React.FC = () => {
                     py: (state.posY + finalDelta[1]) / window.innerHeight,
                 });
             });
+
+            // Moveable の枠を追従させる
+            requestAnimationFrame(() => {
+                if (moveableRef.current) {
+                    moveableRef.current.updateRect();
+                    const rect = moveableRef.current.getRect();
+                    setActiveMoveableRect({
+                        left: rect.left,
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                        rotation: rect.rotation,
+                    });
+                }
+            });
         };
 
         window.addEventListener('resize', handleResize);

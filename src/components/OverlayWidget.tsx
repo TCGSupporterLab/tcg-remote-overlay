@@ -59,13 +59,6 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                 }}
             >
                 {children}
-                {/* Selection highlight */}
-                {isSelected && !isGrouped && (
-                    <div
-                        className="absolute inset-[-4px] border-2 border-blue-400 rounded-lg pointer-events-none"
-                        style={{ boxShadow: '0 0 12px rgba(96, 165, 250, 0.4)' }}
-                    />
-                )}
             </div>
         </div>
     );
