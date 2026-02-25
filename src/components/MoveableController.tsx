@@ -39,7 +39,30 @@ export const MoveableController: React.FC = () => {
     // 手動DOM更新用
     const activeStatesRef = useRef<Map<string, ActiveState>>(new Map());
 
-    // 画面リサイズ監視
+    // 共通のクランプ処理 (Arrow nudging と Moveable 両方で使用)
+    const clampState = (state: ActiveState) => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const halfW = vw / 2;
+        const halfH = vh / 2;
+        const sw = state.width * state.scale;
+        const sh = state.height * state.scale;
+        const margin = Math.min(40, sw * 0.5, sh * 0.5);
+
+        const minX = -halfW - sw / 2 + margin;
+        const maxX = halfW + sw / 2 - margin;
+        const minY = -halfH - sh / 2 + margin;
+        const maxY = halfH + sh / 2 - margin;
+
+        state.posX = Math.max(minX, Math.min(maxX, state.posX));
+        state.posY = Math.max(minY, Math.min(maxY, state.posY));
+    };
+
+    const updateDOMTransform = (target: HTMLElement | SVGElement, state: ActiveState) => {
+        target.style.transform = `translate(${state.posX}px, ${state.posY}px) translate(-50%, -50%) scale(${state.scale}) rotate(${state.rotation}deg)`;
+    };
+
+    // 画面リサイズ監視 & Arrow Key Nudging
     useEffect(() => {
         const handleResize = () => {
             setViewSize({
@@ -48,11 +71,90 @@ export const MoveableController: React.FC = () => {
             });
         };
 
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (selectedWidgetIds.length === 0) return;
+            if (document.activeElement?.tagName === 'INPUT' ||
+                document.activeElement?.tagName === 'TEXTAREA' ||
+                (document.activeElement as HTMLElement)?.isContentEditable) {
+                return;
+            }
+
+            const isArrow = e.key.startsWith('Arrow');
+            if (!isArrow) return;
+
+            e.preventDefault();
+
+            const moveStep = e.shiftKey ? 10 : 1;
+            const dx = e.key === 'ArrowLeft' ? -moveStep : e.key === 'ArrowRight' ? moveStep : 0;
+            const dy = e.key === 'ArrowUp' ? -moveStep : e.key === 'ArrowDown' ? moveStep : 0;
+
+            if (dx === 0 && dy === 0) return;
+
+            // 現在の全メンバーの状態を取得して試算
+            const allMemberIds = new Set<string>();
+            selectedWidgetIds.forEach(id => {
+                const group = groupData.groups.find(g => g.id === id);
+                if (group) group.memberIds.forEach(mid => allMemberIds.add(mid));
+                else allMemberIds.add(id);
+            });
+
+            const items = Array.from(allMemberIds).map(id => {
+                const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
+                const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
+                if (!el) return null;
+                return {
+                    id,
+                    state: {
+                        ...s,
+                        posX: s.px * window.innerWidth,
+                        posY: s.py * window.innerHeight,
+                        width: el.offsetWidth,
+                        height: el.offsetHeight
+                    },
+                    el
+                };
+            }).filter((i): i is NonNullable<typeof i> => i !== null);
+
+            if (items.length === 0) return;
+
+            // 全体で共通の移動制限を計算 (フォーメーション維持)
+            const finalDelta = [dx, dy];
+            items.forEach(({ state, el }) => {
+                const sw = el.offsetWidth * state.scale;
+                const sh = el.offsetHeight * state.scale;
+                const margin = Math.min(40, sw * 0.5, sh * 0.5);
+                const halfW = window.innerWidth / 2;
+                const halfH = window.innerHeight / 2;
+
+                const minX = -halfW - sw / 2 + margin;
+                const maxX = halfW + sw / 2 - margin;
+                const minY = -halfH - sh / 2 + margin;
+                const maxY = halfH + sh / 2 - margin;
+
+                if (finalDelta[0] > 0) finalDelta[0] = Math.max(0, Math.min(finalDelta[0], maxX - state.posX));
+                else if (finalDelta[0] < 0) finalDelta[0] = Math.min(0, Math.max(finalDelta[0], minX - state.posX));
+
+                if (finalDelta[1] > 0) finalDelta[1] = Math.max(0, Math.min(finalDelta[1], maxY - state.posY));
+                else if (finalDelta[1] < 0) finalDelta[1] = Math.min(0, Math.max(finalDelta[1], minY - state.posY));
+            });
+
+            // ストアを更新
+            items.forEach(({ id, state }) => {
+                updateWidgetState(id as WidgetId, {
+                    px: (state.posX + finalDelta[0]) / window.innerWidth,
+                    py: (state.posY + finalDelta[1]) / window.innerHeight,
+                });
+            });
+        };
+
         window.addEventListener('resize', handleResize);
+        window.addEventListener('keydown', handleKeyDown);
+
         return () => {
             window.removeEventListener('resize', handleResize);
+            window.removeEventListener('keydown', handleKeyDown);
         };
-    }, []);
+    }, [selectedWidgetIds, groupData.groups, updateWidgetState]);
 
     useEffect(() => {
         const allMemberIds = new Set<string>();
@@ -102,28 +204,6 @@ export const MoveableController: React.FC = () => {
                 height: el.offsetHeight,
             });
         }
-    };
-
-    const clampState = (state: ActiveState) => {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const halfW = vw / 2;
-        const halfH = vh / 2;
-        const sw = state.width * state.scale;
-        const sh = state.height * state.scale;
-        const margin = Math.min(40, sw * 0.5, sh * 0.5);
-
-        const minX = -halfW - sw / 2 + margin;
-        const maxX = halfW + sw / 2 - margin;
-        const minY = -halfH - sh / 2 + margin;
-        const maxY = halfH + sh / 2 - margin;
-
-        state.posX = Math.max(minX, Math.min(maxX, state.posX));
-        state.posY = Math.max(minY, Math.min(maxY, state.posY));
-    };
-
-    const updateDOMTransform = (target: HTMLElement | SVGElement, state: ActiveState) => {
-        target.style.transform = `translate(${state.posX}px, ${state.posY}px) translate(-50%, -50%) scale(${state.scale}) rotate(${state.rotation}deg)`;
     };
 
     const endAction = (ids: string[]) => {
