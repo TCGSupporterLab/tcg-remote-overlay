@@ -154,15 +154,15 @@
   border: 2px solid white !important;
   width: 14px !important;
   height: 14px !important;
-  /* transform: translate(-50%, -50%) は Moveable が自動で付けるので、上書きしないか、
-     ズレている場合は慎重に調整します。基本は background のみ。 */
+  /* transform: translate(-50%, -50%) 縺ｯ Moveable 縺瑚�蜍輔〒莉倥￠繧九�縺ｧ縲∽ｸ頑嶌縺阪＠縺ｪ縺�°縲�
+     繧ｺ繝ｬ縺ｦ縺�ｋ蝣ｴ蜷医�諷朱㍾縺ｫ隱ｿ謨ｴ縺励∪縺吶ょ渕譛ｬ縺ｯ background 縺ｮ縺ｿ縲� */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
 }
 
 .moveable-line.moveable-rotation-line {
   background: #3b82f6 !important;
   width: 2px !important;
-  /* height が 0 になっている、あるいは足りない可能性があるため調整 */
+  /* height 縺� 0 縺ｫ縺ｪ縺｣縺ｦ縺�ｋ縲√≠繧九＞縺ｯ雜ｳ繧翫↑縺�庄閭ｽ諤ｧ縺後≠繧九◆繧∬ｪｿ謨ｴ */
   margin-top: 0 !important;
 }
 
@@ -172,4 +172,9 @@
   border: 2px solid rgba(59, 130, 246, 0.6) !important;
   border-radius: 4px !important;
   z-index: 1000 !important;
+}
+
+/* 結合中（単一グループ選択時）の個別ウィジェットの選択枠とハンドルを隠す */
+.is-logical-group .moveable-control-box:not(:has(.moveable-group)) {
+  display: none !important;
 }

@@ -1,18 +1,39 @@
-import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Layout, FolderX, FolderPlus, FolderSearch, Unlock } from 'lucide-react';
+import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Layout, FolderX, FolderPlus, FolderSearch, Unlock, Undo2 } from 'lucide-react';
 import { SettingsToggle, SettingItem } from './SettingsUI';
 import type { LocalCard } from '../../hooks/useLocalCards';
 
+const ResetButton = ({ onClick }: { onClick: () => void }) => (
+    <button
+        onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm('位置を画面中央にリセットしますか？\n（グループ化されている場合は強制解除されます）')) {
+                onClick();
+            }
+        }}
+        className="px-[6px] py-[2px] rounded-lg bg-black/20 text-gray-500 hover:text-white hover:bg-white/10 transition-all border border-white/40 hover:border-white/60 active:scale-95 cursor-pointer pointer-events-auto z-50"
+        title="位置をリセット"
+    >
+        <Undo2 size={14} className="-translate-x-[1px]" />
+    </button>
+);
+
 // --- Dice Setting ---
-export const DiceSetting = ({ visible, onToggle }: { visible: boolean, onToggle: (val: boolean) => void }) => (
+export const DiceSetting = ({ visible, onToggle, onReset }: { visible: boolean, onToggle: (val: boolean) => void, onReset: () => void }) => (
     <SettingItem icon={<Dices size={18} />} title="ダイスを表示">
-        <SettingsToggle checked={visible} onChange={onToggle} />
+        <div className="flex items-center gap-[20px]">
+            <SettingsToggle checked={visible} onChange={onToggle} />
+            <ResetButton onClick={onReset} />
+        </div>
     </SettingItem>
 );
 
 // --- Coin Setting ---
-export const CoinSetting = ({ visible, onToggle }: { visible: boolean, onToggle: (val: boolean) => void }) => (
+export const CoinSetting = ({ visible, onToggle, onReset }: { visible: boolean, onToggle: (val: boolean) => void, onReset: () => void }) => (
     <SettingItem icon={<Coins size={18} />} title="コインを表示">
-        <SettingsToggle checked={visible} onChange={onToggle} />
+        <div className="flex items-center gap-[20px]">
+            <SettingsToggle checked={visible} onChange={onToggle} />
+            <ResetButton onClick={onReset} />
+        </div>
     </SettingItem>
 );
 
@@ -32,12 +53,13 @@ interface CardSettingProps {
     onRequestAccess: () => void;
     onVerifyPermission: () => void;
     cardCount: number;
+    onReset: () => void;
 }
 
 export const CardSetting = ({
     visible, onToggle, isOpen, onToggleOpen, hasAccess, rootHandleName, localCards,
     mergeSameFileCards, onToggleMergeSameFileCards, isScanning, onDropAccess,
-    onRequestAccess, onVerifyPermission, cardCount
+    onRequestAccess, onVerifyPermission, cardCount, onReset
 }: CardSettingProps) => (
     <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
         <div className="flex items-center justify-between p-[6px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
@@ -50,7 +72,10 @@ export const CardSetting = ({
                     <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
                 </div>
             </div>
-            <SettingsToggle checked={visible} onChange={onToggle} />
+            <div className="flex items-center gap-[20px]">
+                <SettingsToggle checked={visible} onChange={onToggle} />
+                <ResetButton onClick={onReset} />
+            </div>
         </div>
 
         {isOpen && (
@@ -147,7 +172,7 @@ export const YugiohSection = ({
 }: {
     isOpen: boolean, onToggleOpen: () => void, isLPVisible: boolean, onToggleLPVisible: (val: boolean) => void,
     isLPSectionOpen: boolean, onToggleLPSectionOpen: () => void, onlyShowPlayer1: boolean, onToggleOnlyShowPlayer1: (val: boolean) => void,
-    initialLP: number, onChangeInitialLP: (val: number) => void
+    initialLP: number, onChangeInitialLP: (val: number) => void, onReset: () => void
 }) => (
     <div className="relative flex flex-col transition-all outline-none">
         <div className="flex items-center justify-between py-[6px] px-[8px] hover:bg-white/5 rounded-xl group transition-all cursor-pointer relative z-10" onClick={onToggleOpen}>
@@ -172,7 +197,10 @@ export const YugiohSection = ({
                                 <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${isLPSectionOpen ? 'rotate-90' : ''}`} />
                             </div>
                         </div>
-                        <SettingsToggle checked={isLPVisible} onChange={onToggleLPVisible} />
+                        <div className="flex items-center gap-[20px]">
+                            <SettingsToggle checked={isLPVisible} onChange={onToggleLPVisible} />
+                            <ResetButton onClick={onReset} />
+                        </div>
                     </div>
                     {isLPSectionOpen && (
                         <div className="pl-[46px] pr-[16px] pt-[0px] pb-[4px] mt-[0px] animate-in slide-in-from-top-2 duration-200">
@@ -196,9 +224,9 @@ export const YugiohSection = ({
 
 // --- Hololive Section ---
 export const HololiveSection = ({
-    isOpen, onToggleOpen, isSPMarkerVisible, onToggleSPMarkerMode
+    isOpen, onToggleOpen, isSPMarkerVisible, onToggleSPMarkerMode, onReset
 }: {
-    isOpen: boolean, onToggleOpen: () => void, isSPMarkerVisible: boolean, onToggleSPMarkerMode: () => void
+    isOpen: boolean, onToggleOpen: () => void, isSPMarkerVisible: boolean, onToggleSPMarkerMode: () => void, onReset: () => void
 }) => (
     <div className="relative flex flex-col transition-all outline-none">
         <div className="flex items-center justify-between py-[6px] px-[8px] hover:bg-white/5 rounded-xl group transition-all cursor-pointer relative z-10" onClick={onToggleOpen}>
@@ -222,7 +250,10 @@ export const HololiveSection = ({
                                 <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">SPマーカーを表示</h3>
                             </div>
                         </div>
-                        <SettingsToggle checked={isSPMarkerVisible} onChange={onToggleSPMarkerMode} />
+                        <div className="flex items-center gap-[20px]">
+                            <SettingsToggle checked={isSPMarkerVisible} onChange={onToggleSPMarkerMode} />
+                            <ResetButton onClick={onReset} />
+                        </div>
                     </div>
                 </div>
             </div>
