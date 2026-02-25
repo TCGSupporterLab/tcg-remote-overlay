@@ -14,6 +14,8 @@ import type { WidgetId, WidgetState } from '../types/widgetTypes';
 interface ActiveState extends WidgetState {
     posX: number;
     posY: number;
+    width: number;
+    height: number;
 }
 
 export const MoveableController: React.FC = () => {
@@ -25,8 +27,8 @@ export const MoveableController: React.FC = () => {
 
     const [targets, setTargets] = useState<Array<HTMLElement | SVGElement>>([]);
     const [viewSize, setViewSize] = useState({
-        w: document.documentElement.clientWidth,
-        h: document.documentElement.clientHeight
+        w: window.innerWidth,
+        h: window.innerHeight
     });
     const moveableRef = useRef<Moveable>(null);
 
@@ -37,8 +39,8 @@ export const MoveableController: React.FC = () => {
     useEffect(() => {
         const handleResize = () => {
             setViewSize({
-                w: document.documentElement.clientWidth,
-                h: document.documentElement.clientHeight
+                w: window.innerWidth,
+                h: window.innerHeight
             });
         };
         window.addEventListener('resize', handleResize);
@@ -80,14 +82,48 @@ export const MoveableController: React.FC = () => {
 
     const startAction = (id: string | null) => {
         if (!id) return;
+        const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
+        if (!el) return;
+
         if (!activeStatesRef.current.has(id)) {
             const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
             activeStatesRef.current.set(id, {
                 ...s,
                 posX: s.px * viewSize.w,
                 posY: s.py * viewSize.h,
+                width: el.offsetWidth,
+                height: el.offsetHeight,
             });
         }
+    };
+
+    const clampState = (state: ActiveState) => {
+        // 現在のウィンドウサイズを直接取得（ステートの遅延を回避）
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const halfW = vw / 2;
+        const halfH = vh / 2;
+
+        // 現在のスケールと回転を考慮した大まかなサイズ
+        // 回転による膨張を考慮して、マージンを少し多めに取る
+        const sw = state.width * state.scale;
+        const sh = state.height * state.scale;
+
+        // 最低でもこのピクセル分は画面内に残るようにする
+        const margin = Math.min(40, sw * 0.5, sh * 0.5);
+
+        // 基準: posX/posY は画面中央(0,0)からのオフセット
+        // 左端: -halfW, 右端: halfW
+        // 上端: -halfH, 下端: halfH
+
+        // ウィジェットの端が画面内にとどまる範囲
+        const minX = -halfW - sw / 2 + margin;
+        const maxX = halfW + sw / 2 - margin;
+        const minY = -halfH - sh / 2 + margin;
+        const maxY = halfH + sh / 2 - margin;
+
+        state.posX = Math.max(minX, Math.min(maxX, state.posX));
+        state.posY = Math.max(minY, Math.min(maxY, state.posY));
     };
 
     const updateDOMTransform = (target: HTMLElement | SVGElement, state: ActiveState) => {
@@ -122,8 +158,9 @@ export const MoveableController: React.FC = () => {
 
         state.posX += delta[0];
         state.posY += delta[1];
+        clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-    }, []);
+    }, [viewSize.w, viewSize.h]);
 
     const handleScaleStart = useCallback(({ target }: OnScaleStart) => {
         startAction(target.getAttribute('data-widget-id'));
@@ -139,8 +176,9 @@ export const MoveableController: React.FC = () => {
             state.posX += drag.delta[0];
             state.posY += drag.delta[1];
         }
+        clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-    }, []);
+    }, [viewSize.w, viewSize.h]);
 
     const handleRotateStart = useCallback(({ target }: OnRotateStart) => {
         startAction(target.getAttribute('data-widget-id'));
@@ -156,8 +194,9 @@ export const MoveableController: React.FC = () => {
             state.posX += drag.delta[0];
             state.posY += drag.delta[1];
         }
+        clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-    }, []);
+    }, [viewSize.w, viewSize.h]);
 
     // --- Group Handlers ---
 
@@ -210,6 +249,7 @@ export const MoveableController: React.FC = () => {
                 draggable={true}
                 scalable={true}
                 rotatable={true}
+                rotationPosition="top-right"
                 keepRatio={true}
                 throttleDrag={0}
                 throttleScale={0}
@@ -218,18 +258,13 @@ export const MoveableController: React.FC = () => {
                 origin={false}
                 padding={{ left: 0, top: 0, right: 0, bottom: 0 }}
 
-                // --- 回転のスナップ設定 ---
+                // --- 境界制限: Moveable の bounds ではなく、ハンドラ内での clampState で制御 ---
+                // これにより、選択枠（ハンドル）が画面外に出ることを許可しつつ、消失を防ぐ
+
+                // --- スナップ設定（回転のみ） ---
                 snappable={true}
                 snapRotationDegrees={[0, 90, 180, 270]}
                 snapRotationThreshold={5}
-
-                // --- 画面外への飛び出し防止設定 ---
-                bounds={{
-                    left: 0,
-                    top: 0,
-                    right: viewSize.w,
-                    bottom: viewSize.h
-                }}
 
                 onDragStart={handleDragStart}
                 onDrag={handleDrag}

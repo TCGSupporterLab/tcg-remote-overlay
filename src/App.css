@@ -118,16 +118,11 @@
   backdrop-filter: blur(40px);
 }
 
-/* Moveable controls */
+/* Moveable controls - Default small circles */
 .moveable-control {
-  width: 14px !important;
-  height: 14px !important;
-  margin-top: -7px !important;
-  margin-left: -7px !important;
   background: #3b82f6 !important;
-  border: 2px solid #fff !important;
+  border: 1px solid #fff !important;
   border-radius: 50% !important;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
   pointer-events: auto !important;
 }
 
@@ -141,21 +136,66 @@
 }
 
 /* Make handles easier to hit */
-.moveable-control {
-  width: 16px !important;
-  height: 16px !important;
-  margin-top: -8px !important;
-  margin-left: -8px !important;
+.moveable-control:not(.moveable-rotation) {
+  width: 12px !important;
+  height: 12px !important;
+  margin-top: -6px !important;
+  margin-left: -6px !important;
 }
 
 /* The rotation "stick" hit area */
-.moveable-line.moveable-rotation-line {
-  width: 4px !important;
-  margin-left: -2px !important;
-}
-
 .moveable-line {
   background: #3b82f6 !important;
+}
+
+/* Moveable Rotation Handle - Corner Placement (Inside) */
+/* rotationPosition="top-right" で配置されたハンドルを内側に押し込む */
+.moveable-control.moveable-rotation,
+[class*="moveable-control"][class*="moveable-rotation"] {
+  position: absolute !important;
+
+  /* デザイン: 回転アイコン付きのモダンなボタン */
+  background: #3b82f6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E") no-repeat center / 60% !important;
+
+  width: 28px !important;
+  height: 28px !important;
+  border: 2px solid #ffffff !important;
+  border-radius: 6px !important;
+  /* ボタンらしい角丸 */
+  cursor: grab !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+  z-index: 99999 !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  /* 右上の角(100%, 0%)を基準にする */
+  left: 100% !important;
+  top: 0% !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  /* 
+     transform で自分自身のサイズ分だけ内側に移動させる 
+     -110% : 右端から少し内側（左方向）へ
+     +150% : 上端からボタン1.5個分下げて、完全に角の内側に収める
+  */
+  transform: translate(-110%, 150%) !important;
+  margin: 0 !important;
+}
+
+.moveable-control.moveable-rotation:hover,
+[class*="moveable-control"][class*="moveable-rotation"]:hover {
+  background-color: #2563eb !important;
+  filter: brightness(1.1);
+}
+
+/* 回転ボタン用の「棒（コネクタ）」を完全に消す */
+.moveable-line.moveable-rotation-line {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  opacity: 0 !important;
 }
 
 /* Selecto rectangle selection box */
