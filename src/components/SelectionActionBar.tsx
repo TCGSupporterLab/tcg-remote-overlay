@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWidgetStore } from '../store/useWidgetStore';
-import { Link, Unlink } from 'lucide-react';
+import { Link, Unlink, RefreshCcw } from 'lucide-react';
 
 export const SelectionActionBar: React.FC = () => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
@@ -10,7 +10,7 @@ export const SelectionActionBar: React.FC = () => {
     const ungroupSelectedWidgets = useWidgetStore(s => s.ungroupSelectedWidgets);
     const isTransforming = useWidgetStore(s => s.isTransforming);
 
-    if (selectedWidgetIds.length < 2 || isTransforming) return null;
+    if (selectedWidgetIds.length < 1 || isTransforming) return null;
 
     // 選択中のアイテムがグループに属しているかチェック
     const hasGroup = selectedWidgetIds.some(id =>
@@ -45,7 +45,9 @@ export const SelectionActionBar: React.FC = () => {
             );
 
             // 左右の画面外対策：バー全体が画面内に収まるように中央位置をクランプ
-            const approximateBarWidth = 120; // アイコン2つの概算幅
+            const hasMultiple = selectedWidgetIds.length > 1;
+            const barIconsCount = 1 + (hasMultiple ? (hasGroup ? 2 : 1) : 0);
+            const approximateBarWidth = barIconsCount * 44 + 8; // アイコン数 * (ボタンサイズ+間隔) + パディング
             const halfWidth = approximateBarWidth / 2;
             const horizontalMargin = 16;
             let leftPos = rect.left + rect.width / 2;
@@ -78,23 +80,39 @@ export const SelectionActionBar: React.FC = () => {
             <div className="bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-1 flex items-center shadow-2xl ring-1 ring-white/10">
                 <div className="flex items-center gap-1 p-1">
                     <button
-                        onClick={() => groupSelectedWidgets()}
-                        className="group p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
-                        title="グループ化 (G)"
+                        onClick={() => {
+                            // TODO: リセットロジックの実装
+                            console.log('Reset clicked for:', selectedWidgetIds);
+                        }}
+                        className="group p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/10 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
+                        title="リセット (R)"
                     >
-                        <Link size={18} className="group-hover:scale-110 transition-transform" />
+                        <RefreshCcw size={18} className="group-hover:rotate-[-45deg] transition-transform" />
                     </button>
 
-                    {hasGroup && (
+                    {selectedWidgetIds.length > 1 && (
                         <>
                             <div className="w-px h-5 bg-white/10 mx-1" />
                             <button
-                                onClick={() => ungroupSelectedWidgets()}
-                                className="group p-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 hover:text-amber-300 border border-amber-500/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
-                                title="グループ解除"
+                                onClick={() => groupSelectedWidgets()}
+                                className="group p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
+                                title="グループ化 (G)"
                             >
-                                <Unlink size={18} className="group-hover:scale-110 transition-transform" />
+                                <Link size={18} className="group-hover:scale-110 transition-transform" />
                             </button>
+
+                            {hasGroup && (
+                                <>
+                                    <div className="w-px h-5 bg-white/10 mx-1" />
+                                    <button
+                                        onClick={() => ungroupSelectedWidgets()}
+                                        className="group p-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 hover:text-amber-300 border border-amber-500/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
+                                        title="グループ解除"
+                                    >
+                                        <Unlink size={18} className="group-hover:scale-110 transition-transform" />
+                                    </button>
+                                </>
+                            )}
                         </>
                     )}
                 </div>
