@@ -254,31 +254,6 @@ export const LPCalculator: React.FC<LPCalculatorProps> = ({
                 return;
             }
 
-            // Target Selection (Arrow Keys)
-            if (e.key === 'ArrowUp') {
-                if (!isOverlay) return; // Ignore Up in operation screen
-                e.preventDefault();
-                handleSetTarget('p2');
-                return;
-            }
-            if (e.key === 'ArrowDown') {
-                if (!isOverlay) return; // Ignore Down in operation screen
-                e.preventDefault();
-                handleSetTarget('p1');
-                return;
-            }
-            if (e.key === 'ArrowLeft') {
-                if (isOverlay) return; // Ignore Left in overlay
-                e.preventDefault();
-                handleSetTarget('p1');
-                return;
-            }
-            if (e.key === 'ArrowRight') {
-                if (isOverlay) return; // Ignore Right in overlay
-                e.preventDefault();
-                handleSetTarget('p2');
-                return;
-            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
