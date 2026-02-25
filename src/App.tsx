@@ -67,7 +67,6 @@ function App() {
   const setVideoCrop = useWidgetStore(s => s.setVideoCrop);
   const setDiceValue = useWidgetStore(s => s.setDiceValue);
   const setCoinValue = useWidgetStore(s => s.setCoinValue);
-  const setGroupData = useWidgetStore(s => s.setGroupData);
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
   const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
 
@@ -262,13 +261,17 @@ function App() {
   };
 
   const handleRollDice = useCallback(() => {
-    const result = (Math.floor(Math.random() * 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6;
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    const result = ((array[0] % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6;
     setDiceValue(result);
     setDiceKey(prev => prev + 1);
   }, []);
 
   const handleFlipCoin = useCallback(() => {
-    const result = Math.random() < 0.5 ? 1 : 0;
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    const result = (array[0] % 2) as 1 | 0;
     setCoinValue(result);
     setCoinKey(prev => prev + 1);
   }, []);
@@ -318,6 +321,7 @@ function App() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.repeat) return;
 
       // Settings / Selection toggle
       if (e.key === 'Escape') {
