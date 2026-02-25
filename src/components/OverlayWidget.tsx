@@ -26,6 +26,11 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
 
     // Zustand Store から状態を取得
     const state = useWidgetStore(s => s.widgetStates[id] || DEFAULT_WIDGET_STATE);
+    const viewSize = useWidgetStore(s => s.viewSize);
+
+    // ウィンドウサイズに応じたスケーリング係数 (基準: 1920x1080)
+    // 幅と高さのうち、より縮小されている方に合わせることで、アスペクト比を保ちつつ画面内に収める
+    const scalingFactor = Math.min(viewSize.w / 1920, viewSize.h / 1080);
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +41,6 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
             return () => containerRefCallback(id as WidgetId, null);
         }
     }, [containerRefCallback, id]);
-
     return (
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
             <div
@@ -47,7 +51,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                     left: '50%',
                     top: '50%',
                     // 座標、拡縮、回転を一箇所に集約。translate(-50%, -50%) で中心を基準に合わせる
-                    transform: `translate(${state.px * 100}vw, ${state.py * 100}vh) translate(-50%, -50%) scale(${state.scale}) rotate(${state.rotation}deg)`,
+                    transform: `translate(${state.px * 100}vw, ${state.py * 100}vh) translate(-50%, -50%) scale(${state.scale * scalingFactor}) rotate(${state.rotation}deg)`,
                     transformOrigin: 'center center',
                     zIndex: 100,
                 }}

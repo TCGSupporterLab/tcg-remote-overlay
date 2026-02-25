@@ -29,12 +29,12 @@ export const MoveableController: React.FC = () => {
     const setActiveMoveableRect = useWidgetStore(s => s.setActiveMoveableRect);
     const setIsTransforming = useWidgetStore(s => s.setIsTransforming);
     const updateWidgetState = useWidgetStore(s => s.updateWidgetState);
+    const viewSize = useWidgetStore(s => s.viewSize);
+    const setViewSize = useWidgetStore(s => s.setViewSize);
+    const SCALING_BASE_W = 1920;
+    const SCALING_BASE_H = 1080;
 
     const [targets, setTargets] = useState<Array<HTMLElement | SVGElement>>([]);
-    const [viewSize, setViewSize] = useState({
-        w: window.innerWidth,
-        h: window.innerHeight
-    });
     const moveableRef = useRef<Moveable>(null);
 
     // 手動DOM更新用
@@ -81,11 +81,40 @@ export const MoveableController: React.FC = () => {
     // 画面リサイズ監視 & Arrow Key Nudging
     useEffect(() => {
         const handleResize = () => {
-            setViewSize({
-                w: window.innerWidth,
-                h: window.innerHeight
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            setViewSize({ w, h });
+
+            // リサイズ時に各ウィジェットの activeState (posX, posY, scale) を再計算
+            // これを行わないと、リサイズ後にドラッグを開始した瞬間に古い座標系でジャンプする
+            activeStatesRef.current.forEach((state, id) => {
+                const s = useWidgetStore.getState().widgetStates[id as WidgetId];
+                if (s) {
+                    const scalingFactor = Math.min(w / SCALING_BASE_W, h / SCALING_BASE_H);
+                    state.posX = s.px * w;
+                    state.posY = s.py * h;
+                    state.scale = s.scale * scalingFactor;
+                }
             });
+
+            // リサイズ時に Moveable の枠とアクションバーを強制同期
+            if (moveableRef.current) {
+                moveableRef.current.updateRect();
+                syncMoveableRect();
+            }
         };
+
+        window.addEventListener('resize', handleResize);
+
+        // ウィジェット要素自体のサイズ変更も監視（Moveableの枠ズレ対策）
+        const resizeObserver = new ResizeObserver(() => {
+            if (moveableRef.current) {
+                moveableRef.current.updateRect();
+                syncMoveableRect();
+            }
+        });
+
+        targets.forEach(t => resizeObserver.observe(t));
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (selectedWidgetIds.length === 0) return;
@@ -182,10 +211,11 @@ export const MoveableController: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
 
         return () => {
-            window.removeEventListener('resize', handleResize);
             window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
         };
-    }, [selectedWidgetIds, groupData.groups, updateWidgetState]);
+    }, [selectedWidgetIds, viewSize, targets, updateWidgetState, setActiveMoveableRect, setIsTransforming, syncMoveableRect]);
 
     useEffect(() => {
         const allMemberIds = new Set<string>();
@@ -227,10 +257,12 @@ export const MoveableController: React.FC = () => {
 
         if (!activeStatesRef.current.has(id)) {
             const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
+            const scalingFactor = Math.min(viewSize.w / SCALING_BASE_W, viewSize.h / SCALING_BASE_H);
             activeStatesRef.current.set(id, {
                 ...s,
                 posX: s.px * viewSize.w,
                 posY: s.py * viewSize.h,
+                scale: s.scale * scalingFactor, // 表示上のサイズ
                 width: el.offsetWidth,
                 height: el.offsetHeight,
             });
@@ -247,10 +279,12 @@ export const MoveableController: React.FC = () => {
                 if (rot > 180) rot -= 360;
                 if (rot < -180) rot += 360;
 
+                const scalingFactor = Math.min(viewSize.w / SCALING_BASE_W, viewSize.h / SCALING_BASE_H);
+
                 updateWidgetState(id as WidgetId, {
                     px: state.posX / viewSize.w,
                     py: state.posY / viewSize.h,
-                    scale: state.scale,
+                    scale: state.scale / scalingFactor, // 基準サイズ（1920px時）に戻して保存
                     rotation: rot,
                 });
                 activeStatesRef.current.delete(id);

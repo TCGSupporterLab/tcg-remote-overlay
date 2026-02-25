@@ -54,6 +54,7 @@ interface WidgetStoreState {
     obsMode: ObsMode;
     videoSource: VideoSourceType;
     videoCrop: CropConfig;
+    viewSize: { w: number; h: number };
 
     // ダイス・コインの現在の値
     diceValue: 1 | 2 | 3 | 4 | 5 | 6;
@@ -68,6 +69,7 @@ interface WidgetStoreState {
     setObsMode: (mode: ObsMode) => void;
     setVideoSource: (source: VideoSourceType) => void;
     setVideoCrop: (crop: CropConfig) => void;
+    setViewSize: (size: { w: number; h: number }) => void;
     setDiceValue: (val: 1 | 2 | 3 | 4 | 5 | 6) => void;
     setCoinValue: (val: 1 | 0) => void;
     setIsSelecting: (val: boolean) => void;
@@ -118,6 +120,7 @@ const getInitialState = () => {
         selectionRect: null,
         activeMoveableRect: null,
         isTransforming: false,
+        viewSize: { w: window.innerWidth, h: window.innerHeight },
     };
 
     if (savedWidgets) {
@@ -196,6 +199,7 @@ export const useWidgetStore = create<WidgetStoreState>()(
         setSelectionRect: (selectionRect) => set({ selectionRect }),
         setActiveMoveableRect: (activeMoveableRect) => set({ activeMoveableRect }),
         setIsTransforming: (isTransforming) => set({ isTransforming }),
+        setViewSize: (viewSize) => set({ viewSize }),
 
         clearGroups: () => {
             set({ groupData: { groups: [], relativeTransforms: {} } });
