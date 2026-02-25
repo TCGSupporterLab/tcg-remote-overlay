@@ -1,0 +1,83 @@
+{
+  "id": "layout_1772017306830",
+  "name": "遊戯王OCG",
+  "widgets": [
+    {
+      "id": "lp_calculator",
+      "state": {
+        "px": -0.2813578826237054,
+        "py": -0.09392898052691867,
+        "scale": 1,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "dice",
+      "state": {
+        "px": -0.25776754890678943,
+        "py": -0.27491408934707906,
+        "scale": 1,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "coin",
+      "state": {
+        "px": -0.3037974683544304,
+        "py": -0.27605956471935855,
+        "scale": 1,
+        "rotation": 0
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "group_1772017253718",
+      "memberIds": [
+        "lp_calculator",
+        "dice",
+        "coin"
+      ],
+      "anchorId": "lp_calculator",
+      "initialStates": {
+        "lp_calculator": {
+          "px": -0.2813578826237054,
+          "py": -0.09392898052691867,
+          "scale": 1,
+          "rotation": 0
+        },
+        "dice": {
+          "px": -0.25776754890678943,
+          "py": -0.27491408934707906,
+          "scale": 1,
+          "rotation": 0
+        },
+        "coin": {
+          "px": -0.3037974683544304,
+          "py": -0.27605956471935855,
+          "scale": 1,
+          "rotation": 0
+        }
+      },
+      "initialCenter": {
+        "px": -0.28138696132796315,
+        "py": -0.1335312943871707
+      }
+    }
+  ],
+  "visibility": {
+    "lp_calculator": true,
+    "dice": true,
+    "coin": true
+  },
+  "widgetOrder": [
+    "coin",
+    "dice",
+    "lp_calculator"
+  ],
+  "viewSize": {
+    "w": 1738,
+    "h": 873
+  },
+  "createdAt": 1772017306830
+}

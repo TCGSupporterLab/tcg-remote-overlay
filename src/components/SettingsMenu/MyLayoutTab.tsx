@@ -103,9 +103,11 @@ export const MyLayoutTab = () => {
                                     <span className="font-bold text-gray-200 group-hover:text-white transition-colors text-sm">
                                         {layout.name}
                                     </span>
-                                    <span className="text-[10px] text-gray-500">
-                                        {new Date(layout.createdAt).toLocaleString()}
-                                    </span>
+                                    {!layout.isDefault && (
+                                        <span className="text-[10px] text-gray-500">
+                                            {new Date(layout.createdAt).toLocaleString()}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-2">

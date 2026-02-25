@@ -51,4 +51,5 @@ export interface MyLayout {
     widgetOrder: WidgetId[];              // 対象ウィジェット間の相対的な重なり順
     viewSize: { w: number; h: number };   // 保存時のウィンドウサイズ
     createdAt: number;
+    isDefault?: boolean;
 }

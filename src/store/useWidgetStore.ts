@@ -3,6 +3,9 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup, type MyLayout } from '../types/widgetTypes';
 import { type VideoSourceType, type CropConfig } from '../components/VideoBackground';
 
+// Default Layouts
+const DEFAULT_LAYOUT_MODULES = import.meta.glob('../data/default_layout/*.json', { eager: true });
+
 export type ObsMode = 'normal' | 'green';
 export type DisplayPreset = 'yugioh' | 'hololive' | 'none';
 export type SPMarkerFace = 'front' | 'back';
@@ -627,37 +630,18 @@ export const useWidgetStore = create<WidgetStoreState>()(
         importDefaultLayouts: () => set((state) => {
             if (state.hasImportedDefaultLayouts) return state;
 
-            const defaults: MyLayout[] = [
-                {
-                    id: 'layout_yugioh_default',
-                    name: '遊戯王 (デフォルト)',
-                    widgets: [
-                        { id: 'dice', state: { px: 0.1, py: 0.1, scale: 1, rotation: 0 } },
-                        { id: 'coin', state: { px: 0.1, py: 0.2, scale: 1, rotation: 0 } },
-                        { id: 'lp_calculator', state: { px: 0.5, py: 0.5, scale: 1, rotation: 0 } },
-                    ],
-                    groups: [],
-                    visibility: { dice: true, coin: true, lp_calculator: true },
-                    widgetOrder: ['dice', 'coin', 'lp_calculator'],
-                    viewSize: { w: 1920, h: 1080 },
-                    createdAt: Date.now()
-                },
-                {
-                    id: 'layout_hololive_default',
-                    name: 'ホロカ (デフォルト)',
-                    widgets: [
-                        { id: 'dice', state: { px: 0.1, py: 0.1, scale: 1, rotation: 0 } },
-                        { id: 'sp_marker', state: { px: 0.1, py: 0.25, scale: 1.2, rotation: 0 } },
-                        { id: 'lp_calculator', state: { px: 0.4, py: 0.6, scale: 1, rotation: 0 } },
-                        { id: 'card_widget', state: { px: 0.8, py: 0.5, scale: 1, rotation: 0 } },
-                    ],
-                    groups: [],
-                    visibility: { dice: true, sp_marker: true, lp_calculator: true, card_widget: true },
-                    widgetOrder: ['dice', 'sp_marker', 'lp_calculator', 'card_widget'],
-                    viewSize: { w: 1920, h: 1080 },
-                    createdAt: Date.now()
-                }
-            ];
+            const defaults: MyLayout[] = Object.entries(DEFAULT_LAYOUT_MODULES).map(([path, module]: [string, any]) => {
+                const layoutData = module.default;
+                const fileName = path.split('/').pop()?.replace('_layout.json', '') || 'default';
+
+                return {
+                    ...layoutData,
+                    id: `default_${fileName}`,
+                    name: layoutData.name || fileName,
+                    isDefault: true,
+                    createdAt: Date.now() // データ構造上必要だがUIでは非表示にする
+                };
+            });
 
             const nextLayouts = [...state.myLayouts, ...defaults];
             localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));

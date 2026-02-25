@@ -1,0 +1,83 @@
+{
+  "id": "layout_1772017165330",
+  "name": "ホロライブOCG",
+  "widgets": [
+    {
+      "id": "card_widget",
+      "state": {
+        "px": 0.2679483428078251,
+        "py": -0.20075949747995417,
+        "scale": 0.7742089291027779,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "sp_marker",
+      "state": {
+        "px": 0.2675946203107019,
+        "py": -0.06893425933562429,
+        "scale": 0.6058818789323781,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "dice",
+      "state": {
+        "px": 0.2701849040851554,
+        "py": -0.3814198240549828,
+        "scale": 0.774208929102778,
+        "rotation": 0
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "group_1772017156732",
+      "memberIds": [
+        "card_widget",
+        "sp_marker",
+        "dice"
+      ],
+      "anchorId": "card_widget",
+      "initialStates": {
+        "card_widget": {
+          "px": 0.2679483428078251,
+          "py": -0.20075949747995417,
+          "scale": 0.7742089291027779,
+          "rotation": 0
+        },
+        "sp_marker": {
+          "px": 0.2675946203107019,
+          "py": -0.06893425933562429,
+          "scale": 0.6058818789323781,
+          "rotation": 0
+        },
+        "dice": {
+          "px": 0.2701849040851554,
+          "py": -0.3814198240549828,
+          "scale": 0.774208929102778,
+          "rotation": 0
+        }
+      },
+      "initialCenter": {
+        "px": 0.26797630609896445,
+        "py": -0.20126941580756016
+      }
+    }
+  ],
+  "visibility": {
+    "card_widget": true,
+    "sp_marker": true,
+    "dice": true
+  },
+  "widgetOrder": [
+    "dice",
+    "sp_marker",
+    "card_widget"
+  ],
+  "viewSize": {
+    "w": 1738,
+    "h": 873
+  },
+  "createdAt": 1772017165330
+}
