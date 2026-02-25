@@ -263,7 +263,7 @@ export const MoveableController: React.FC = () => {
         setTargets(elements);
 
         if (elements.length > 0) {
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 if (moveableRef.current) {
                     const rect = moveableRef.current.getRect();
                     setActiveMoveableRect({
@@ -274,39 +274,46 @@ export const MoveableController: React.FC = () => {
                         rotation: rect.rotation,
                     });
                 }
-            }, 0);
+            });
         } else {
             setActiveMoveableRect(null);
         }
     }, [selectedWidgetIds, groupData.groups, setActiveMoveableRect]);
 
-    const startAction = (id: string | null) => {
-        if (!id) return;
-        const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
-        if (!el) return;
+    const startAction = useCallback((ids: string | string[]) => {
+        const idList = Array.isArray(ids) ? ids : [ids];
+        if (idList.length === 0) return;
 
-        const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
         const w = window.innerWidth;
         const h = window.innerHeight;
         const scalingFactor = Math.min(w / SCALING_BASE_W, h / SCALING_BASE_H);
+        const store = useWidgetStore.getState();
 
-        activeStatesRef.current.set(id, {
-            ...s,
-            posX: s.px * w,
-            posY: s.py * h,
-            scale: s.scale * scalingFactor,
-            width: el.offsetWidth,
-            height: el.offsetHeight,
+        idList.forEach(id => {
+            if (!id) return;
+            const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
+            if (!el) return;
+
+            const s = store.widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
+            activeStatesRef.current.set(id, {
+                ...s,
+                posX: s.px * w,
+                posY: s.py * h,
+                scale: s.scale * scalingFactor,
+                width: el.offsetWidth,
+                height: el.offsetHeight,
+            });
         });
 
-        configFlagsRef.current.hasMultiple = selectedWidgetIds.length > 1;
-        configFlagsRef.current.hasGroup = selectedWidgetIds.some(id =>
-            groupData.groups.some(g => g.id === id || g.memberIds.includes(id))
-        );
-        actionBarCacheRef.current = document.querySelector('.selection-action-bar') as HTMLElement;
-
-        setIsTransforming(true);
-    };
+        // 状態更新は一度だけ
+        if (!store.isTransforming) {
+            configFlagsRef.current.hasMultiple = selectedWidgetIds.length > 1;
+            configFlagsRef.current.hasGroup = selectedWidgetIds.some(id =>
+                groupData.groups.some(g => g.id === id || g.memberIds.includes(id))
+            );
+            setIsTransforming(true);
+        }
+    }, [selectedWidgetIds, groupData.groups, setIsTransforming, SCALING_BASE_H, SCALING_BASE_W]);
 
     const endAction = (ids: string[]) => {
         const w = window.innerWidth;
@@ -334,10 +341,10 @@ export const MoveableController: React.FC = () => {
     // --- Handlers ---
     const handleDragStart = useCallback((e: OnDragStart) => {
         const id = e.target.getAttribute('data-widget-id');
-        startAction(id);
+        if (id) startAction(id);
         const state = activeStatesRef.current.get(id || '');
         if (state) e.set([state.posX, state.posY]);
-    }, []);
+    }, [startAction]);
 
     const handleDrag = useCallback(({ target, beforeDelta }: OnDrag) => {
         const id = target.getAttribute('data-widget-id');
@@ -351,13 +358,13 @@ export const MoveableController: React.FC = () => {
 
     const handleScaleStart = useCallback((e: OnScaleStart) => {
         const id = e.target.getAttribute('data-widget-id');
-        startAction(id);
+        if (id) startAction(id);
         const state = activeStatesRef.current.get(id || '');
         if (state) {
             e.set(e.dragStart ? [state.scale, state.scale] : [state.scale]);
             if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
         }
-    }, []);
+    }, [startAction]);
 
     const handleScale = useCallback(({ target, scale, drag }: OnScale) => {
         const id = target.getAttribute('data-widget-id');
@@ -374,13 +381,13 @@ export const MoveableController: React.FC = () => {
 
     const handleRotateStart = useCallback((e: OnRotateStart) => {
         const id = e.target.getAttribute('data-widget-id');
-        startAction(id);
+        if (id) startAction(id);
         const state = activeStatesRef.current.get(id || '');
         if (state) {
             e.set(state.rotation);
             if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
         }
-    }, []);
+    }, [startAction]);
 
     const handleRotate = useCallback(({ target, rotate, drag }: OnRotate) => {
         const id = target.getAttribute('data-widget-id');
@@ -406,37 +413,37 @@ export const MoveableController: React.FC = () => {
 
     // Group handlers
     const handleDragGroupStart = useCallback(({ events }: OnDragGroupStart) => {
+        const ids = events.map(e => e.target.getAttribute('data-widget-id')).filter((i): i is string => !!i);
+        startAction(ids);
         events.forEach(e => {
-            const id = e.target.getAttribute('data-widget-id');
-            startAction(id);
-            const state = activeStatesRef.current.get(id || '');
+            const state = activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '');
             if (state) e.set([state.posX, state.posY]);
         });
-    }, []);
+    }, [startAction]);
 
     const handleScaleGroupStart = useCallback(({ events }: OnScaleGroupStart) => {
+        const ids = events.map(e => e.target.getAttribute('data-widget-id')).filter((i): i is string => !!i);
+        startAction(ids);
         events.forEach(e => {
-            const id = e.target.getAttribute('data-widget-id');
-            startAction(id);
-            const state = activeStatesRef.current.get(id || '');
+            const state = activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '');
             if (state) {
                 e.set([state.scale, state.scale]);
                 if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
             }
         });
-    }, []);
+    }, [startAction]);
 
     const handleRotateGroupStart = useCallback(({ events }: OnRotateGroupStart) => {
+        const ids = events.map(e => e.target.getAttribute('data-widget-id')).filter((i): i is string => !!i);
+        startAction(ids);
         events.forEach(e => {
-            const id = e.target.getAttribute('data-widget-id');
-            startAction(id);
-            const state = activeStatesRef.current.get(id || '');
+            const state = activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '');
             if (state) {
                 e.set(state.rotation);
                 if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
             }
         });
-    }, []);
+    }, [startAction]);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[999]">
@@ -495,6 +502,8 @@ export const MoveableController: React.FC = () => {
                             updateDOMTransform(e.target as HTMLElement, state);
                         }
                     });
+                    // クランプ対応で枠を更新
+                    moveableRef.current?.updateRect();
                 }}
                 onDragGroupEnd={(e: OnDragGroupEnd) => {
                     handleEnd();
@@ -550,6 +559,7 @@ export const MoveableController: React.FC = () => {
                             clampState(t.state);
                             updateDOMTransform(t.e.target as HTMLElement, t.state);
                         });
+                        moveableRef.current?.updateRect();
                     }
                 }}
                 onScaleGroupEnd={() => { handleEnd(); }}
@@ -591,12 +601,13 @@ export const MoveableController: React.FC = () => {
                             clampState(t.state);
                             updateDOMTransform(t.e.target as HTMLElement, t.state);
                         });
+                        moveableRef.current?.updateRect();
                     }
                 }}
                 onRotateGroupEnd={() => { handleEnd(); }}
 
-                onRender={(e) => syncActionBarDOM(e.rect)}
-                onRenderGroup={(e) => syncActionBarDOM(e.rect)}
+                onRender={() => { }}
+                onRenderGroup={() => { }}
             />
             <Selecto
                 dragContainer={window}
