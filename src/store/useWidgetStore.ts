@@ -48,6 +48,7 @@ interface WidgetStoreState {
     // グループ
     groupData: WidgetGroupData;
     activeMoveableRect: MoveableRect | null;
+    isTransforming: boolean;
 
     // システム/ビデオ設定
     obsMode: ObsMode;
@@ -72,6 +73,7 @@ interface WidgetStoreState {
     setIsSelecting: (val: boolean) => void;
     setSelectionRect: (rect: SelectionRect | null) => void;
     setActiveMoveableRect: (rect: MoveableRect | null) => void;
+    setIsTransforming: (val: boolean) => void;
     clearGroups: () => void;
     groupSelectedWidgets: () => void;
     ungroupSelectedWidgets: () => void;
@@ -115,6 +117,7 @@ const getInitialState = () => {
         isSelecting: false,
         selectionRect: null,
         activeMoveableRect: null,
+        isTransforming: false,
     };
 
     if (savedWidgets) {
@@ -192,6 +195,7 @@ export const useWidgetStore = create<WidgetStoreState>()(
         setIsSelecting: (isSelecting) => set({ isSelecting }),
         setSelectionRect: (selectionRect) => set({ selectionRect }),
         setActiveMoveableRect: (activeMoveableRect) => set({ activeMoveableRect }),
+        setIsTransforming: (isTransforming) => set({ isTransforming }),
 
         clearGroups: () => {
             set({ groupData: { groups: [], relativeTransforms: {} } });

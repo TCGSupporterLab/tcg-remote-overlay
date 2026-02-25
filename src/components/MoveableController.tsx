@@ -27,6 +27,7 @@ export const MoveableController: React.FC = () => {
     const groupData = useWidgetStore(s => s.groupData);
     const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
     const setActiveMoveableRect = useWidgetStore(s => s.setActiveMoveableRect);
+    const setIsTransforming = useWidgetStore(s => s.setIsTransforming);
     const updateWidgetState = useWidgetStore(s => s.updateWidgetState);
 
     const [targets, setTargets] = useState<Array<HTMLElement | SVGElement>>([]);
@@ -38,6 +39,20 @@ export const MoveableController: React.FC = () => {
 
     // 手動DOM更新用
     const activeStatesRef = useRef<Map<string, ActiveState>>(new Map());
+
+    // Moveable の位置状態をストアに同期するヘルパー
+    const syncMoveableRect = useCallback(() => {
+        if (moveableRef.current) {
+            const rect = moveableRef.current.getRect();
+            setActiveMoveableRect({
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+                rotation: rect.rotation,
+            });
+        }
+    }, [setActiveMoveableRect]);
 
     // 共通のクランプ処理 (Arrow nudging と Moveable 両方で使用)
     const clampState = (state: ActiveState) => {
@@ -219,6 +234,7 @@ export const MoveableController: React.FC = () => {
                 height: el.offsetHeight,
             });
         }
+        setIsTransforming(true);
     };
 
     const endAction = (ids: string[]) => {
@@ -246,7 +262,8 @@ export const MoveableController: React.FC = () => {
         state.posY += delta[1];
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-    }, [viewSize.w, viewSize.h]);
+        syncMoveableRect();
+    }, [viewSize.w, viewSize.h, syncMoveableRect]);
 
     const handleScaleStart = useCallback(({ target }: OnScaleStart) => startAction(target.getAttribute('data-widget-id')), [viewSize]);
     const handleScale = useCallback(({ target, scale, drag }: OnScale) => {
@@ -260,7 +277,8 @@ export const MoveableController: React.FC = () => {
         }
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-    }, [viewSize.w, viewSize.h]);
+        syncMoveableRect();
+    }, [viewSize.w, viewSize.h, syncMoveableRect]);
 
     const handleRotateStart = useCallback(({ target }: OnRotateStart) => startAction(target.getAttribute('data-widget-id')), [viewSize]);
     const handleRotate = useCallback(({ target, rotate, drag }: OnRotate) => {
@@ -274,7 +292,8 @@ export const MoveableController: React.FC = () => {
         }
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
-    }, [viewSize.w, viewSize.h]);
+        syncMoveableRect();
+    }, [viewSize.w, viewSize.h, syncMoveableRect]);
 
     const handleEnd = useCallback(() => {
         const ids = Array.from(activeStatesRef.current.keys());
@@ -289,7 +308,8 @@ export const MoveableController: React.FC = () => {
                 rotation: rect.rotation,
             });
         }
-    }, [setActiveMoveableRect, viewSize]);
+        setIsTransforming(false);
+    }, [setActiveMoveableRect, setIsTransforming, viewSize]);
 
     // Group handlers
     const handleDragGroupStart = useCallback(({ targets }: OnDragGroupStart) => targets.forEach(t => startAction(t.getAttribute('data-widget-id'))), [viewSize]);
@@ -377,6 +397,7 @@ export const MoveableController: React.FC = () => {
                             state.posY += delta[1];
                             updateDOMTransform(e.target as HTMLElement, state);
                         });
+                        syncMoveableRect();
                     }
                 }}
                 onDragGroupEnd={(e: OnDragGroupEnd) => {
@@ -488,18 +509,8 @@ export const MoveableController: React.FC = () => {
                 }}
                 onRotateGroupEnd={() => { handleEnd(); }}
 
-                onRender={() => {
-                    if (moveableRef.current) {
-                        const mRect = moveableRef.current.getRect();
-                        setActiveMoveableRect({
-                            left: mRect.left,
-                            top: mRect.top,
-                            width: mRect.width,
-                            height: mRect.height,
-                            rotation: mRect.rotation,
-                        });
-                    }
-                }}
+                onRender={syncMoveableRect}
+                onRenderGroup={syncMoveableRect}
             />
             <Selecto
                 dragContainer={window}
