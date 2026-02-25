@@ -54,6 +54,7 @@ export const MoveableController: React.FC = () => {
         }
     }, [setActiveMoveableRect]);
 
+
     // 共通のクランプ処理 (Arrow nudging と Moveable 両方で使用)
     const clampState = (state: ActiveState) => {
         const vw = window.innerWidth;
@@ -241,11 +242,16 @@ export const MoveableController: React.FC = () => {
         ids.forEach(id => {
             const state = activeStatesRef.current.get(id);
             if (state) {
+                // 回転を [-180, 180] に正規化
+                let rot = state.rotation % 360;
+                if (rot > 180) rot -= 360;
+                if (rot < -180) rot += 360;
+
                 updateWidgetState(id as WidgetId, {
                     px: state.posX / viewSize.w,
                     py: state.posY / viewSize.h,
                     scale: state.scale,
-                    rotation: state.rotation,
+                    rotation: rot,
                 });
                 activeStatesRef.current.delete(id);
             }
@@ -253,19 +259,32 @@ export const MoveableController: React.FC = () => {
     };
 
     // --- Handlers ---
-    const handleDragStart = useCallback(({ target }: OnDragStart) => startAction(target.getAttribute('data-widget-id')), [viewSize]);
-    const handleDrag = useCallback(({ target, delta }: OnDrag) => {
+    const handleDragStart = useCallback((e: OnDragStart) => {
+        const id = e.target.getAttribute('data-widget-id');
+        startAction(id);
+        const state = activeStatesRef.current.get(id || '');
+        if (state) e.set([state.posX, state.posY]);
+    }, [viewSize]);
+    const handleDrag = useCallback(({ target, beforeDelta }: OnDrag) => {
         const id = target.getAttribute('data-widget-id');
         const state = activeStatesRef.current.get(id || '');
         if (!id || !state) return;
-        state.posX += delta[0];
-        state.posY += delta[1];
+        state.posX += beforeDelta[0];
+        state.posY += beforeDelta[1];
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
         syncMoveableRect();
     }, [viewSize.w, viewSize.h, syncMoveableRect]);
 
-    const handleScaleStart = useCallback(({ target }: OnScaleStart) => startAction(target.getAttribute('data-widget-id')), [viewSize]);
+    const handleScaleStart = useCallback((e: OnScaleStart) => {
+        const id = e.target.getAttribute('data-widget-id');
+        startAction(id);
+        const state = activeStatesRef.current.get(id || '');
+        if (state) {
+            e.set(e.dragStart ? [state.scale, state.scale] : [state.scale]);
+            if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
+        }
+    }, [viewSize]);
     const handleScale = useCallback(({ target, scale, drag }: OnScale) => {
         const id = target.getAttribute('data-widget-id');
         const state = activeStatesRef.current.get(id || '');
@@ -280,15 +299,23 @@ export const MoveableController: React.FC = () => {
         syncMoveableRect();
     }, [viewSize.w, viewSize.h, syncMoveableRect]);
 
-    const handleRotateStart = useCallback(({ target }: OnRotateStart) => startAction(target.getAttribute('data-widget-id')), [viewSize]);
+    const handleRotateStart = useCallback((e: OnRotateStart) => {
+        const id = e.target.getAttribute('data-widget-id');
+        startAction(id);
+        const state = activeStatesRef.current.get(id || '');
+        if (state) {
+            e.set(state.rotation);
+            if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
+        }
+    }, [viewSize]);
     const handleRotate = useCallback(({ target, rotate, drag }: OnRotate) => {
         const id = target.getAttribute('data-widget-id');
         const state = activeStatesRef.current.get(id || '');
         if (!id || !state) return;
         state.rotation = rotate;
         if (drag) {
-            state.posX += drag.delta[0];
-            state.posY += drag.delta[1];
+            state.posX += drag.beforeDelta[0];
+            state.posY += drag.beforeDelta[1];
         }
         clampState(state);
         updateDOMTransform(target as HTMLElement, state);
@@ -312,9 +339,38 @@ export const MoveableController: React.FC = () => {
     }, [setActiveMoveableRect, setIsTransforming, viewSize]);
 
     // Group handlers
-    const handleDragGroupStart = useCallback(({ targets }: OnDragGroupStart) => targets.forEach(t => startAction(t.getAttribute('data-widget-id'))), [viewSize]);
-    const handleScaleGroupStart = useCallback(({ targets }: OnScaleGroupStart) => targets.forEach(t => startAction(t.getAttribute('data-widget-id'))), [viewSize]);
-    const handleRotateGroupStart = useCallback(({ targets }: OnRotateGroupStart) => targets.forEach(t => startAction(t.getAttribute('data-widget-id'))), [viewSize]);
+    const handleDragGroupStart = useCallback(({ events }: OnDragGroupStart) => {
+        events.forEach(e => {
+            const id = e.target.getAttribute('data-widget-id');
+            startAction(id);
+            const state = activeStatesRef.current.get(id || '');
+            if (state) e.set([state.posX, state.posY]);
+        });
+    }, [viewSize]);
+
+    const handleScaleGroupStart = useCallback(({ events }: OnScaleGroupStart) => {
+        events.forEach(e => {
+            const id = e.target.getAttribute('data-widget-id');
+            startAction(id);
+            const state = activeStatesRef.current.get(id || '');
+            if (state) {
+                e.set([state.scale, state.scale]);
+                if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
+            }
+        });
+    }, [viewSize]);
+
+    const handleRotateGroupStart = useCallback(({ events }: OnRotateGroupStart) => {
+        events.forEach(e => {
+            const id = e.target.getAttribute('data-widget-id');
+            startAction(id);
+            const state = activeStatesRef.current.get(id || '');
+            if (state) {
+                e.set(state.rotation);
+                if (e.dragStart) e.dragStart.set([state.posX, state.posY]);
+            }
+        });
+    }, [viewSize]);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[999]">
@@ -359,46 +415,26 @@ export const MoveableController: React.FC = () => {
                 onScale={handleScale}
                 onScaleEnd={() => { handleEnd(); }}
 
-                onRotateStart={(e) => { handleRotateStart(e); }}
+                onRotateStart={(e) => {
+                    handleRotateStart(e);
+                }}
                 onRotate={handleRotate}
-                onRotateEnd={() => { handleEnd(); }}
+                onRotateEnd={() => {
+                    handleEnd();
+                }}
 
                 onDragGroupStart={(e) => { handleDragGroupStart(e); }}
                 onDragGroup={({ events }) => {
-                    const delta = [...events[0].delta];
-                    const activeItems = events.map(e => ({
-                        e,
-                        state: activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '')
-                    })).filter((x): x is { e: any, state: ActiveState } => !!x.state);
-
-                    if (activeItems.length > 0) {
-                        // 全メンバーをチェックして、最も制限的な移動量（delta）を計算
-                        activeItems.forEach(({ state }) => {
-                            const sw = state.width * state.scale;
-                            const sh = state.height * state.scale;
-                            const margin = Math.min(40, sw * 0.5, sh * 0.5);
-                            const halfW = window.innerWidth / 2;
-                            const halfH = window.innerHeight / 2;
-                            const minX = -halfW - sw / 2 + margin;
-                            const maxY = halfH + sh / 2 - margin;
-                            const minY = -halfH - sh / 2 + margin;
-                            const maxX = halfW + sw / 2 - margin;
-
-                            if (delta[0] > 0) delta[0] = Math.max(0, Math.min(delta[0], maxX - state.posX));
-                            else if (delta[0] < 0) delta[0] = Math.min(0, Math.max(delta[0], minX - state.posX));
-
-                            if (delta[1] > 0) delta[1] = Math.max(0, Math.min(delta[1], maxY - state.posY));
-                            else if (delta[1] < 0) delta[1] = Math.min(0, Math.max(delta[1], minY - state.posY));
-                        });
-
-                        // 共通の delta を全メンバーに適用することで位置関係を維持
-                        activeItems.forEach(({ e, state }) => {
-                            state.posX += delta[0];
-                            state.posY += delta[1];
+                    events.forEach(e => {
+                        const id = e.target.getAttribute('data-widget-id') || '';
+                        const state = activeStatesRef.current.get(id);
+                        if (state) {
+                            state.posX += e.beforeDelta[0];
+                            state.posY += e.beforeDelta[1];
                             updateDOMTransform(e.target as HTMLElement, state);
-                        });
-                        syncMoveableRect();
-                    }
+                        }
+                    });
+                    syncMoveableRect();
                 }}
                 onDragGroupEnd={(e: OnDragGroupEnd) => {
                     handleEnd();
@@ -465,7 +501,9 @@ export const MoveableController: React.FC = () => {
                 }}
                 onScaleGroupEnd={() => { handleEnd(); }}
 
-                onRotateGroupStart={(e) => { handleRotateGroupStart(e); }}
+                onRotateGroupStart={(e) => {
+                    handleRotateGroupStart(e);
+                }}
                 onRotateGroup={({ events }) => {
                     const activeItems = events.map(e => ({
                         e,
@@ -502,12 +540,16 @@ export const MoveableController: React.FC = () => {
                             t.state.rotation = t.rotation;
                             t.state.posX = t.trialX + offsetX;
                             t.state.posY = t.trialY + offsetY;
+                            // グループ回転での累積誤差を防ぐため、beforeDelta ではなく e.drag.beforeDelta を使う手法もあるが、
+                            // react-moveable の trial 値をそのまま適用
                             clampState(t.state);
                             updateDOMTransform(t.e.target as HTMLElement, t.state);
                         });
                     }
                 }}
-                onRotateGroupEnd={() => { handleEnd(); }}
+                onRotateGroupEnd={() => {
+                    handleEnd();
+                }}
 
                 onRender={syncMoveableRect}
                 onRenderGroup={syncMoveableRect}
