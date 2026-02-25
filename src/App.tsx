@@ -377,11 +377,7 @@ function App() {
         toggleSPMarkerForceHidden();
       }
 
-      // G key: Group selected widgets
-      if ((e.key === 'g' || e.key === 'G') && selectedWidgetIds.length >= 2) {
-        e.preventDefault();
-        groupSelectedWidgets();
-      }
+
 
       // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
       if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {

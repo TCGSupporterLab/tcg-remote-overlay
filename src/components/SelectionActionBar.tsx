@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWidgetStore } from '../store/useWidgetStore';
-import { Link, Unlink, RefreshCcw } from 'lucide-react';
+import { Link, Unlink, Undo2 } from 'lucide-react';
 
 export const SelectionActionBar: React.FC = () => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
@@ -83,26 +83,14 @@ export const SelectionActionBar: React.FC = () => {
                 <div className="flex items-center gap-1 p-1">
                     <button
                         onClick={() => {
-                            // 単一ウィジェット、または「グループ全体」が選択されている場合に実行
-                            const isSingle = selectedWidgetIds.length === 1;
-                            const isFullGroup = groups.some(g =>
-                                g.memberIds.length === selectedWidgetIds.length &&
-                                g.memberIds.every(id => selectedWidgetIds.includes(id))
-                            );
-
-                            if (isSingle || isFullGroup) {
-                                // 他の操作（移動等）と同様、アクションバーを一旦隠す
-                                setIsTransforming(true);
-                                resetWidgets(selectedWidgetIds);
-                            } else {
-                                // TODO: 矩形選択などで一時的に複数選択しているだけの状態でのリセット
-                                console.log('Reset for multiple non-group selection not implemented yet');
-                            }
+                            // 選択されているすべてのウィジェット（単体・グループ問わず）をリセット
+                            setIsTransforming(true);
+                            resetWidgets(selectedWidgetIds);
                         }}
                         className="group p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/10 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
-                        title="リセット (R)"
+                        title="リセット"
                     >
-                        <RefreshCcw size={18} className="group-hover:rotate-[-45deg] transition-transform" />
+                        <Undo2 size={18} className="group-hover:scale-110 group-hover:-translate-x-0.5 transition-transform" />
                     </button>
 
                     {selectedWidgetIds.length > 1 && (
@@ -111,7 +99,7 @@ export const SelectionActionBar: React.FC = () => {
                             <button
                                 onClick={() => groupSelectedWidgets()}
                                 className="group p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
-                                title="グループ化 (G)"
+                                title="グループ化"
                             >
                                 <Link size={18} className="group-hover:scale-110 transition-transform" />
                             </button>
