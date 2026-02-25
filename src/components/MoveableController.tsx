@@ -119,6 +119,9 @@ export const MoveableController: React.FC = () => {
     useEffect(() => {
         let resizeTimer: number | null = null;
         const handleResize = () => {
+            // リサイズ開始時にアクションバーを隠す
+            setIsTransforming(true);
+
             if (resizeTimer) window.cancelAnimationFrame(resizeTimer);
             resizeTimer = window.requestAnimationFrame(() => {
                 const w = window.innerWidth;
@@ -241,12 +244,43 @@ export const MoveableController: React.FC = () => {
 
     // リサイズやターゲット変更完了後にMoveableの枠を同期
     useEffect(() => {
-        if (moveableRef.current) {
-            moveableRef.current.updateRect();
-            syncMoveableRect();
-            syncActionBarDOM();
+        if (moveableRef.current && targets.length > 0) {
+            let retryCount = 0;
+            const MAX_RETRIES = 10;
+
+            const checkAndSync = () => {
+                if (!moveableRef.current) return;
+
+                moveableRef.current.updateRect();
+                const rect = moveableRef.current.getRect();
+
+                const firstId = selectedWidgetIds[0];
+                const el = document.querySelector(`[data-widget-id="${firstId}"]`);
+                const widgetRect = el?.getBoundingClientRect();
+
+                // 歪みチェック
+                const diffL = widgetRect ? Math.abs(rect.left - widgetRect.left) : 0;
+                const diffT = widgetRect ? Math.abs(rect.top - widgetRect.top) : 0;
+                const isDistorted = (diffL > 1 || diffT > 1);
+
+                if (isDistorted && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    setTimeout(checkAndSync, 50); // 次の試行
+                    return;
+                }
+
+                // 最終的に歪みが解消された、またはリトライ上限に達した場合
+                if (rect.width > 0 || rect.height > 0) {
+                    syncMoveableRect();
+                    syncActionBarDOM();
+                    setIsTransforming(false);
+                }
+            };
+
+            const timer = setTimeout(checkAndSync, 32);
+            return () => clearTimeout(timer);
         }
-    }, [viewSize, targets, syncMoveableRect, syncActionBarDOM]);
+    }, [viewSize, targets, syncMoveableRect, syncActionBarDOM, setIsTransforming, selectedWidgetIds]);
 
     useEffect(() => {
         const allMemberIds = new Set<string>();
