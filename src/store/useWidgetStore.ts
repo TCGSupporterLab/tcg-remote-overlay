@@ -61,6 +61,9 @@ interface WidgetStoreState {
     diceValue: 1 | 2 | 3 | 4 | 5 | 6;
     coinValue: 1 | 0;
 
+    // 順序管理
+    widgetOrder: WidgetId[];
+
     // Actions
     updateWidgetState: (id: WidgetId, state: Partial<WidgetState>) => void;
     setVisibility: (patch: Partial<WidgetStoreState['visibility']>) => void;
@@ -79,6 +82,7 @@ interface WidgetStoreState {
     setIsTransforming: (val: boolean) => void;
     setNeedsSync: (val: boolean) => void;
     resetWidgets: (ids: WidgetId[]) => void;
+    reorderWidgets: (activeId: WidgetId, overId: WidgetId) => void;
     clearGroups: () => void;
     groupSelectedWidgets: () => void;
     ungroupSelectedWidgets: () => void;
@@ -125,6 +129,7 @@ const getInitialState = () => {
         isTransforming: false,
         needsSync: false,
         viewSize: { w: window.innerWidth, h: window.innerHeight },
+        widgetOrder: [] as WidgetId[],
     };
 
     if (savedWidgets) {
@@ -133,9 +138,25 @@ const getInitialState = () => {
             if (parsed.widgetStates) base.widgetStates = parsed.widgetStates;
             if (parsed.visibility) base.visibility = { ...base.visibility, ...parsed.visibility };
             if (parsed.settings) base.settings = { ...base.settings, ...parsed.settings };
+            if (parsed.widgetOrder) {
+                base.widgetOrder = (parsed.widgetOrder as string[]).map(id => {
+                    if (id === 'lp') return 'lp_calculator' as WidgetId;
+                    if (id === 'card') return 'card_widget' as WidgetId;
+                    return id as WidgetId;
+                });
+            }
         } catch (e) {
             console.error('Failed to parse saved widget store state', e);
         }
+    }
+
+    // 初期順序が未設定または不完全な場合のデフォルト（前面から）
+    const DEFAULT_ORDER: WidgetId[] = ['dice', 'coin', 'lp_calculator', 'sp_marker', 'card_widget'];
+    if (!base.widgetOrder || base.widgetOrder.length < DEFAULT_ORDER.length) {
+        // 既存の順序を活かしつつ不足分を補充、または新規作成
+        const existing = base.widgetOrder || [];
+        const missing = DEFAULT_ORDER.filter(id => !existing.includes(id));
+        base.widgetOrder = [...existing, ...missing];
     }
 
     const savedCrop = localStorage.getItem('tcg_remote_video_crop');
@@ -249,6 +270,20 @@ export const useWidgetStore = create<WidgetStoreState>()(
                 needsSync: true,
             };
         }),
+
+        reorderWidgets: (activeId, overId) => set((state) => {
+            const oldIndex = state.widgetOrder.indexOf(activeId);
+            const newIndex = state.widgetOrder.indexOf(overId);
+
+            if (oldIndex === -1 || newIndex === -1) return state;
+
+            const newOrder = [...state.widgetOrder];
+            const [removed] = newOrder.splice(oldIndex, 1);
+            newOrder.splice(newIndex, 0, removed);
+
+            return { widgetOrder: newOrder };
+        }),
+
         setViewSize: (viewSize) => set({ viewSize }),
 
         clearGroups: () => {
@@ -369,6 +404,7 @@ useWidgetStore.subscribe(
                 widgetStates: state.widgetStates,
                 visibility: state.visibility,
                 settings: state.settings,
+                widgetOrder: state.widgetOrder,
             }));
             localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(state.groupData));
             // ビデオ設定等は各アクション側で保存済み

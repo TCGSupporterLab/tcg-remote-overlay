@@ -10,6 +10,7 @@ TCG Remote Overlayは、リモート環境でのカードゲーム対戦をサ�
 - オーバーレイ同期（BroadcastChannel）
 - 背景モード（Normal / Green / **Video背景**）
 - ビデオ調整（ズーム、パン、トリミング同期）
+- 表示優先順位管理（ドラッグ＆ドロップによるZ-Index調整）
 - データの永続化とリセット、ウィンドウ管理
 - [ホロライブデータ開発ルール (Data Development Rule)](./core/hololive_data_development_rule.md)
 - [カードデータ形式仕様 (Card Data Format)](./core/data_format.md)

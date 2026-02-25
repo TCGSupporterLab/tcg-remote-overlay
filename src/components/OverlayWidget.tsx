@@ -18,18 +18,33 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     children,
     widgetId,
     instanceId,
-    isSelected = false,
-    isGrouped = false,
     containerRefCallback,
 }) => {
     const id = instanceId || widgetId;
+    const widgetIdTyped = id as WidgetId;
 
     // Zustand Store から状態を取得
     const state = useWidgetStore(s => s.widgetStates[id] || DEFAULT_WIDGET_STATE);
     const viewSize = useWidgetStore(s => s.viewSize);
+    const widgetOrder = useWidgetStore(s => s.widgetOrder);
+    const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
+
+    // 仕様に基づいた zIndex の計算
+    // 前面ほどインデックスが小さいマスターリスト widgetOrder を基準にする
+    const orderIndex = widgetOrder.indexOf(widgetIdTyped);
+    const priority = orderIndex === -1 ? 999 : orderIndex; // リストにない場合は背面へ
+    const invertPriority = 100 - priority; // 数値が大きいほど前面に来るように反転 (0-100)
+
+    const isSelectedInStore = selectedWidgetIds.includes(widgetIdTyped);
+
+    // レイヤー決定
+    let finalZIndex = 500 + invertPriority; // 標準レイヤー (500-600)
+
+    if (isSelectedInStore) {
+        finalZIndex = 1000 + invertPriority; // 最前面レイヤー (1000-1100)
+    }
 
     // ウィンドウサイズに応じたスケーリング係数 (基準: 1920x1080)
-    // 幅と高さのうち、より縮小されている方に合わせることで、アスペクト比を保ちつつ画面内に収める
     const scalingFactor = Math.min(viewSize.w / 1920, viewSize.h / 1080);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -37,12 +52,15 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     // Register container ref for rect selection / Moveable targets
     useEffect(() => {
         if (containerRefCallback) {
-            containerRefCallback(id as WidgetId, containerRef.current);
-            return () => containerRefCallback(id as WidgetId, null);
+            containerRefCallback(widgetIdTyped, containerRef.current);
+            return () => containerRefCallback(widgetIdTyped, null);
         }
-    }, [containerRefCallback, id]);
+    }, [containerRefCallback, widgetIdTyped]);
     return (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div
+            className="fixed inset-0 pointer-events-none overflow-hidden"
+            style={{ zIndex: finalZIndex }}
+        >
             <div
                 ref={containerRef}
                 data-widget-id={id}
@@ -53,12 +71,10 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
                     // 座標、拡縮、回転を一箇所に集約。translate(-50%, -50%) で中心を基準に合わせる
                     transform: `translate(${state.px * 100}vw, ${state.py * 100}vh) translate(-50%, -50%) scale(${state.scale * scalingFactor}) rotate(${state.rotation}deg)`,
                     transformOrigin: 'center center',
-                    zIndex: 100,
                 }}
                 // マルチ選択（Ctrl+クリック）時、または選択済み状態でクリックされた場合に
                 // ウィジェット内のボタン等が反応しないようにキャプチャフェーズで阻止
                 onClickCapture={(e) => {
-                    const isSelectedInStore = useWidgetStore.getState().selectedWidgetIds.includes(id as WidgetId);
                     if (e.ctrlKey || e.metaKey || isSelectedInStore) {
                         e.stopPropagation();
                     }

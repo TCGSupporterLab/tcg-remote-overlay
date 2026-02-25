@@ -80,6 +80,23 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
         const saved = localStorage.getItem('settings_isLPSectionOpen');
         return saved !== null ? saved === 'true' : false;
     });
+    const [isOrderSectionOpen, setIsOrderSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isOrderSectionOpen');
+        return saved !== null ? saved === 'true' : false;
+    });
+
+    const [isGenericCategoryOpen, setIsGenericCategoryOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isGenericCategoryOpen');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [isSpecializedCategoryOpen, setIsSpecializedCategoryOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isSpecializedCategoryOpen');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [isCommonCategoryOpen, setIsCommonCategoryOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isCommonCategoryOpen');
+        return saved !== null ? saved === 'true' : true;
+    });
 
     // Persistence Effects
     useEffect(() => {
@@ -98,6 +115,22 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
         localStorage.setItem('settings_isLPSectionOpen', String(isLPSectionOpen));
     }, [isLPSectionOpen]);
 
+    useEffect(() => {
+        localStorage.setItem('settings_isOrderSectionOpen', String(isOrderSectionOpen));
+    }, [isOrderSectionOpen]);
+
+    useEffect(() => {
+        localStorage.setItem('settings_isGenericCategoryOpen', String(isGenericCategoryOpen));
+    }, [isGenericCategoryOpen]);
+
+    useEffect(() => {
+        localStorage.setItem('settings_isSpecializedCategoryOpen', String(isSpecializedCategoryOpen));
+    }, [isSpecializedCategoryOpen]);
+
+    useEffect(() => {
+        localStorage.setItem('settings_isCommonCategoryOpen', String(isCommonCategoryOpen));
+    }, [isCommonCategoryOpen]);
+
     // Escape key to close settings
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -110,8 +143,14 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
     }, [props.onClose]);
 
     return (
-        <div className="fixed inset-0 z-[1000] bg-black/85 backdrop-blur-2xl flex items-center justify-center pointer-events-auto p-[64px]">
-            <div className="settings-window bg-[#090a10] border-2 border-white/20 rounded-[2rem] shadow-[0_0_150px_rgba(0,0,0,1)] w-[820px] h-[720px] max-w-full max-h-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+        <div
+            className="fixed inset-0 z-[3000] bg-black/85 backdrop-blur-2xl flex items-center justify-center pointer-events-auto p-[64px]"
+            onClick={props.onClose}
+        >
+            <div
+                className="settings-window bg-[#090a10] border-2 border-white/20 rounded-[2rem] shadow-[0_0_150px_rgba(0,0,0,1)] w-[820px] h-[720px] max-w-full max-h-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300"
+                onClick={(e) => e.stopPropagation()}
+            >
 
                 {/* Header */}
                 <div className="flex justify-between items-center p-[0px] px-[36px] border-b border-border/50 bg-black/40">
@@ -155,6 +194,14 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 onToggleHololiveSectionOpen={() => setIsHololiveSectionOpen(!isHololiveSectionOpen)}
                                 isLPSectionOpen={isLPSectionOpen}
                                 onToggleLPSectionOpen={() => setIsLPSectionOpen(!isLPSectionOpen)}
+                                isOrderSectionOpen={isOrderSectionOpen}
+                                onToggleOrderSectionOpen={() => setIsOrderSectionOpen(!isOrderSectionOpen)}
+                                isGenericCategoryOpen={isGenericCategoryOpen}
+                                onToggleGenericCategoryOpen={() => setIsGenericCategoryOpen(!isGenericCategoryOpen)}
+                                isSpecializedCategoryOpen={isSpecializedCategoryOpen}
+                                onToggleSpecializedCategoryOpen={() => setIsSpecializedCategoryOpen(!isSpecializedCategoryOpen)}
+                                isCommonCategoryOpen={isCommonCategoryOpen}
+                                onToggleCommonCategoryOpen={() => setIsCommonCategoryOpen(!isCommonCategoryOpen)}
                             />
                         )}
 

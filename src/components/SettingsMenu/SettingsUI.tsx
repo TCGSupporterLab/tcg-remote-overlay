@@ -32,18 +32,37 @@ export const SettingsToggle = ({ checked, onChange, disabled }: ToggleProps) => 
     </label>
 );
 
+import { ChevronRight } from 'lucide-react';
+
 interface SectionHeaderProps {
     icon: React.ReactNode;
     title: string;
     borderTop?: boolean;
+    isOpen?: boolean;
+    onToggle?: () => void;
 }
 
-export const SectionHeader = ({ icon, title, borderTop }: SectionHeaderProps) => (
-    <div className={`flex items-center gap-[12px] ${borderTop ? 'pt-[8px] border-t border-white/10 mt-[4px]' : ''}`}>
-        <div className="p-[8px] rounded-xl bg-white/5 border border-white/10 text-white shadow-lg">
-            {icon}
+export const SectionHeader = ({ icon, title, borderTop, isOpen, onToggle }: SectionHeaderProps) => (
+    <div
+        className={`flex items-center justify-between group cursor-pointer select-none ${borderTop ? 'pt-[8px] border-t border-white/10 mt-[4px]' : ''}`}
+        onClick={onToggle}
+    >
+        <div className="flex items-center gap-[12px]">
+            <div className={`p-[8px] rounded-xl border transition-all shadow-lg ${isOpen === false ? 'bg-white/5 border-white/5 text-gray-500' : 'bg-white/5 border-white/10 text-white'}`}>
+                {icon}
+            </div>
+            <div className="flex items-center gap-[8px]">
+                <h2 className={`text-lg font-bold tracking-wide drop-shadow-md transition-colors ${isOpen === false ? 'text-gray-400 group-hover:text-gray-200' : 'text-white'}`}>
+                    {title}
+                </h2>
+                {onToggle && (
+                    <ChevronRight
+                        size={18}
+                        className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-90 text-white' : ''}`}
+                    />
+                )}
+            </div>
         </div>
-        <h2 className="text-lg font-bold tracking-wide text-white drop-shadow-md">{title}</h2>
     </div>
 );
 
