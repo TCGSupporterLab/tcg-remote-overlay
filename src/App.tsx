@@ -6,6 +6,7 @@ import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
 import { useWidgetStore, type DisplayPreset } from './store/useWidgetStore';
 import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
 import { SettingsMenu } from './components/SettingsMenu';
+import { type TabType } from './components/SettingsMenu/SettingsTabs';
 import { OverlayWidget } from './components/OverlayWidget';
 import { SPMarkerWidget } from './components/CardSearch/SPMarkerWidget';
 import { useLocalCards } from './hooks/useLocalCards';
@@ -69,6 +70,7 @@ function App() {
   const setCoinValue = useWidgetStore(s => s.setCoinValue);
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
   const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
+  const importDefaultLayouts = useWidgetStore(s => s.importDefaultLayouts);
 
   const {
     isDiceVisible,
@@ -113,13 +115,17 @@ function App() {
     }
   }, [rootHandle?.name, savedRootName, rootFolderName, setRootFolderName]);
 
+  useEffect(() => {
+    importDefaultLayouts();
+  }, [importDefaultLayouts]);
+
 
   const [diceKey, setDiceKey] = useState(0); // For forcing re-render of dice roll animation
   const [coinKey, setCoinKey] = useState(0);
 
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'guide' | 'general' | 'widgets' | 'video' | 'about'>('guide');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<TabType>('guide');
 
   // Widget Selection & Grouping
   const {

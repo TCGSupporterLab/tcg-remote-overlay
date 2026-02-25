@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWidgetStore } from '../store/useWidgetStore';
-import { Link, Unlink, Undo2 } from 'lucide-react';
+import { Link, Unlink, Undo2, Save } from 'lucide-react';
 
 export const SelectionActionBar: React.FC = () => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
@@ -11,6 +11,7 @@ export const SelectionActionBar: React.FC = () => {
     const resetWidgets = useWidgetStore(s => s.resetWidgets);
     const isTransforming = useWidgetStore(s => s.isTransforming);
     const setIsTransforming = useWidgetStore(s => s.setIsTransforming);
+    const saveLayout = useWidgetStore(s => s.saveLayout);
 
     if (selectedWidgetIds.length < 1 || isTransforming) return null;
 
@@ -81,6 +82,19 @@ export const SelectionActionBar: React.FC = () => {
         >
             <div className="bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-1 flex items-center shadow-2xl ring-1 ring-white/10">
                 <div className="flex items-center gap-1 p-1">
+                    <button
+                        onClick={() => {
+                            const name = window.prompt('レイアウト名を入力してください');
+                            if (name) saveLayout(name);
+                        }}
+                        className="group p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/10 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
+                        title="マイレイアウトに追加"
+                    >
+                        <Save size={18} className="group-hover:scale-110 transition-transform" />
+                    </button>
+
+                    <div className="w-px h-5 bg-white/10 mx-1" />
+
                     <button
                         onClick={() => {
                             // 選択されているすべてのウィジェット（単体・グループ問わず）をリセット

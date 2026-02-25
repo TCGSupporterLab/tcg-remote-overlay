@@ -9,8 +9,8 @@ import { GeneralTab } from './SettingsMenu/GeneralTab';
 import { WidgetsTab } from './SettingsMenu/WidgetsTab';
 import { VideoTab } from './SettingsMenu/VideoTab';
 import { AboutTab } from './SettingsMenu/AboutTab';
-import { SettingsTabs } from './SettingsMenu/SettingsTabs';
-import type { TabType } from './SettingsMenu/SettingsTabs';
+import { SettingsTabs, type TabType } from './SettingsMenu/SettingsTabs';
+import { MyLayoutTab } from './SettingsMenu/MyLayoutTab';
 
 type ObsMode = 'normal' | 'green';
 type DisplayPreset = 'yugioh' | 'hololive' | 'none';
@@ -176,12 +176,12 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
 
                         {props.activeTab === 'general' && (
                             <GeneralTab
-                                activePreset={props.activePreset}
-                                onPresetChange={props.onPresetChange}
                                 obsMode={props.obsMode}
                                 onObsModeChange={props.onObsModeChange}
                             />
                         )}
+
+                        {props.activeTab === 'layout' && <MyLayoutTab />}
 
                         {props.activeTab === 'widgets' && (
                             <WidgetsTab
@@ -221,4 +221,3 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
         </div>
     );
 };
-

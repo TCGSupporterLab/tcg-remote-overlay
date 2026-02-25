@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup } from '../types/widgetTypes';
+import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup, type MyLayout } from '../types/widgetTypes';
 import { type VideoSourceType, type CropConfig } from '../components/VideoBackground';
 
 export type ObsMode = 'normal' | 'green';
@@ -64,6 +64,11 @@ interface WidgetStoreState {
     // 順序管理
     widgetOrder: WidgetId[];
 
+    // マイレイアウト
+    myLayouts: MyLayout[];
+    hasImportedDefaultLayouts: boolean;
+    hideNonLayoutWidgets: boolean;
+
     // Actions
     updateWidgetState: (id: WidgetId, state: Partial<WidgetState>) => void;
     setVisibility: (patch: Partial<WidgetStoreState['visibility']>) => void;
@@ -86,12 +91,21 @@ interface WidgetStoreState {
     clearGroups: () => void;
     groupSelectedWidgets: () => void;
     ungroupSelectedWidgets: () => void;
+
+    // マイレイアウト Actions
+    saveLayout: (name: string) => void;
+    applyLayout: (id: string) => void;
+    deleteLayout: (id: string) => void;
+    importLayout: (data: unknown) => { success: boolean; message?: string };
+    setHideNonLayoutWidgets: (val: boolean) => void;
+    importDefaultLayouts: () => void;
 }
 
 const STORAGE_KEYS = {
     WIDGETS: 'tcg_remote_widget_store_v3',
     GROUPS: 'widget_groups',
     SETTINGS: 'tcg_remote_settings_v4',
+    LAYOUTS: 'tcg_remote_my_layouts_v1',
 };
 
 const DEFAULT_CROP: CropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
@@ -130,7 +144,19 @@ const getInitialState = () => {
         needsSync: false,
         viewSize: { w: window.innerWidth, h: window.innerHeight },
         widgetOrder: [] as WidgetId[],
+        myLayouts: [],
+        hasImportedDefaultLayouts: localStorage.getItem('tcg_remote_layout_imported') === 'true',
+        hideNonLayoutWidgets: localStorage.getItem('tcg_remote_hide_non_layout') === 'true',
     };
+
+    const savedLayouts = localStorage.getItem(STORAGE_KEYS.LAYOUTS);
+    if (savedLayouts) {
+        try {
+            base.myLayouts = JSON.parse(savedLayouts);
+        } catch (e) {
+            console.error('Failed to parse saved layouts', e);
+        }
+    }
 
     if (savedWidgets) {
         try {
@@ -386,6 +412,233 @@ export const useWidgetStore = create<WidgetStoreState>()(
                     ...groupData,
                     groups: nextGroups,
                 }
+            };
+        }),
+
+        setHideNonLayoutWidgets: (val) => {
+            localStorage.setItem('tcg_remote_hide_non_layout', val ? 'true' : 'false');
+            set({ hideNonLayoutWidgets: val });
+        },
+
+        saveLayout: (name) => set((state) => {
+            const { selectedWidgetIds, widgetStates, widgetOrder, visibility, groupData, viewSize } = state;
+            if (selectedWidgetIds.length === 0) return state;
+
+            const layoutWidgets = selectedWidgetIds.map(id => ({
+                id,
+                state: widgetStates[id] || { px: 0, py: 0, scale: 1, rotation: 0 }
+            }));
+
+            // 選択されたメンバー全員が含まれるグループのみ保存
+            const relevantGroups = groupData.groups.filter(g =>
+                g.memberIds.every(mid => selectedWidgetIds.includes(mid))
+            );
+
+            // 選択されたウィジェットの表示状態を記録
+            const layoutVisibility: Record<WidgetId, boolean> = {};
+            selectedWidgetIds.forEach(id => {
+                if (id === 'dice') layoutVisibility[id] = visibility.isDiceVisible;
+                if (id === 'coin') layoutVisibility[id] = visibility.isCoinVisible;
+                if (id === 'lp_calculator') layoutVisibility[id] = visibility.isLPVisible;
+                if (id === 'card_widget') layoutVisibility[id] = visibility.isCardWidgetVisible;
+                if (id === 'sp_marker') layoutVisibility[id] = visibility.isSPMarkerVisible;
+            });
+
+            const layoutOrder = widgetOrder.filter(id => selectedWidgetIds.includes(id));
+
+            const newLayout: MyLayout = {
+                id: `layout_${Date.now()}`,
+                name,
+                widgets: layoutWidgets,
+                groups: relevantGroups,
+                visibility: layoutVisibility,
+                widgetOrder: layoutOrder,
+                viewSize: { ...viewSize },
+                createdAt: Date.now(),
+            };
+
+            const nextLayouts = [...state.myLayouts, newLayout];
+            localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
+            localStorage.setItem('tcg_remote_layout_imported', 'true'); // デフォルト読み込みをスキップさせるため
+
+            return {
+                myLayouts: nextLayouts,
+                hasImportedDefaultLayouts: true
+            };
+        }),
+
+        applyLayout: (id) => set((state) => {
+            const layout = state.myLayouts.find(l => l.id === id);
+            if (!layout) return state;
+
+            const nextWidgetStates = { ...state.widgetStates };
+            const nextVisibility = { ...state.visibility };
+            let nextWidgetOrder = [...state.widgetOrder];
+            const currentGroups = [...state.groupData.groups];
+            const nextRelativeTransforms = { ...state.groupData.relativeTransforms };
+
+            const layoutWidgetIds = layout.widgets.map(w => w.id);
+
+            // 1. レイアウト対象ウィジェットの既存グループ解除
+            const filteredGroups = currentGroups.filter(g =>
+                !g.memberIds.some(mid => layoutWidgetIds.includes(mid))
+            );
+
+            // 2. 状態適用と表示ON
+            layout.widgets.forEach(lw => {
+                nextWidgetStates[lw.id] = lw.state;
+                if (lw.id === 'dice') nextVisibility.isDiceVisible = true;
+                if (lw.id === 'coin') nextVisibility.isCoinVisible = true;
+                if (lw.id === 'lp_calculator') nextVisibility.isLPVisible = true;
+                if (lw.id === 'card_widget') nextVisibility.isCardWidgetVisible = true;
+                if (lw.id === 'sp_marker') nextVisibility.isSPMarkerVisible = true;
+            });
+
+            // 3. グループの再適用
+            const nextGroups = [...filteredGroups, ...layout.groups];
+
+            // 相対座標の再計算 (anchorベース)
+            layout.groups.forEach(g => {
+                const anchorState = nextWidgetStates[g.anchorId];
+                if (anchorState) {
+                    const aspect = window.innerWidth / window.innerHeight;
+                    g.memberIds.forEach(mid => {
+                        const ms = nextWidgetStates[mid];
+                        if (ms) {
+                            nextRelativeTransforms[mid] = {
+                                dx: (ms.px - anchorState.px) * aspect,
+                                dy: ms.py - anchorState.py,
+                                dScale: ms.scale / anchorState.scale,
+                                dRotation: ms.rotation - anchorState.rotation,
+                            };
+                        }
+                    });
+                }
+            });
+
+            // 4. 重なり順の調整（レイアウトに含まれるものを前面へ）
+            // まず既存の順序からレイアウト対象を除去
+            nextWidgetOrder = nextWidgetOrder.filter(oid => !layoutWidgetIds.includes(oid));
+            // レイアウト内の順序を最高優先度（末尾）に追加
+            nextWidgetOrder = [...nextWidgetOrder, ...layout.widgetOrder];
+
+            // 5. オプション: 他を隠す
+            if (state.hideNonLayoutWidgets) {
+                if (!layoutWidgetIds.includes('dice')) nextVisibility.isDiceVisible = false;
+                if (!layoutWidgetIds.includes('coin')) nextVisibility.isCoinVisible = false;
+                if (!layoutWidgetIds.includes('lp_calculator')) nextVisibility.isLPVisible = false;
+                if (!layoutWidgetIds.includes('card_widget')) nextVisibility.isCardWidgetVisible = false;
+                if (!layoutWidgetIds.includes('sp_marker')) nextVisibility.isSPMarkerVisible = false;
+            }
+
+            return {
+                widgetStates: nextWidgetStates,
+                visibility: nextVisibility,
+                widgetOrder: nextWidgetOrder,
+                groupData: {
+                    groups: nextGroups,
+                    relativeTransforms: nextRelativeTransforms,
+                },
+                needsSync: true,
+            };
+        }),
+
+        deleteLayout: (id) => set((state) => {
+            const nextLayouts = state.myLayouts.filter(l => l.id !== id);
+            localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
+            return { myLayouts: nextLayouts };
+        }),
+
+        importLayout: (data) => {
+            try {
+                const d = data as any;
+                if (!d.name || !Array.isArray(d.widgets)) {
+                    return { success: false, message: '不正なレイアウトデータです。' };
+                }
+
+                // サニタイズ
+                const VALID_IDS: WidgetId[] = ['dice', 'coin', 'lp_calculator', 'card_widget', 'sp_marker'];
+                const sanitizedWidgets = d.widgets
+                    .filter((w: any) => VALID_IDS.includes(w.id))
+                    .map((w: any) => ({
+                        id: w.id as WidgetId,
+                        state: {
+                            px: Math.max(0, Math.min(1, Number(w.state?.px) || 0.5)),
+                            py: Math.max(0, Math.min(1, Number(w.state?.py) || 0.5)),
+                            scale: Math.max(0.1, Math.min(5, Number(w.state?.scale) || 1)),
+                            rotation: (Number(w.state?.rotation) || 0) % 360,
+                        }
+                    }));
+
+                if (sanitizedWidgets.length === 0) {
+                    return { success: false, message: '有効なウィジェットが含まれていません。' };
+                }
+
+                const newLayout: MyLayout = {
+                    id: `layout_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                    name: String(d.name).substring(0, 40),
+                    widgets: sanitizedWidgets,
+                    groups: Array.isArray(d.groups) ? d.groups : [],
+                    visibility: d.visibility || {},
+                    widgetOrder: Array.isArray(d.widgetOrder) ? d.widgetOrder.filter((id: any) => VALID_IDS.includes(id)) : sanitizedWidgets.map((w: any) => w.id),
+                    viewSize: d.viewSize || { w: window.innerWidth, h: window.innerHeight },
+                    createdAt: Date.now(),
+                };
+
+                set((state) => {
+                    const nextLayouts = [...state.myLayouts, newLayout];
+                    localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
+                    return { myLayouts: nextLayouts };
+                });
+
+                return { success: true };
+            } catch (e) {
+                return { success: false, message: 'インポートに失敗しました。' };
+            }
+        },
+
+        importDefaultLayouts: () => set((state) => {
+            if (state.hasImportedDefaultLayouts) return state;
+
+            const defaults: MyLayout[] = [
+                {
+                    id: 'layout_yugioh_default',
+                    name: '遊戯王 (デフォルト)',
+                    widgets: [
+                        { id: 'dice', state: { px: 0.1, py: 0.1, scale: 1, rotation: 0 } },
+                        { id: 'coin', state: { px: 0.1, py: 0.2, scale: 1, rotation: 0 } },
+                        { id: 'lp_calculator', state: { px: 0.5, py: 0.5, scale: 1, rotation: 0 } },
+                    ],
+                    groups: [],
+                    visibility: { dice: true, coin: true, lp_calculator: true },
+                    widgetOrder: ['dice', 'coin', 'lp_calculator'],
+                    viewSize: { w: 1920, h: 1080 },
+                    createdAt: Date.now()
+                },
+                {
+                    id: 'layout_hololive_default',
+                    name: 'ホロカ (デフォルト)',
+                    widgets: [
+                        { id: 'dice', state: { px: 0.1, py: 0.1, scale: 1, rotation: 0 } },
+                        { id: 'sp_marker', state: { px: 0.1, py: 0.25, scale: 1.2, rotation: 0 } },
+                        { id: 'lp_calculator', state: { px: 0.4, py: 0.6, scale: 1, rotation: 0 } },
+                        { id: 'card_widget', state: { px: 0.8, py: 0.5, scale: 1, rotation: 0 } },
+                    ],
+                    groups: [],
+                    visibility: { dice: true, sp_marker: true, lp_calculator: true, card_widget: true },
+                    widgetOrder: ['dice', 'sp_marker', 'lp_calculator', 'card_widget'],
+                    viewSize: { w: 1920, h: 1080 },
+                    createdAt: Date.now()
+                }
+            ];
+
+            const nextLayouts = [...state.myLayouts, ...defaults];
+            localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
+            localStorage.setItem('tcg_remote_layout_imported', 'true');
+
+            return {
+                myLayouts: nextLayouts,
+                hasImportedDefaultLayouts: true
             };
         }),
     }))

@@ -34,3 +34,21 @@ export interface WidgetState {
     scale: number;
     rotation: number;
 }
+
+// マイレイアウト定義
+export interface MyLayout {
+    id: string;
+    name: string;
+    // 保存対象のウィジェットIDとそれぞれの個別状態
+    widgets: {
+        id: WidgetId;
+        state: WidgetState;
+    }[];
+    // 保存対象のウィジェット間で形成されていたグループ情報
+    groups: WidgetGroup[];
+    // 表示管理、順序、メタデータ
+    visibility: Record<WidgetId, boolean>; // 対象ウィジェットの表示状態
+    widgetOrder: WidgetId[];              // 対象ウィジェット間の相対的な重なり順
+    viewSize: { w: number; h: number };   // 保存時のウィンドウサイズ
+    createdAt: number;
+}
