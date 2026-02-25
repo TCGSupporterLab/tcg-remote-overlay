@@ -38,11 +38,7 @@ export const OverlayWidget: React.FC<OverlayWidgetProps> = ({
     const isSelectedInStore = selectedWidgetIds.includes(widgetIdTyped);
 
     // レイヤー決定
-    let finalZIndex = 500 + invertPriority; // 標準レイヤー (500-600)
-
-    if (isSelectedInStore) {
-        finalZIndex = 1000 + invertPriority; // 最前面レイヤー (1000-1100)
-    }
+    const finalZIndex = 500 + invertPriority; // 標準レイヤー (500-600)
 
     // ウィンドウサイズに応じたスケーリング係数 (基準: 1920x1080)
     const scalingFactor = Math.min(viewSize.w / 1920, viewSize.h / 1080);

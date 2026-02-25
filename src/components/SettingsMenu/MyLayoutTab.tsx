@@ -1,5 +1,4 @@
-import React from 'react';
-import { Layout, Play, Download, Trash2, Plus, Info } from 'lucide-react';
+import { Layout, Play, Download, Upload, Trash2, Info } from 'lucide-react';
 import { useWidgetStore } from '../../store/useWidgetStore';
 import { SettingsToggle, SettingItem } from './SettingsUI';
 
@@ -66,23 +65,23 @@ export const MyLayoutTab = () => {
                         onChange={setHideNonLayoutWidgets}
                     />
                 </SettingItem>
-                <p className="text-[12px] text-gray-500 px-4">
+                <p className="text-[12px] text-gray-500 ml-[44px] mt-[-4px] mb-[4px] leading-relaxed">
                     ONにすると、レイアウトに含まれないウィジェットを自動的に非表示にします。
                 </p>
             </section>
 
             {/* レイアウト一覧 */}
-            <section className="space-y-[12px]">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold flex items-center gap-[6px]">
+            <section className="space-y-[12px] max-w-[700px] mx-auto w-full px-2">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-lg font-bold">
                         保存済みレイアウト
                     </h3>
                     <button
                         onClick={handleImport}
-                        className="flex items-center gap-1 px-3 py-1 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg text-sm border border-white/10 transition-all"
+                        className="p-2 bg-white/5 hover:bg-white/20 text-gray-400 hover:text-white rounded-lg transition-all"
+                        title="インポート"
                     >
-                        <Plus size={16} />
-                        インポート
+                        <Download size={16} />
                     </button>
                 </div>
 
@@ -100,8 +99,8 @@ export const MyLayoutTab = () => {
                                 key={layout.id}
                                 className="group flex items-center justify-between p-3 px-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-all"
                             >
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-gray-200 group-hover:text-white transition-colors">
+                                <div className="flex flex-col pl-[32px]">
+                                    <span className="font-bold text-gray-200 group-hover:text-white transition-colors text-sm">
                                         {layout.name}
                                     </span>
                                     <span className="text-[10px] text-gray-500">
@@ -122,7 +121,7 @@ export const MyLayoutTab = () => {
                                         className="p-2 bg-white/5 hover:bg-white/20 text-gray-400 hover:text-white rounded-lg transition-all"
                                         title="エクスポート"
                                     >
-                                        <Download size={16} />
+                                        <Upload size={16} />
                                     </button>
                                     <button
                                         onClick={() => {

@@ -10,10 +10,10 @@ const ResetButton = ({ onClick }: { onClick: () => void }) => (
                 onClick();
             }
         }}
-        className="px-[6px] py-[2px] rounded-lg bg-black/20 text-gray-500 hover:text-white hover:bg-white/10 transition-all border border-white/40 hover:border-white/60 active:scale-95 cursor-pointer pointer-events-auto z-50"
+        className="p-1.5 bg-white/5 hover:bg-white/20 text-gray-400 hover:text-white rounded-lg transition-all active:scale-95 cursor-pointer pointer-events-auto z-50"
         title="位置をリセット"
     >
-        <Undo2 size={14} className="-translate-x-[1px]" />
+        <Undo2 size={14} />
     </button>
 );
 

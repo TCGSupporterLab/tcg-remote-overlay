@@ -147,7 +147,7 @@ const getInitialState = () => {
         widgetOrder: [] as WidgetId[],
         myLayouts: [],
         hasImportedDefaultLayouts: localStorage.getItem('tcg_remote_layout_imported') === 'true',
-        hideNonLayoutWidgets: localStorage.getItem('tcg_remote_hide_non_layout') === 'true',
+        hideNonLayoutWidgets: localStorage.getItem('tcg_remote_hide_non_layout') !== 'false',
     };
 
     const savedLayouts = localStorage.getItem(STORAGE_KEYS.LAYOUTS);
