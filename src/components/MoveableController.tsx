@@ -249,7 +249,41 @@ export const MoveableController: React.FC = () => {
                 onRotateEnd={() => { handleEnd(); }}
 
                 onDragGroupStart={(e) => { handleDragGroupStart(e); }}
-                onDragGroup={({ events }) => events.forEach(handleDrag)}
+                onDragGroup={({ events }) => {
+                    const delta = [...events[0].delta];
+                    const activeItems = events.map(e => ({
+                        e,
+                        state: activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '')
+                    })).filter((x): x is { e: any, state: ActiveState } => !!x.state);
+
+                    if (activeItems.length > 0) {
+                        // 全メンバーをチェックして、最も制限的な移動量（delta）を計算
+                        activeItems.forEach(({ state }) => {
+                            const sw = state.width * state.scale;
+                            const sh = state.height * state.scale;
+                            const margin = Math.min(40, sw * 0.5, sh * 0.5);
+                            const halfW = window.innerWidth / 2;
+                            const halfH = window.innerHeight / 2;
+                            const minX = -halfW - sw / 2 + margin;
+                            const maxY = halfH + sh / 2 - margin;
+                            const minY = -halfH - sh / 2 + margin;
+                            const maxX = halfW + sw / 2 - margin;
+
+                            if (delta[0] > 0) delta[0] = Math.max(0, Math.min(delta[0], maxX - state.posX));
+                            else if (delta[0] < 0) delta[0] = Math.min(0, Math.max(delta[0], minX - state.posX));
+
+                            if (delta[1] > 0) delta[1] = Math.max(0, Math.min(delta[1], maxY - state.posY));
+                            else if (delta[1] < 0) delta[1] = Math.min(0, Math.max(delta[1], minY - state.posY));
+                        });
+
+                        // 共通の delta を全メンバーに適用することで位置関係を維持
+                        activeItems.forEach(({ e, state }) => {
+                            state.posX += delta[0];
+                            state.posY += delta[1];
+                            updateDOMTransform(e.target as HTMLElement, state);
+                        });
+                    }
+                }}
                 onDragGroupEnd={(e: OnDragGroupEnd) => {
                     handleEnd();
                     // グループ選択状態で Ctrl+Click した際の選択解除をサポート
@@ -269,11 +303,94 @@ export const MoveableController: React.FC = () => {
                 }}
 
                 onScaleGroupStart={(e) => { handleScaleGroupStart(e); }}
-                onScaleGroup={({ events }) => events.forEach(handleScale)}
+                onScaleGroup={({ events }) => {
+                    const activeItems = events.map(e => ({
+                        e,
+                        state: activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '')
+                    })).filter((x): x is { e: any, state: ActiveState } => !!x.state);
+
+                    if (activeItems.length > 0) {
+                        // 1. 各要素の移動・拡縮後の「試算」
+                        const trials = activeItems.map(({ e, state }) => {
+                            const trialX = state.posX + (e.drag?.delta[0] || 0);
+                            const trialY = state.posY + (e.drag?.delta[1] || 0);
+                            return { e, state, trialX, trialY, scale: e.scale[0] };
+                        });
+
+                        // 2. 共通の補正量（位置関係を保つための全体スライド量）を計算
+                        let offsetX = 0;
+                        let offsetY = 0;
+                        trials.forEach(t => {
+                            const sw = t.state.width * t.scale;
+                            const sh = t.state.height * t.scale;
+                            const margin = Math.min(40, sw * 0.5, sh * 0.5);
+                            const halfW = window.innerWidth / 2;
+                            const halfH = window.innerHeight / 2;
+                            const minX = -halfW - sw / 2 + margin;
+                            const maxX = halfW + sw / 2 - margin;
+                            const minY = -halfH - sh / 2 + margin;
+                            const maxY = halfH + sh / 2 - margin;
+
+                            if (t.trialX < minX) offsetX = Math.max(offsetX, minX - t.trialX);
+                            if (t.trialX > maxX) offsetX = Math.min(offsetX, maxX - t.trialX);
+                            if (t.trialY < minY) offsetY = Math.max(offsetY, minY - t.trialY);
+                            if (t.trialY > maxY) offsetY = Math.min(offsetY, maxY - t.trialY);
+                        });
+
+                        // 3. 適用。共通補正を入れてもはみ出す場合は最後のみ個別クランプ（崩れを最小限に）
+                        trials.forEach(t => {
+                            t.state.scale = t.scale;
+                            t.state.posX = t.trialX + offsetX;
+                            t.state.posY = t.trialY + offsetY;
+                            clampState(t.state);
+                            updateDOMTransform(t.e.target as HTMLElement, t.state);
+                        });
+                    }
+                }}
                 onScaleGroupEnd={() => { handleEnd(); }}
 
                 onRotateGroupStart={(e) => { handleRotateGroupStart(e); }}
-                onRotateGroup={({ events }) => events.forEach(handleRotate)}
+                onRotateGroup={({ events }) => {
+                    const activeItems = events.map(e => ({
+                        e,
+                        state: activeStatesRef.current.get(e.target.getAttribute('data-widget-id') || '')
+                    })).filter((x): x is { e: any, state: ActiveState } => !!x.state);
+
+                    if (activeItems.length > 0) {
+                        const trials = activeItems.map(({ e, state }) => {
+                            const trialX = state.posX + (e.drag?.delta[0] || 0);
+                            const trialY = state.posY + (e.drag?.delta[1] || 0);
+                            return { e, state, trialX, trialY, rotation: e.rotate };
+                        });
+
+                        let offsetX = 0;
+                        let offsetY = 0;
+                        trials.forEach(t => {
+                            const sw = t.state.width * t.state.scale;
+                            const sh = t.state.height * t.state.scale;
+                            const margin = Math.min(40, sw * 0.5, sh * 0.5);
+                            const halfW = window.innerWidth / 2;
+                            const halfH = window.innerHeight / 2;
+                            const minX = -halfW - sw / 2 + margin;
+                            const maxX = halfW + sw / 2 - margin;
+                            const minY = -halfH - sh / 2 + margin;
+                            const maxY = halfH + sh / 2 - margin;
+
+                            if (t.trialX < minX) offsetX = Math.max(offsetX, minX - t.trialX);
+                            if (t.trialX > maxX) offsetX = Math.min(offsetX, maxX - t.trialX);
+                            if (t.trialY < minY) offsetY = Math.max(offsetY, minY - t.trialY);
+                            if (t.trialY > maxY) offsetY = Math.min(offsetY, maxY - t.trialY);
+                        });
+
+                        trials.forEach(t => {
+                            t.state.rotation = t.rotation;
+                            t.state.posX = t.trialX + offsetX;
+                            t.state.posY = t.trialY + offsetY;
+                            clampState(t.state);
+                            updateDOMTransform(t.e.target as HTMLElement, t.state);
+                        });
+                    }
+                }}
                 onRotateGroupEnd={() => { handleEnd(); }}
 
                 onRender={() => {
