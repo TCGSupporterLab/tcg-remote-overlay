@@ -45,6 +45,7 @@ interface WidgetStoreState {
     selectedWidgetIds: WidgetId[];
     isSelecting: boolean;
     selectionRect: SelectionRect | null;
+    needsSync: boolean;
     // グループ
     groupData: WidgetGroupData;
     activeMoveableRect: MoveableRect | null;
@@ -76,6 +77,8 @@ interface WidgetStoreState {
     setSelectionRect: (rect: SelectionRect | null) => void;
     setActiveMoveableRect: (rect: MoveableRect | null) => void;
     setIsTransforming: (val: boolean) => void;
+    setNeedsSync: (val: boolean) => void;
+    resetWidgets: (ids: WidgetId[]) => void;
     clearGroups: () => void;
     groupSelectedWidgets: () => void;
     ungroupSelectedWidgets: () => void;
@@ -120,6 +123,7 @@ const getInitialState = () => {
         selectionRect: null,
         activeMoveableRect: null,
         isTransforming: false,
+        needsSync: false,
         viewSize: { w: window.innerWidth, h: window.innerHeight },
     };
 
@@ -199,6 +203,17 @@ export const useWidgetStore = create<WidgetStoreState>()(
         setSelectionRect: (selectionRect) => set({ selectionRect }),
         setActiveMoveableRect: (activeMoveableRect) => set({ activeMoveableRect }),
         setIsTransforming: (isTransforming) => set({ isTransforming }),
+        setNeedsSync: (needsSync) => set({ needsSync }),
+        resetWidgets: (ids) => set((state) => {
+            const nextStates = { ...state.widgetStates };
+            ids.forEach(id => {
+                nextStates[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
+            });
+            return {
+                widgetStates: nextStates,
+                needsSync: true,
+            };
+        }),
         setViewSize: (viewSize) => set({ viewSize }),
 
         clearGroups: () => {

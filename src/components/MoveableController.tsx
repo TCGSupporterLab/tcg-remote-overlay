@@ -31,6 +31,8 @@ export const MoveableController: React.FC = () => {
     const updateWidgetState = useWidgetStore(s => s.updateWidgetState);
     const viewSize = useWidgetStore(s => s.viewSize);
     const setViewSize = useWidgetStore(s => s.setViewSize);
+    const needsSync = useWidgetStore(s => s.needsSync);
+    const setNeedsSync = useWidgetStore(s => s.setNeedsSync);
     const SCALING_BASE_W = 1920;
     const SCALING_BASE_H = 1080;
 
@@ -314,6 +316,46 @@ export const MoveableController: React.FC = () => {
             setActiveMoveableRect(null);
         }
     }, [selectedWidgetIds, groupData.groups, setActiveMoveableRect]);
+
+    // 外部からのリセットなどの要求に応じた同期
+    useEffect(() => {
+        if (needsSync && moveableRef.current && targets.length > 0) {
+            let retryCount = 0;
+            const MAX_RETRIES = 15; // リセット時は確実性を高めるため少し多めに設定
+
+            const checkAndSyncReset = () => {
+                if (!moveableRef.current) return;
+
+                // Moveableの枠とDOM要素の実際の位置を比較
+                moveableRef.current.updateRect();
+                const rect = moveableRef.current.getRect();
+                const rects = targets.map(t => t.getBoundingClientRect());
+                const combinedLeft = Math.min(...rects.map(r => r.left));
+                const combinedTop = Math.min(...rects.map(r => r.top));
+
+                const diffL = Math.abs(rect.left - combinedLeft);
+                const diffT = Math.abs(rect.top - combinedTop);
+                // 1px以上のズレがある、または幅・高さが初期状態(0)の場合は未完了とみなす
+                const isDistorted = (diffL > 1 || diffT > 1) || (rect.width === 0 || rect.height === 0);
+
+                if (isDistorted && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    setTimeout(checkAndSyncReset, 32); // 次の試行
+                    return;
+                }
+
+                // 位置が安定したら同期を完了
+                syncMoveableRect();
+                syncActionBarDOM();
+                setNeedsSync(false);
+                setIsTransforming(false);
+            };
+
+            // 初回のチェックを開始（わずかな遅延を置いてDOM更新を待つ）
+            const timer = setTimeout(checkAndSyncReset, 32);
+            return () => clearTimeout(timer);
+        }
+    }, [needsSync, setNeedsSync, syncMoveableRect, syncActionBarDOM, setIsTransforming, targets]);
 
     const startAction = useCallback((ids: string | string[]) => {
         const idList = Array.isArray(ids) ? ids : [ids];

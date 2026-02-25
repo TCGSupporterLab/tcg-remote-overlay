@@ -8,7 +8,9 @@ export const SelectionActionBar: React.FC = () => {
     const activeMoveableRect = useWidgetStore(s => s.activeMoveableRect);
     const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
     const ungroupSelectedWidgets = useWidgetStore(s => s.ungroupSelectedWidgets);
+    const resetWidgets = useWidgetStore(s => s.resetWidgets);
     const isTransforming = useWidgetStore(s => s.isTransforming);
+    const setIsTransforming = useWidgetStore(s => s.setIsTransforming);
 
     if (selectedWidgetIds.length < 1 || isTransforming) return null;
 
@@ -81,8 +83,15 @@ export const SelectionActionBar: React.FC = () => {
                 <div className="flex items-center gap-1 p-1">
                     <button
                         onClick={() => {
-                            // TODO: リセットロジックの実装
-                            console.log('Reset clicked for:', selectedWidgetIds);
+                            // 単一ウィジェットの選択時のみ実行
+                            if (selectedWidgetIds.length === 1) {
+                                // 他の操作（移動等）と同様、アクションバーを一旦隠す
+                                setIsTransforming(true);
+                                resetWidgets(selectedWidgetIds);
+                            } else {
+                                // TODO: 複数選択・グループ化時のリセット実装
+                                console.log('Reset for multiple selection not implemented yet');
+                            }
                         }}
                         className="group p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/10 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
                         title="リセット (R)"
