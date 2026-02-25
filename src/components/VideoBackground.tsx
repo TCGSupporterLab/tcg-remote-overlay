@@ -292,7 +292,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                 <>
                     {/* 1. Full Screen Drag & Interaction Layer */}
                     <div
-                        className="fixed inset-0 z-[400] cursor-move select-none pointer-events-auto"
+                        className="fixed inset-0 z-[400] cursor-move select-none pointer-events-auto video-adjustment-overlay"
                         onMouseDown={handleMouseDown}
                         onWheel={handleWheel}
                     >
@@ -306,7 +306,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
                     {/* 2. Top Banner (Fixed) - Solid Frame with Maximum Spacing */}
                     <div
-                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto"
+                        className="fixed top-10 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto video-adjustment-overlay"
                         onMouseDown={(e) => e.stopPropagation()}
                     >
                         <div className="bg-[#0f172a] text-white pl-5 pr-[25px] py-5 rounded-none flex items-center justify-between w-[640px] border border-[#ff0000] shadow-[0_0_50px_rgba(255,0,0,0.2)]">
@@ -344,7 +344,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
                     {/* 3. Bottom-Left Adjustment Panel (Fixed) - Sharp and Solid */}
                     <div
-                        className="fixed bottom-10 left-10 z-[500] pointer-events-auto"
+                        className="fixed bottom-10 left-10 z-[500] pointer-events-auto video-adjustment-overlay"
                         style={{ bottom: '40px', left: '40px' }}
                         onMouseDown={(e) => e.stopPropagation()}
                     >

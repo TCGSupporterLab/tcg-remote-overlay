@@ -698,6 +698,8 @@ export const MoveableController: React.FC = () => {
                 dragCondition={(e) => {
                     const target = e.inputEvent.target as Element;
                     if (target.closest('.selection-action-bar')) return false;
+                    if (target.closest('.settings-overlay')) return false;
+                    if (target.closest('.video-adjustment-overlay')) return false; // ビデオ調整画面も除外
                     const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
                     const isMoveableElement = !!target.closest('[class*="moveable-"]');
                     const isControl = !!target.closest('[class*="moveable-control"]');
@@ -717,7 +719,9 @@ export const MoveableController: React.FC = () => {
                 }}
                 onDragStart={(e) => {
                     const target = e.inputEvent.target as Element;
-                    if (target.closest('.selection-action-bar')) {
+                    if (target.closest('.selection-action-bar') ||
+                        target.closest('.settings-overlay') ||
+                        target.closest('.video-adjustment-overlay')) {
                         e.stop();
                         return;
                     }

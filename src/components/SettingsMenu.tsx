@@ -145,7 +145,7 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
 
     return (
         <div
-            className="fixed inset-0 z-[3000] bg-black/85 backdrop-blur-2xl flex items-center justify-center pointer-events-auto p-[64px]"
+            className="fixed inset-0 z-[3000] bg-black/85 backdrop-blur-2xl flex items-center justify-center pointer-events-auto p-[64px] settings-overlay"
             onClick={props.onClose}
         >
             <div
