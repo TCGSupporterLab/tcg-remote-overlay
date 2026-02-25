@@ -346,7 +346,7 @@ export const MoveableController: React.FC = () => {
                     const widgetEl = clickedEl.closest('[data-widget-id]');
                     const clickedId = widgetEl?.getAttribute('data-widget-id') as WidgetId | undefined;
                     const clickedGroup = clickedId ? groupData.groups.find(g => g.memberIds.includes(clickedId)) : null;
-                    const clickedTargetId = clickedGroup ? clickedGroup.id : clickedId;
+                    let clickedTargetId = clickedGroup ? clickedGroup.id : clickedId;
 
                     const nextIds = new Set<WidgetId>();
                     if (e.rect.width > 2 || e.rect.height > 2) {
@@ -357,6 +357,35 @@ export const MoveableController: React.FC = () => {
                         });
                     } else {
                         const currentIds = new Set(selectedWidgetIds);
+
+                        // 結合ウィジェット（グループ）の枠内クリック判定（空白部分でもCtrl+クリックで選択可能にする）
+                        if (!clickedTargetId && isCtrl) {
+                            const inputEvent = e.inputEvent as any;
+                            const clientX = inputEvent.clientX ?? inputEvent.touches?.[0]?.clientX;
+                            const clientY = inputEvent.clientY ?? inputEvent.touches?.[0]?.clientY;
+
+                            if (clientX !== undefined && clientY !== undefined) {
+                                const hitGroup = groupData.groups.find(group => {
+                                    const rects = group.memberIds.map(id => {
+                                        const el = document.querySelector(`[data-widget-id="${id}"]`);
+                                        return el?.getBoundingClientRect();
+                                    }).filter((r): r is DOMRect => !!r);
+
+                                    if (rects.length === 0) return false;
+
+                                    const minX = Math.min(...rects.map(r => r.left));
+                                    const minY = Math.min(...rects.map(r => r.top));
+                                    const maxX = Math.max(...rects.map(r => r.right));
+                                    const maxY = Math.max(...rects.map(r => r.bottom));
+
+                                    return clientX >= minX && clientX <= maxX && clientY >= minY && clientY <= maxY;
+                                });
+                                if (hitGroup) {
+                                    clickedTargetId = hitGroup.id as WidgetId;
+                                }
+                            }
+                        }
+
                         if (clickedTargetId) {
                             if (isCtrl) {
                                 if (currentIds.has(clickedTargetId)) currentIds.delete(clickedTargetId);
