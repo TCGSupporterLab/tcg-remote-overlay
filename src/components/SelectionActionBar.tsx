@@ -83,14 +83,20 @@ export const SelectionActionBar: React.FC = () => {
                 <div className="flex items-center gap-1 p-1">
                     <button
                         onClick={() => {
-                            // 単一ウィジェットの選択時のみ実行
-                            if (selectedWidgetIds.length === 1) {
+                            // 単一ウィジェット、または「グループ全体」が選択されている場合に実行
+                            const isSingle = selectedWidgetIds.length === 1;
+                            const isFullGroup = groups.some(g =>
+                                g.memberIds.length === selectedWidgetIds.length &&
+                                g.memberIds.every(id => selectedWidgetIds.includes(id))
+                            );
+
+                            if (isSingle || isFullGroup) {
                                 // 他の操作（移動等）と同様、アクションバーを一旦隠す
                                 setIsTransforming(true);
                                 resetWidgets(selectedWidgetIds);
                             } else {
-                                // TODO: 複数選択・グループ化時のリセット実装
-                                console.log('Reset for multiple selection not implemented yet');
+                                // TODO: 矩形選択などで一時的に複数選択しているだけの状態でのリセット
+                                console.log('Reset for multiple non-group selection not implemented yet');
                             }
                         }}
                         className="group p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/10 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"

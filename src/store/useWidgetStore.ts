@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { type WidgetId, type WidgetState, type WidgetGroupData } from '../types/widgetTypes';
+import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup } from '../types/widgetTypes';
 import { type VideoSourceType, type CropConfig } from '../components/VideoBackground';
 
 export type ObsMode = 'normal' | 'green';
@@ -206,9 +206,44 @@ export const useWidgetStore = create<WidgetStoreState>()(
         setNeedsSync: (needsSync) => set({ needsSync }),
         resetWidgets: (ids) => set((state) => {
             const nextStates = { ...state.widgetStates };
+            const processedGroups = new Set<string>();
+
             ids.forEach(id => {
-                nextStates[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
+                // そのIDが属するグループを探す
+                const group = state.groupData.groups.find(g => g.id === id || g.memberIds.includes(id));
+
+                if (group && !processedGroups.has(group.id)) {
+                    if (group.initialStates && group.initialCenter) {
+                        // グループリセット:
+                        // 1. 各ウィジェットを結合時の状態に戻す
+                        // 2. さらに全体を、その時の中心(initialCenter)から(0,0)へ移動させる
+                        const offsetX = -group.initialCenter.px;
+                        const offsetY = -group.initialCenter.py;
+
+                        group.memberIds.forEach(mid => {
+                            const is = group.initialStates![mid];
+                            if (is) {
+                                nextStates[mid] = {
+                                    ...is,
+                                    px: is.px + offsetX,
+                                    py: is.py + offsetY,
+                                };
+                            }
+                        });
+                        processedGroups.add(group.id);
+                    } else {
+                        // フォールバック: 初期状態がない場合はメンバーを個別に中央へ
+                        group.memberIds.forEach(mid => {
+                            nextStates[mid] = { px: 0, py: 0, scale: 1, rotation: 0 };
+                        });
+                        processedGroups.add(group.id);
+                    }
+                } else if (!group) {
+                    // 単体ウィジェットのリセット
+                    nextStates[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
+                }
             });
+
             return {
                 widgetStates: nextStates,
                 needsSync: true,
@@ -262,10 +297,29 @@ export const useWidgetStore = create<WidgetStoreState>()(
                 });
             }
 
-            const newGroup = {
+            const rect = state.activeMoveableRect;
+            let initialCenter = { px: 0, py: 0 };
+            if (rect) {
+                initialCenter = {
+                    px: (rect.left + rect.width / 2 - window.innerWidth / 2) / window.innerWidth,
+                    py: (rect.top + rect.height / 2 - window.innerHeight / 2) / window.innerHeight,
+                };
+            }
+
+            const initialStates: Record<WidgetId, WidgetState> = {};
+            newMemberIds.forEach(id => {
+                const s = widgetStates[id as WidgetId];
+                if (s) {
+                    initialStates[id as WidgetId] = { ...s };
+                }
+            });
+
+            const newGroup: WidgetGroup = {
                 id: groupId,
                 memberIds: newMemberIds,
                 anchorId: anchorId,
+                initialStates,
+                initialCenter,
             };
 
             return {

@@ -9,6 +9,8 @@ export interface WidgetGroup {
     anchorId: WidgetId;    // 基準ウィジェット
     initialAnchorState?: WidgetState; // 結合時のアンカーの状態
     initialRelativeTransforms?: Record<WidgetId, RelativeTransform>; // 結合時の相対座標
+    initialStates?: Record<WidgetId, WidgetState>; // 結合時の全メンバーの状態
+    initialCenter?: { px: number; py: number };    // 結合時のグループ全体の中心座標
 }
 
 // グループ内での相対Transform（anchorからの差分）
