@@ -254,13 +254,14 @@ export const MoveableController: React.FC = () => {
                 moveableRef.current.updateRect();
                 const rect = moveableRef.current.getRect();
 
-                const firstId = selectedWidgetIds[0];
-                const el = document.querySelector(`[data-widget-id="${firstId}"]`);
-                const widgetRect = el?.getBoundingClientRect();
+                // 全ターゲットの物理的な結合矩形を計算
+                const rects = targets.map(t => t.getBoundingClientRect());
+                const combinedLeft = Math.min(...rects.map(r => r.left));
+                const combinedTop = Math.min(...rects.map(r => r.top));
 
                 // 歪みチェック
-                const diffL = widgetRect ? Math.abs(rect.left - widgetRect.left) : 0;
-                const diffT = widgetRect ? Math.abs(rect.top - widgetRect.top) : 0;
+                const diffL = Math.abs(rect.left - combinedLeft);
+                const diffT = Math.abs(rect.top - combinedTop);
                 const isDistorted = (diffL > 1 || diffT > 1);
 
                 if (isDistorted && retryCount < MAX_RETRIES) {
