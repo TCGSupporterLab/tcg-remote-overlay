@@ -52,6 +52,7 @@ interface WidgetsTabProps {
     onToggleSpecializedCategoryOpen: () => void;
     isCommonCategoryOpen: boolean;
     onToggleCommonCategoryOpen: () => void;
+    onResetWidgetPosition: (id: string) => void;
 }
 
 export const WidgetsTab = (props: WidgetsTabProps) => {
@@ -67,8 +68,8 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                 />
                 {props.isGenericCategoryOpen && (
                     <div className="space-y-[4px] animate-in slide-in-from-top-2 duration-200">
-                        <DiceSetting visible={props.isDiceVisible} onToggle={props.onToggleDiceVisible} />
-                        <CoinSetting visible={props.isCoinVisible} onToggle={props.onToggleCoinVisible} />
+                        <DiceSetting visible={props.isDiceVisible} onToggle={props.onToggleDiceVisible} onReset={() => props.onResetWidgetPosition('dice')} />
+                        <CoinSetting visible={props.isCoinVisible} onToggle={props.onToggleCoinVisible} onReset={() => props.onResetWidgetPosition('coin')} />
                         <CardSetting
                             visible={props.isCardWidgetVisible}
                             onToggle={props.onToggleCardWidgetVisible}
@@ -84,6 +85,7 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                             onRequestAccess={props.onRequestAccess}
                             onVerifyPermission={props.onVerifyPermission}
                             cardCount={props.cardCount}
+                            onReset={() => props.onResetWidgetPosition('card_widget')}
                         />
                     </div>
                 )}
@@ -111,12 +113,14 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                             onToggleOnlyShowPlayer1={props.onToggleOnlyShowPlayer1}
                             initialLP={props.initialLP}
                             onChangeInitialLP={props.onChangeInitialLP}
+                            onReset={() => props.onResetWidgetPosition('lp_calculator')}
                         />
                         <HololiveSection
                             isOpen={props.isHololiveSectionOpen}
                             onToggleOpen={props.onToggleHololiveSectionOpen}
                             isSPMarkerVisible={props.isSPMarkerVisible}
                             onToggleSPMarkerMode={props.onToggleSPMarkerMode}
+                            onReset={() => props.onResetWidgetPosition('sp_marker')}
                         />
                     </div>
                 )}

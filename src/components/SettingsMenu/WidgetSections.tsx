@@ -168,7 +168,7 @@ export const CardSetting = ({
 // --- Yugioh Section ---
 export const YugiohSection = ({
     isOpen, onToggleOpen, isLPVisible, onToggleLPVisible, isLPSectionOpen, onToggleLPSectionOpen,
-    onlyShowPlayer1, onToggleOnlyShowPlayer1, initialLP, onChangeInitialLP
+    onlyShowPlayer1, onToggleOnlyShowPlayer1, initialLP, onChangeInitialLP, onReset
 }: {
     isOpen: boolean, onToggleOpen: () => void, isLPVisible: boolean, onToggleLPVisible: (val: boolean) => void,
     isLPSectionOpen: boolean, onToggleLPSectionOpen: () => void, onlyShowPlayer1: boolean, onToggleOnlyShowPlayer1: (val: boolean) => void,

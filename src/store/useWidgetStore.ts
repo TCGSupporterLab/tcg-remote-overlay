@@ -87,6 +87,7 @@ interface WidgetStoreState {
     setIsTransforming: (val: boolean) => void;
     setNeedsSync: (val: boolean) => void;
     resetWidgets: (ids: WidgetId[]) => void;
+    resetWidgetPosition: (id: WidgetId) => void;
     reorderWidgets: (activeId: WidgetId, overId: WidgetId) => void;
     clearGroups: () => void;
     groupSelectedWidgets: () => void;
@@ -293,6 +294,32 @@ export const useWidgetStore = create<WidgetStoreState>()(
 
             return {
                 widgetStates: nextStates,
+                needsSync: true,
+            };
+        }),
+
+        resetWidgetPosition: (id) => set((state) => {
+            const nextStates = { ...state.widgetStates };
+            const { groupData } = state;
+
+            // そのIDが属するグループを探す
+            const group = groupData.groups.find(g => g.id === id || g.memberIds.includes(id));
+            let nextGroups = groupData.groups;
+
+            if (group) {
+                // グループを解除
+                nextGroups = groupData.groups.filter(g => g.id !== group.id);
+            }
+
+            // 単体ウィジェットとしてリセット
+            nextStates[id] = { px: 0, py: 0, scale: 1, rotation: 0 };
+
+            return {
+                widgetStates: nextStates,
+                groupData: {
+                    ...groupData,
+                    groups: nextGroups,
+                },
                 needsSync: true,
             };
         }),

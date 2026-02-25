@@ -59,6 +59,7 @@ interface SettingsMenuProps {
     isSPMarkerVisible: boolean;
     onToggleSPMarkerMode: () => void;
     onVerifyPermission: () => void;
+    onResetWidgetPosition: (id: string) => void;
 }
 
 export const SettingsMenu = (props: SettingsMenuProps) => {

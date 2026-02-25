@@ -71,6 +71,7 @@ function App() {
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
   const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
   const importDefaultLayouts = useWidgetStore(s => s.importDefaultLayouts);
+  const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
 
   const {
     isDiceVisible,
@@ -777,6 +778,7 @@ function App() {
             isSPMarkerVisible={isSPMarkerVisible}
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}
+            onResetWidgetPosition={resetWidgetPosition}
           />
         )
       }
