@@ -8,8 +8,9 @@
 - [x] トグルの状態を永続化（localStorage）。
 - [x] トグルがONの場合、設定メニューが非表示（アクセス時に非表示）の状態で開始される。
 - [x] 設定メニューは右クリックまたはEscキーでいつでも開くことができる（既存機能の維持）。
+- [x] 画面左下のデバッグ表示（selectedCard, pinnedCards, displayCardNo）を削除。
 
 ## 実装履歴
-- `useWidgetStore.ts`: `hideSettingsOnStart` プロパティを `settings` オブジェクトに追加し、自動保存と初期化を実装。
-- `SettingsMenu.tsx`: UIにトグルを追加し、プロップス経由で状態を制御。
-- `App.tsx`: ストアの状態を読み込み、初期の `showSettings` 状態を決定するように変更。
+- `useWidgetStore.ts`: `hideSettingsOnStart` プロパティを追加。
+- `SettingsMenu.tsx`: 「アクセス時に非表示」トグルを実装。
+- `App.tsx`: 初期表示状態の制御、未使用のデバッグ表示コードおよび変数を削除。
