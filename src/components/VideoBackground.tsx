@@ -49,9 +49,16 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
     const [isAltPressed, setIsAltPressed] = useState(false);
     const [dragMode, setDragMode] = useState<'none' | 'scale' | 'clip'>('none');
+    const moveableRef = useRef<Moveable>(null);
 
     useEffect(() => {
         if (!isAdjustmentMode) return;
+
+        // 調整モード開始時にガイド枠を強制表示・更新
+        const timer = setTimeout(() => {
+            moveableRef.current?.updateRect();
+        }, 100);
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Alt') {
                 e.preventDefault();
@@ -69,6 +76,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            clearTimeout(timer);
         };
     }, [isAdjustmentMode]);
 
@@ -90,6 +98,35 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         document.addEventListener('fullscreenchange', handleFsChange);
         return () => document.removeEventListener('fullscreenchange', handleFsChange);
     }, []);
+
+    const getPhysicalInset = useCallback(() => {
+        let { top: vT, right: vR, bottom: vB, left: vL } = cropConfig;
+        if (cropConfig.flipV) [vT, vB] = [vB, vT];
+        if (cropConfig.flipH) [vL, vR] = [vR, vL];
+        const r = ((cropConfig.rotation % 360) + 360) % 360;
+        let pT, pR, pB, pL;
+        if (r === 90) {
+            [pT, pR, pB, pL] = [vL, vT, vR, vB];
+        } else if (r === 180) {
+            [pT, pR, pB, pL] = [vB, vL, vT, vR];
+        } else if (r === 270) {
+            [pT, pR, pB, pL] = [vR, vB, vL, vT];
+        } else {
+            [pT, pR, pB, pL] = [vT, vR, vB, vL];
+        }
+        return `inset(${pT}% ${pR}% ${pB}% ${pL}%)`;
+    }, [cropConfig]);
+
+    // cropConfigが変わったとき（リセット時など）にMoveable枠と映像スタイルを更新
+    useEffect(() => {
+        if (isAdjustmentMode) {
+            moveableRef.current?.updateRect();
+            // リセット時などに映像側のdirect styleも同期させる
+            if (videoRef.current) {
+                videoRef.current.style.clipPath = getPhysicalInset();
+            }
+        }
+    }, [isAdjustmentMode, cropConfig, getPhysicalInset]);
 
     const stopStream = useCallback(() => {
         setIsActive(false);
@@ -181,23 +218,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         }
     };
 
-    const getPhysicalInset = () => {
-        let { top: vT, right: vR, bottom: vB, left: vL } = cropConfig;
-        if (cropConfig.flipV) [vT, vB] = [vB, vT];
-        if (cropConfig.flipH) [vL, vR] = [vR, vL];
-        const r = ((cropConfig.rotation % 360) + 360) % 360;
-        let pT, pR, pB, pL;
-        if (r === 90) {
-            [pT, pR, pB, pL] = [vL, vT, vR, vB];
-        } else if (r === 180) {
-            [pT, pR, pB, pL] = [vB, vL, vT, vR];
-        } else if (r === 270) {
-            [pT, pR, pB, pL] = [vR, vB, vL, vT];
-        } else {
-            [pT, pR, pB, pL] = [vT, vR, vB, vL];
-        }
-        return `inset(${pT}% ${pR}% ${pB}% ${pL}%)`;
-    };
+
 
     const handleMoveableDragStart = (e: any) => {
         if (isAltPressed || e.inputEvent?.altKey) {
@@ -219,11 +240,9 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
     const handleMoveableScaleStart = (e: any) => {
         if (isAltPressed || e.inputEvent?.altKey) {
-            console.log('[Moveable] Scale START CANCELLED - Alt is pressed');
             e.stopDrag();
             return;
         }
-        console.log('[Moveable] Scale START');
         setDragMode('scale');
         e.set([cropConfig.scale, cropConfig.scale]);
         if (e.dragStart) {
@@ -239,8 +258,6 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         const nextScale = e.scale[0];
         const nextX = current.x + dx;
         const nextY = current.y + dy;
-
-        console.log('[Moveable] Scale:', { scale: nextScale, nextX, nextY });
 
         if (videoRef.current) {
             let transform = `translate(${nextX}%, ${nextY}%) scale(${nextScale})`;
@@ -271,10 +288,8 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     const handleMoveableClip = (e: any) => {
         const clipPathStr = e.clipStyle || e.clipPath;
         if (!onCropChange || !clipPathStr) {
-            console.log('[Moveable] Clip Progress SKIPPED - Missing cropChange or clipPath', e);
             return;
         }
-        console.log('[Moveable] Clip Progress:', clipPathStr);
 
         // Direct style update for real-time preview
         if (videoRef.current) {
@@ -342,6 +357,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         const isClipping = dragMode === 'clip' || (dragMode === 'none' && isAltPressed);
                         return (
                             <Moveable
+                                ref={moveableRef}
                                 target={videoRef.current}
                                 container={document.body}
                                 draggable={!isClipping}
@@ -375,13 +391,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                 snapRotationDegrees={[0, 90, 180, 270]}
                                 snapRotationThreshold={5}
                                 defaultClipPath={clipPath}
-                                onClipStart={(e) => {
-                                    console.log('[Moveable] Clip START', e);
+                                onClipStart={() => {
                                     setDragMode('clip');
                                 }}
                                 onClip={handleMoveableClip}
-                                onClipEnd={(e) => {
-                                    console.log('[Moveable] Clip END', e);
+                                onClipEnd={() => {
                                     setDragMode('none');
                                 }}
                                 renderDirections={["nw", "ne", "sw", "se", "n", "s", "e", "w"]}
