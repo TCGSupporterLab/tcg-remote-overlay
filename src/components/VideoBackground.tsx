@@ -166,6 +166,14 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             }
 
             streamRef.current = stream;
+
+            // ストリームが切れた（画面共有停止など）を検知
+            stream.getTracks().forEach(track => {
+                track.onended = () => {
+                    stopStream();
+                };
+            });
+
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
             }
@@ -360,6 +368,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                 ref={moveableRef}
                                 target={videoRef.current}
                                 container={document.body}
+                                origin={false}
                                 draggable={!isClipping}
                                 scalable={!isClipping}
                                 rotatable={!isClipping}
@@ -398,8 +407,13 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                 onClipEnd={() => {
                                     setDragMode('none');
                                 }}
+                                snappable={true}
+                                elementGuidelines={[containerRef.current]}
+                                snapThreshold={10}
+                                isDisplaySnapDigit={false}
+                                snapContainer={document.body}
                                 renderDirections={["nw", "ne", "sw", "se", "n", "s", "e", "w"]}
-                                className="video-moveable"
+                                className="video-moveable no-guidelines"
                             />
                         );
                     })()}
@@ -526,7 +540,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             )}
 
             {!isActive && (
-                <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-50 p-6 text-center">
+                <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-[1000] p-6 text-center">
                     <p className="text-white mb-4 text-sm font-medium">
                         {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
                     </p>

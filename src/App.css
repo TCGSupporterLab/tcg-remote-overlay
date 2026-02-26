@@ -178,3 +178,9 @@
 .is-logical-group .moveable-control-box:not(:has(.moveable-group)) {
   display: none !important;
 }
+
+/* Moveable スナップガイドラインを非表示にする */
+.video-moveable.no-guidelines .moveable-guideline,
+.video-moveable.no-guidelines .moveable-snap-line {
+  display: none !important;
+}

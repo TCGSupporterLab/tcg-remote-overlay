@@ -43,9 +43,6 @@ function App() {
 
   const {
     isSyncing,
-    pinnedCards,
-    selectedCard,
-    displayCardNo,
     setDisplayCardNo,
     rootFolderName,
     setRootFolderName
@@ -125,7 +122,7 @@ function App() {
   const [coinKey, setCoinKey] = useState(0);
 
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(() => !useWidgetStore.getState().settings.hideSettingsOnStart);
   const [activeSettingsTab, setActiveSettingsTab] = useState<TabType>('guide');
 
   // Widget Selection & Grouping
@@ -304,8 +301,8 @@ function App() {
   useEffect(() => {
     // Prevent default right click menu and instead open settings
     const handleContextMenu = (e: MouseEvent) => {
-      // Allow right click if we are adjusting video or interacting with an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || isAdjustingVideo) return;
+      // Allow right click interacting with an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       e.preventDefault();
 
       if (!showSettings) {
@@ -331,9 +328,6 @@ function App() {
           return;
         }
         setShowSettings(prev => !prev);
-        if (showSettings && isAdjustingVideo) {
-          setIsAdjustingVideo(false);
-        }
         return;
       }
 
@@ -785,6 +779,8 @@ function App() {
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}
             onResetWidgetPosition={resetWidgetPosition}
+            hideSettingsOnStart={settings.hideSettingsOnStart}
+            onToggleHideSettingsOnStart={(val) => setSettings({ hideSettingsOnStart: val })}
           />
         )
       }
@@ -832,25 +828,6 @@ function App() {
         )
       }
 
-      {/* Debug Info (DEV only) */}
-      {
-        import.meta.env.DEV && !isSearchView && (
-          <div className="fixed bottom-4 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-white/70 pointer-events-none space-y-1">
-            <div className="flex justify-between gap-4">
-              <span>selectedCard:</span>
-              <span className="text-blue-400">{selectedCard ? selectedCard.name : 'null'}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span>pinnedCards:</span>
-              <span className="text-purple-400">{pinnedCards.length} cards</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span>displayCardNo:</span>
-              <span className="text-yellow-400 font-bold">{displayCardNo}</span>
-            </div>
-          </div>
-        )
-      }
 
       {!isSearchView && <MoveableController />}
       {!isSearchView && <SelectionActionBar />}

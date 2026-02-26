@@ -43,6 +43,7 @@ interface WidgetStoreState {
         onlyShowPlayer1: boolean;
         activePreset: DisplayPreset;
         spMarkerFace: SPMarkerFace;
+        hideSettingsOnStart: boolean;
     };
     // 選択
     selectedWidgetIds: WidgetId[];
@@ -133,6 +134,7 @@ const getInitialState = () => {
             onlyShowPlayer1: false,
             activePreset: 'yugioh' as DisplayPreset,
             spMarkerFace: 'front' as SPMarkerFace,
+            hideSettingsOnStart: false,
         },
         selectedWidgetIds: [],
         groupData: savedGroups ? JSON.parse(savedGroups) : { groups: [], relativeTransforms: {} },

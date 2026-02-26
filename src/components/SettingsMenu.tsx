@@ -60,6 +60,8 @@ interface SettingsMenuProps {
     onToggleSPMarkerMode: () => void;
     onVerifyPermission: () => void;
     onResetWidgetPosition: (id: string) => void;
+    hideSettingsOnStart: boolean;
+    onToggleHideSettingsOnStart: (val: boolean) => void;
 }
 
 export const SettingsMenu = (props: SettingsMenuProps) => {
@@ -159,12 +161,25 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                         <Settings size={20} className="text-secondary" />
                         TCG Remote Overlay Settings
                     </h2>
-                    <button
-                        onClick={props.onClose}
-                        className="p-[8px] hover:bg-white/10 rounded-full transition-colors group"
-                    >
-                        <X size={24} className="text-gray-400 group-hover:text-white" />
-                    </button>
+                    <div className="flex items-center gap-[16px]">
+                        <label className="flex items-center gap-[8px] cursor-pointer group py-[4px] px-[12px] bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5">
+                            <input
+                                type="checkbox"
+                                checked={props.hideSettingsOnStart}
+                                onChange={(e) => props.onToggleHideSettingsOnStart(e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-600 bg-black/40 text-blue-600 focus:ring-blue-500 focus:ring-offset-black"
+                            />
+                            <span className="text-xs font-bold text-gray-400 group-hover:text-gray-200 transition-colors">
+                                アクセス時に非表示
+                            </span>
+                        </label>
+                        <button
+                            onClick={props.onClose}
+                            className="p-[8px] hover:bg-white/10 rounded-full transition-colors group"
+                        >
+                            <X size={24} className="text-gray-400 group-hover:text-white" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Top Level Nav Tabs */}
