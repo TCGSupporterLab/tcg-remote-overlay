@@ -4,7 +4,7 @@ import { LPCalculator } from './components/LPCalculator';
 
 import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
 import { useWidgetStore, type DisplayPreset } from './store/useWidgetStore';
-import { VideoBackground, type VideoSourceType, type CropConfig } from './components/VideoBackground';
+import { VideoBackground, type VideoSourceType, DEFAULT_CROP } from './components/VideoBackground';
 import { SettingsMenu } from './components/SettingsMenu';
 import { type TabType } from './components/SettingsMenu/SettingsTabs';
 import { OverlayWidget } from './components/OverlayWidget';
@@ -132,6 +132,16 @@ function App() {
   const {
     clearSelection,
   } = useWidgetSelection();
+
+  const toggleAdjustmentMode = useCallback(() => {
+    setIsAdjustingVideo(prev => {
+      const next = !prev;
+      if (next) {
+        clearSelection();
+      }
+      return next;
+    });
+  }, [clearSelection]);
 
   const widgetRefsMap = useRef<Map<WidgetId, HTMLDivElement>>(new Map());
   const containerRefCallback = useCallback((id: WidgetId, el: HTMLDivElement | null) => {
@@ -291,20 +301,6 @@ function App() {
     setVideoSource(nextSource);
   }, [videoSource]);
 
-  const handleCropChange = useCallback((config: CropConfig) => {
-    setVideoCrop(config);
-    localStorage.setItem('tcg_remote_video_crop', JSON.stringify(config));
-  }, []);
-
-  const toggleAdjustmentMode = () => {
-    setIsAdjustingVideo(prev => !prev);
-  };
-
-  const resetCrop = useCallback(() => {
-    const defaultConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
-    setVideoCrop(defaultConfig);
-    localStorage.removeItem('tcg_remote_video_crop');
-  }, []);
 
   // Keyboard Shortcuts & Global Context Menu
   useEffect(() => {
@@ -481,11 +477,25 @@ function App() {
       }
     };
 
+    const handleMouseDown = (e: MouseEvent) => {
+      // Middle click (button 1)
+      if (e.button === 1) {
+        // If interactive element, allow default behavior (though usually middle click doesn't have much)
+        const target = e.target as HTMLElement;
+        if (target.closest?.('button, a, kbd, input, select, textarea')) return;
+
+        e.preventDefault();
+        toggleAdjustmentMode();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('mousedown', handleMouseDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('mousedown', handleMouseDown);
     };
   }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupSelectedWidgets]);
 
@@ -594,15 +604,13 @@ function App() {
   }
 
   return (
-    <div className="app-container w-full h-full flex flex-col box-border overlay-mode p-0 relative">
-
-      {/* 1. Video Layer (Back) */}
+    <div className={`app-container w-full h-full flex flex-col box-border overlay-mode p-0 relative ${isAdjustingVideo ? 'video-adjustment-active video-adjustment-overlay' : ''}`}>
       <VideoBackground
         sourceType={videoSource}
         cropConfig={videoCrop}
-        onCropChange={handleCropChange}
-        onReset={resetCrop}
-        onClose={toggleAdjustmentMode}
+        onCropChange={setVideoCrop}
+        onReset={() => setVideoCrop(DEFAULT_CROP)}
+        onClose={() => setIsAdjustingVideo(false)}
         isAdjustmentMode={isAdjustingVideo}
       />
 

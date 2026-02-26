@@ -1,5 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
+import Moveable from 'react-moveable';
+import type {
+    OnDrag, OnScale, OnRotate, OnDragStart, OnScaleStart, OnRotateStart
+} from 'react-moveable';
 
 export type VideoSourceType = 'none' | 'camera' | 'screen';
 
@@ -16,6 +20,8 @@ export interface CropConfig {
     flipV: boolean;
 }
 
+export const DEFAULT_CROP: CropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
+
 interface VideoBackgroundProps {
     sourceType: VideoSourceType;
     cropConfig?: CropConfig;
@@ -28,7 +34,7 @@ interface VideoBackgroundProps {
 
 export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     sourceType,
-    cropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false },
+    cropConfig = DEFAULT_CROP,
     className = '',
     onCropChange,
     onReset,
@@ -36,12 +42,10 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     isAdjustmentMode = false
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [isActive, setIsActive] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const [isDragging, setIsDragging] = useState(false);
-    const dragStartRef = useRef({ x: 0, y: 0, cropX: 0, cropY: 0 });
     const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
     const toggleFullscreen = (e: React.MouseEvent) => {
@@ -113,92 +117,17 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     };
 
     useEffect(() => {
-        // Stop any active stream when the source type changes or is set to none
         stopStream();
-
-        // Do NOT auto-call startStream(). 
-        // Browsers require a user gesture for getDisplayMedia, 
-        // and we want to avoid multiple/unwanted dialogs when syncing state.
     }, [sourceType]);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (!isAdjustmentMode) return;
-        setIsDragging(true);
-        dragStartRef.current = {
-            x: e.clientX,
-            y: e.clientY,
-            cropX: cropConfig.x,
-            cropY: cropConfig.y
-        };
-    };
-
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !onCropChange) return;
-
-        const dx = (e.clientX - dragStartRef.current.x) / window.innerWidth * 100;
-        const dy = (e.clientY - dragStartRef.current.y) / window.innerHeight * 100;
-
-        onCropChange({
-            ...cropConfig,
-            x: dragStartRef.current.cropX + dx,
-            y: dragStartRef.current.cropY + dy
-        });
-    }, [isDragging, cropConfig, onCropChange]);
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    const handleWheel = (e: React.WheelEvent) => {
-        if (!isAdjustmentMode || !onCropChange) return;
-
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newScale = Math.max(1, Math.min(5, cropConfig.scale + delta));
-
-        onCropChange({
-            ...cropConfig,
-            scale: newScale
-        });
-    };
-
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-        } else {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, handleMouseMove]);
-
-    // Global middle-click listener
-    useEffect(() => {
-        const handleGlobalMouseDown = (e: MouseEvent) => {
-            if (e.button === 1 && onClose) { // Middle click
-                e.preventDefault();
-                onClose();
-            }
-        };
-        window.addEventListener('mousedown', handleGlobalMouseDown);
-        return () => window.removeEventListener('mousedown', handleGlobalMouseDown);
-    }, [onClose]);
 
     if (sourceType === 'none') return null;
 
     const getFinalTransform = () => {
-        // The video element is already covering the full div with object-fit: cover.
-        // We apply scale, translate, rotate, and flip directly to it.
-        let transform = `scale(${cropConfig.scale}) translate(${cropConfig.x / cropConfig.scale}%, ${cropConfig.y / cropConfig.scale}%)`;
+        let transform = `translate(${cropConfig.x}%, ${cropConfig.y}%) scale(${cropConfig.scale})`;
         transform += ` rotate(${cropConfig.rotation}deg)`;
-
         if (cropConfig.flipH) transform += ' scaleX(-1)';
         if (cropConfig.flipV) transform += ' scaleY(-1)';
-
         return transform;
     };
 
@@ -207,7 +136,6 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         let nextRotation = (cropConfig.rotation + delta) % 360;
         if (nextRotation < 0) nextRotation += 360;
 
-        // Swap values so the trim follows the content's orientation
         let { top, right, bottom, left } = cropConfig;
         if (delta === 90 || delta === -270) {
             [top, right, bottom, left] = [left, top, right, bottom];
@@ -230,22 +158,13 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         }
     };
 
-    // Calculate physical inset mapping so sliders always control visual directions (Top slider = Visual Top)
     const getPhysicalInset = () => {
         let { top: vT, right: vR, bottom: vB, left: vL } = cropConfig;
-
-        // 1. Un-flip (Inverse of scaleX/scaleY applied AFTER rotate in CSS)
-        // If visually flipped, the 'visual top' slider value actually belongs to the 'physical bottom' edge, etc.
         if (cropConfig.flipV) [vT, vB] = [vB, vT];
         if (cropConfig.flipH) [vL, vR] = [vR, vL];
-
-        // 2. Un-rotate (Inverse of rotate applied BEFORE flip in CSS)
         const r = ((cropConfig.rotation % 360) + 360) % 360;
-
-        // Map visual directions to physical edges
         let pT, pR, pB, pL;
         if (r === 90) {
-            // Clockwise 90: Visual Top is Physical Left, Visual Right is Physical Top...
             [pT, pR, pB, pL] = [vR, vB, vL, vT];
         } else if (r === 180) {
             [pT, pR, pB, pL] = [vB, vL, vT, vR];
@@ -254,9 +173,89 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         } else {
             [pT, pR, pB, pL] = [vT, vR, vB, vL];
         }
-
         return `inset(${pT}% ${pR}% ${pB}% ${pL}%)`;
     };
+
+    const handleMoveableDragStart = (e: OnDragStart) => {
+        if (e.set) {
+            e.set([cropConfig.x, cropConfig.y]);
+        }
+    };
+
+    const handleMoveableDrag = ({ beforeDelta }: OnDrag) => {
+        if (!onCropChange) return;
+        const current = cropConfig;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const dx = (beforeDelta[0] / container.clientWidth) * 100;
+        const dy = (beforeDelta[1] / container.clientHeight) * 100;
+
+        onCropChange({ ...current, x: current.x + dx, y: current.y + dy });
+    };
+
+    const handleMoveableScaleStart = (e: OnScaleStart) => {
+        e.set([cropConfig.scale, cropConfig.scale]);
+        if (e.dragStart) {
+            e.dragStart.set([cropConfig.x, cropConfig.y]);
+        }
+    };
+
+    const handleMoveableScale = ({ scale, drag }: OnScale) => {
+        if (!onCropChange) return;
+        const current = cropConfig;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const dx = (drag.beforeDelta[0] / container.clientWidth) * 100;
+        const dy = (drag.beforeDelta[1] / container.clientHeight) * 100;
+
+        onCropChange({ ...current, scale: scale[0], x: current.x + dx, y: current.y + dy });
+    };
+
+    const handleMoveableRotateStart = (e: OnRotateStart) => {
+        e.set(cropConfig.rotation);
+        if (e.dragStart) {
+            e.dragStart.set([cropConfig.x, cropConfig.y]);
+        }
+    };
+
+    const handleMoveableRotate = ({ rotate, drag }: OnRotate) => {
+        if (!onCropChange) return;
+        const current = cropConfig;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const dx = (drag.beforeDelta[0] / container.clientWidth) * 100;
+        const dy = (drag.beforeDelta[1] / container.clientHeight) * 100;
+
+        onCropChange({ ...current, rotation: rotate, x: current.x + dx, y: current.y + dy });
+    };
+
+    const handleMoveableClipStart = () => {
+    };
+
+    const handleMoveableClip = (e: any) => {
+        if (!onCropChange || !e.clipPath) return;
+
+        const match = (e.clipPath as string).match(/inset\(([\d.]+)% ([\d.]+)% ([\d.]+)% ([\d.]+)%\)/);
+        if (match) {
+            let [_, pT, pR, pB, pL] = match.map(Number);
+
+            const current = cropConfig;
+            const r = ((current.rotation % 360) + 360) % 360;
+            let vT, vR, vB, vL;
+            if (r === 90) { [vR, vB, vL, vT] = [pT, pR, pB, pL]; }
+            else if (r === 180) { [vB, vL, vT, vR] = [pT, pR, pB, pL]; }
+            else if (r === 270) { [vL, vT, vR, vB] = [pT, pR, pB, pL]; }
+            else { [vT, vR, vB, vL] = [pT, pR, pB, pL]; }
+            if (current.flipV) [vT, vB] = [vB, vT];
+            if (current.flipH) [vL, vR] = [vR, vL];
+
+            onCropChange({ ...current, top: vT, right: vR, bottom: vB, left: vL });
+        }
+    };
+
 
     const clipPath = getPhysicalInset();
 
@@ -264,10 +263,13 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         <>
             {/* Background Video Layer */}
             <div
-                className={`fixed inset-0 overflow-hidden bg-black ${className}`}
-                style={{ zIndex: -1 }}
-                onMouseDown={() => {
-                    // Handled by global listener
+                ref={containerRef}
+                className={`fixed overflow-hidden bg-black transition-all ${className} ${isAdjustmentMode ? 'shadow-[0_0_100px_rgba(0,0,0,0.8)] border-[1px] border-white/20 video-adjustment-overlay' : ''}`}
+                style={{
+                    zIndex: isAdjustmentMode ? 450 : -1,
+                    inset: isAdjustmentMode ? '7.5vh 7.5vw' : '0',
+                    width: isAdjustmentMode ? '85vw' : '100vw',
+                    height: isAdjustmentMode ? '85vh' : '100vh',
                 }}
             >
                 <video
@@ -282,46 +284,63 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         transform: getFinalTransform(),
                         clipPath: clipPath,
                         opacity: isActive ? 1 : 0,
-                        transition: isDragging ? 'none' : 'transform 0.1s ease-out, clip-path 0.1s ease-out'
+                        transition: isAdjustmentMode ? 'none' : 'transform 0.1s ease-out, clip-path 0.1s ease-out'
                     }}
                 />
             </div>
 
-            {/* Interaction Layer (Only visible during adjustment) */}
+            {/* Interaction Layer */}
             {isAdjustmentMode && (
                 <>
-                    {/* 1. Full Screen Drag & Interaction Layer */}
-                    <div
-                        className="fixed inset-0 z-[400] cursor-move select-none pointer-events-auto video-adjustment-overlay"
-                        onMouseDown={handleMouseDown}
-                        onWheel={handleWheel}
-                    >
-                        {/* Strong guide waku with thicker stroke */}
-                        {/* Strong guide waku set to 8px as requested */}
+                    <Moveable
+                        target={videoRef.current}
+                        container={document.body}
+                        draggable={true}
+                        scalable={true}
+                        rotatable={true}
+                        clippable={true}
+                        edge={true}
+                        onDragStart={handleMoveableDragStart}
+                        throttleRotate={0}
+                        throttleDrag={0}
+                        throttleScale={0}
+                        snapRotationDegrees={[0, 90, 180, 270]}
+                        snapRotationThreshold={5}
+                        defaultClipPath={clipPath}
+                        onDrag={handleMoveableDrag}
+                        onScaleStart={handleMoveableScaleStart}
+                        onScale={handleMoveableScale}
+                        onRotateStart={handleMoveableRotateStart}
+                        onRotate={handleMoveableRotate}
+                        onClipStart={handleMoveableClipStart}
+                        onClip={handleMoveableClip}
+                        renderDirections={["nw", "ne", "sw", "se", "n", "s", "e", "w"]}
+                        edgeDraggable={false}
+                        className="video-moveable"
+                    />
+
+                    {/* Guides */}
+                    <div className="fixed inset-0 z-[400] select-none pointer-events-none video-adjustment-overlay">
                         <div
-                            className="absolute inset-0 pointer-events-none"
-                            style={{ outline: '8px solid rgba(255, 0, 0, 0.6)', outlineOffset: '-8px' }}
+                            className="absolute inset-0"
+                            style={{ outline: '8px solid rgba(255, 0, 0, 0.4)', outlineOffset: '-8px' }}
                         />
                     </div>
 
-                    {/* 2. Top Banner (Fixed) - Solid Frame with Maximum Spacing */}
+                    {/* Top Banner */}
                     <div
                         className="fixed top-10 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto video-adjustment-overlay"
                         onMouseDown={(e) => e.stopPropagation()}
                     >
                         <div className="bg-[#0f172a] text-white pl-5 pr-[25px] py-5 rounded-none flex items-center justify-between w-[640px] border border-[#ff0000] shadow-[0_0_50px_rgba(255,0,0,0.2)]">
-                            {/* Left Side: Status */}
                             <div className="flex items-center gap-4">
                                 <div className="w-2 h-2 bg-[#ff0000] shadow-[0_0_10px_rgba(255,0,0,0.8)] animate-pulse" />
                                 <span className="font-black text-lg tracking-tight text-[#ff0000]">ビデオ調整中</span>
                             </div>
-
-                            {/* Right Side: Actions (Aligned with pl-5 / pr-[25px]) */}
                             <div className="flex gap-4">
                                 <button
                                     onClick={toggleFullscreen}
                                     className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md flex items-center justify-center gap-2"
-                                    title={isFullscreen ? "全画面解除" : "全画面表示"}
                                 >
                                     {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
                                     {isFullscreen ? "縮小" : "全画面"}
@@ -342,7 +361,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         </div>
                     </div>
 
-                    {/* 3. Bottom-Left Adjustment Panel (Fixed) - Sharp and Solid */}
+                    {/* Adjustment Panel */}
                     <div
                         className="fixed bottom-10 left-10 z-[500] pointer-events-auto video-adjustment-overlay"
                         style={{ bottom: '40px', left: '40px' }}
@@ -351,12 +370,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         <div
                             className="p-6 rounded-none border border-blue-400/30 shadow-2xl flex flex-col gap-[26px]"
                             style={{
-                                backgroundColor: 'rgba(30, 58, 138, 0.4)', // Deeper blue for solid look
+                                backgroundColor: 'rgba(30, 58, 138, 0.4)',
                                 backdropFilter: 'blur(20px)',
                                 WebkitBackdropFilter: 'blur(20px)'
                             }}
                         >
-                            {/* Sharp Icon Controls */}
                             <div className="flex items-center gap-2">
                                 <div className="flex bg-black/40 p-1 rounded-none gap-0.5 border border-white/5">
                                     {[
@@ -365,11 +383,9 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                         {
                                             icon: (
                                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                    {/* Straight double-headed arrow */}
                                                     <path d="M2 8h20" />
                                                     <path d="m6 5-4 3 4 3" />
                                                     <path d="m18 5 4 3-4 3" />
-                                                    {/* Text at the bottom */}
                                                     <text x="12" y="22" fontSize="10" fontWeight="900" fill="currentColor" stroke="none" textAnchor="middle" letterSpacing="-0.5">180°</text>
                                                 </svg>
                                             ), delta: 180, title: "180°"
@@ -413,53 +429,24 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                     </button>
                                 </div>
                             </div>
-
-                            {/* Sharp Trimming Sliders */}
-                            <div className="w-[220px] flex flex-col gap-4">
-                                {[
-                                    { key: 'top', label: '上端' },
-                                    { key: 'bottom', label: '下端' },
-                                    { key: 'left', label: '左端' },
-                                    { key: 'right', label: '右端' }
-                                ].map(({ key, label }) => (
-                                    <div key={key} className="flex flex-col gap-1.5">
-                                        <div className="flex justify-between items-center px-0.5">
-                                            <span className="text-white/40 text-[9px] uppercase font-black tracking-widest">{label}</span>
-                                            <span className="text-blue-300 font-mono text-[10px] font-bold">{cropConfig[key as keyof CropConfig] as number}%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="50"
-                                            value={cropConfig[key as keyof CropConfig] as number}
-                                            onChange={(e) => {
-                                                if (onCropChange) onCropChange({ ...cropConfig, [key]: Number(e.target.value) });
-                                            }}
-                                            className="w-full h-1 appearance-none bg-white/10 rounded-none accent-blue-500 cursor-pointer"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     </div>
                 </>
             )}
 
-            {
-                !isActive && (
-                    <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-50 p-6 text-center">
-                        <p className="text-white mb-4 text-sm font-medium">
-                            {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
-                        </p>
-                        <button
-                            onClick={startStream}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
-                        >
-                            {sourceType === 'camera' ? 'カメラを起動' : '画面共有を開始'}
-                        </button>
-                    </div>
-                )
-            }
+            {!isActive && (
+                <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-50 p-6 text-center">
+                    <p className="text-white mb-4 text-sm font-medium">
+                        {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
+                    </p>
+                    <button
+                        onClick={startStream}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+                    >
+                        {sourceType === 'camera' ? 'カメラを起動' : '画面共有を開始'}
+                    </button>
+                </div>
+            )}
         </>
     );
 };
