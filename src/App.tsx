@@ -134,14 +134,12 @@ function App() {
   } = useWidgetSelection();
 
   const toggleAdjustmentMode = useCallback(() => {
-    setIsAdjustingVideo(prev => {
-      const next = !prev;
-      if (next) {
-        clearSelection();
-      }
-      return next;
-    });
-  }, [clearSelection]);
+    const next = !isAdjustingVideo;
+    if (next) {
+      clearSelection();
+    }
+    setIsAdjustingVideo(next);
+  }, [isAdjustingVideo, clearSelection]);
 
   const widgetRefsMap = useRef<Map<WidgetId, HTMLDivElement>>(new Map());
   const containerRefCallback = useCallback((id: WidgetId, el: HTMLDivElement | null) => {
@@ -491,11 +489,11 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousedown', handleMouseDown, true);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousedown', handleMouseDown, true);
     };
   }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupSelectedWidgets]);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import Moveable from 'react-moveable';
 import type {
@@ -47,6 +47,23 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     const [isActive, setIsActive] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+    const [isShiftPressed, setIsShiftPressed] = useState(false);
+
+    useEffect(() => {
+        if (!isAdjustmentMode) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Shift') setIsShiftPressed(true);
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === 'Shift') setIsShiftPressed(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [isAdjustmentMode]);
 
     const toggleFullscreen = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -67,7 +84,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         return () => document.removeEventListener('fullscreenchange', handleFsChange);
     }, []);
 
-    const stopStream = () => {
+    const stopStream = useCallback(() => {
         setIsActive(false);
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -76,7 +93,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         if (videoRef.current) {
             videoRef.current.srcObject = null;
         }
-    };
+    }, []);
 
     const startStream = async () => {
         setError(null);
@@ -118,8 +135,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
     useEffect(() => {
         stopStream();
-    }, [sourceType]);
-
+    }, [sourceType, stopStream]);
 
     if (sourceType === 'none') return null;
 
@@ -182,35 +198,42 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         }
     };
 
-    const handleMoveableDrag = ({ beforeDelta }: OnDrag) => {
-        if (!onCropChange) return;
+    const handleMoveableDrag = (e: OnDrag) => {
+        if (!onCropChange || !containerRef.current) return;
         const current = cropConfig;
-        const container = containerRef.current;
-        if (!container) return;
-
-        const dx = (beforeDelta[0] / container.clientWidth) * 100;
-        const dy = (beforeDelta[1] / container.clientHeight) * 100;
-
+        const dx = (e.beforeDelta[0] / containerRef.current.clientWidth) * 100;
+        const dy = (e.beforeDelta[1] / containerRef.current.clientHeight) * 100;
         onCropChange({ ...current, x: current.x + dx, y: current.y + dy });
     };
 
     const handleMoveableScaleStart = (e: OnScaleStart) => {
+        console.log('[Moveable] Scale START');
         e.set([cropConfig.scale, cropConfig.scale]);
         if (e.dragStart) {
             e.dragStart.set([cropConfig.x, cropConfig.y]);
         }
     };
 
-    const handleMoveableScale = ({ scale, drag }: OnScale) => {
-        if (!onCropChange) return;
+    const handleMoveableScale = (e: OnScale) => {
+        if (!onCropChange || !containerRef.current) return;
         const current = cropConfig;
-        const container = containerRef.current;
-        if (!container) return;
+        const dx = (e.drag.beforeDelta[0] / containerRef.current.clientWidth) * 100;
+        const dy = (e.drag.beforeDelta[1] / containerRef.current.clientHeight) * 100;
+        const nextScale = e.scale[0];
+        const nextX = current.x + dx;
+        const nextY = current.y + dy;
 
-        const dx = (drag.beforeDelta[0] / container.clientWidth) * 100;
-        const dy = (drag.beforeDelta[1] / container.clientHeight) * 100;
+        console.log('[Moveable] Scale:', { scale: nextScale, nextX, nextY });
 
-        onCropChange({ ...current, scale: scale[0], x: current.x + dx, y: current.y + dy });
+        if (videoRef.current) {
+            let transform = `translate(${nextX}%, ${nextY}%) scale(${nextScale})`;
+            transform += ` rotate(${current.rotation}deg)`;
+            if (current.flipH) transform += ' scaleX(-1)';
+            if (current.flipV) transform += ' scaleY(-1)';
+            videoRef.current.style.transform = transform;
+        }
+
+        onCropChange({ ...current, scale: nextScale, x: nextX, y: nextY });
     };
 
     const handleMoveableRotateStart = (e: OnRotateStart) => {
@@ -220,59 +243,50 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         }
     };
 
-    const handleMoveableRotate = ({ rotate, drag }: OnRotate) => {
-        if (!onCropChange) return;
+    const handleMoveableRotate = (e: OnRotate) => {
+        if (!onCropChange || !containerRef.current) return;
         const current = cropConfig;
-        const container = containerRef.current;
-        if (!container) return;
-
-        const dx = (drag.beforeDelta[0] / container.clientWidth) * 100;
-        const dy = (drag.beforeDelta[1] / container.clientHeight) * 100;
-
-        onCropChange({ ...current, rotation: rotate, x: current.x + dx, y: current.y + dy });
-    };
-
-    const handleMoveableClipStart = () => {
+        const dx = (e.drag.beforeDelta[0] / containerRef.current.clientWidth) * 100;
+        const dy = (e.drag.beforeDelta[1] / containerRef.current.clientHeight) * 100;
+        onCropChange({ ...current, rotation: e.rotate, x: current.x + dx, y: current.y + dy });
     };
 
     const handleMoveableClip = (e: any) => {
         if (!onCropChange || !e.clipPath) return;
+        const clipPathStr = e.clipPath as string;
+        console.log('[Moveable] Clip Progress:', clipPathStr);
 
-        const match = (e.clipPath as string).match(/inset\(([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\)/);
+        const match = clipPathStr.match(/inset\(([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?/);
         if (match) {
             let [_, pT, pR, pB, pL] = match.map(Number);
-
+            if (videoRef.current) {
+                videoRef.current.style.clipPath = clipPathStr;
+            }
             const current = cropConfig;
             const r = ((current.rotation % 360) + 360) % 360;
             let vT, vR, vB, vL;
             if (r === 90) {
-                // pT=vL, pR=vT, pB=vR, pL=vB
                 [vL, vT, vR, vB] = [pT, pR, pB, pL];
             } else if (r === 180) {
-                // pT=vB, pR=vL, pB=vT, pL=vR
                 [vB, vL, vT, vR] = [pT, pR, pB, pL];
             } else if (r === 270) {
-                // pT=vR, pR=vB, pB=vL, pL=vT
                 [vR, vB, vL, vT] = [pT, pR, pB, pL];
             } else {
                 [vT, vR, vB, vL] = [pT, pR, pB, pL];
             }
             if (current.flipV) [vT, vB] = [vB, vT];
             if (current.flipH) [vL, vR] = [vR, vL];
-
             onCropChange({ ...current, top: vT, right: vR, bottom: vB, left: vL });
         }
     };
-
 
     const clipPath = getPhysicalInset();
 
     return (
         <>
-            {/* Background Video Layer */}
             <div
                 ref={containerRef}
-                className={`fixed overflow-hidden bg-black transition-all ${className} ${isAdjustmentMode ? 'shadow-[0_0_100px_rgba(0,0,0,0.8)] border-[1px] border-white/20 video-adjustment-overlay' : ''}`}
+                className={`fixed overflow-hidden bg-black ${!isAdjustmentMode ? 'transition-all' : ''} ${className} ${isAdjustmentMode ? 'shadow-[0_0_100px_rgba(0,0,0,0.8)] border-[1px] border-white/20 video-adjustment-overlay' : ''}`}
                 style={{
                     zIndex: isAdjustmentMode ? 450 : -1,
                     inset: isAdjustmentMode ? '7.5vh 7.5vw' : '0',
@@ -297,19 +311,18 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                 />
             </div>
 
-            {/* Interaction Layer */}
             {isAdjustmentMode && (
                 <>
                     <Moveable
                         target={videoRef.current}
                         container={document.body}
                         draggable={true}
-                        scalable={true}
+                        scalable={!isShiftPressed}
                         rotatable={true}
-                        clippable={true}
+                        clippable={isShiftPressed}
                         clipRelative={true}
-                        keepRatio={true}
-                        edge={true}
+                        dragWithClip={true}
+                        keepRatio={!isShiftPressed}
                         onDragStart={handleMoveableDragStart}
                         throttleRotate={0}
                         throttleDrag={0}
@@ -322,12 +335,18 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         onScale={handleMoveableScale}
                         onRotateStart={handleMoveableRotateStart}
                         onRotate={handleMoveableRotate}
-                        onClipStart={handleMoveableClipStart}
+                        onClipStart={() => console.log('[Moveable] Clip START')}
                         onClip={handleMoveableClip}
                         renderDirections={["nw", "ne", "sw", "se", "n", "s", "e", "w"]}
-                        edgeDraggable={false}
                         className="video-moveable"
                     />
+
+                    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-[500] 
+                        bg-black/80 text-white px-4 py-2 rounded-full border border-white/20 text-sm">
+                        {isShiftPressed
+                            ? "🎦 トリミングモード（端をドラッグして切り抜き）"
+                            : "📐 拡大・移動モード（Shiftキーを押しながらトリミング）"}
+                    </div>
 
                     {/* Guides */}
                     <div className="fixed inset-0 z-[400] select-none pointer-events-none video-adjustment-overlay">
@@ -411,7 +430,6 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                         </button>
                                     ))}
                                 </div>
-
                                 <div className="flex bg-black/40 p-1 rounded-none gap-0.5 border border-white/5">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); toggleFlip('H'); }}

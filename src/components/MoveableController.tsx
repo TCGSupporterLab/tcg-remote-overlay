@@ -696,6 +696,7 @@ export const MoveableController: React.FC = () => {
                 continueSelect={true}
                 ratio={0}
                 dragCondition={(e) => {
+                    if (e.inputEvent.button !== 0) return false;
                     const target = e.inputEvent.target as Element;
                     if (target.closest('.selection-action-bar')) return false;
                     if (target.closest('.settings-overlay')) return false;
