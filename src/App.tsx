@@ -4,7 +4,8 @@ import { LPCalculator } from './components/LPCalculator';
 
 import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
 import { useWidgetStore, type DisplayPreset } from './store/useWidgetStore';
-import { VideoBackground, type VideoSourceType, DEFAULT_CROP } from './components/VideoBackground';
+import { VideoBackground } from './components/VideoBackground';
+import { type VideoSourceType, DEFAULT_CROP } from './types/widgetTypes';
 import { SettingsMenu } from './components/SettingsMenu';
 import { type TabType } from './components/SettingsMenu/SettingsTabs';
 import { OverlayWidget } from './components/OverlayWidget';
@@ -16,6 +17,7 @@ import { OverlayDisplay } from './components/OverlayDisplay';
 import { useWidgetSelection } from './hooks/useWidgetSelection';
 import { MoveableController } from './components/MoveableController';
 import { SelectionActionBar } from './components/SelectionActionBar';
+import { SaveLayoutDialog } from './components/SaveLayoutDialog';
 import { type WidgetId, type WidgetGroup } from './types/widgetTypes';
 import { Layers, RefreshCw } from 'lucide-react';
 import './App.css';
@@ -66,7 +68,6 @@ function App() {
   const setDiceValue = useWidgetStore(s => s.setDiceValue);
   const setCoinValue = useWidgetStore(s => s.setCoinValue);
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
-  const groupSelectedWidgets = useWidgetStore(s => s.groupSelectedWidgets);
   const importDefaultLayouts = useWidgetStore(s => s.importDefaultLayouts);
   const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
 
@@ -125,6 +126,28 @@ function App() {
   const [showSettings, setShowSettings] = useState(() => !useWidgetStore.getState().settings.hideSettingsOnStart);
   const [activeSettingsTab, setActiveSettingsTab] = useState<TabType>('guide');
 
+  // Layout Saving Dialog State
+  const [saveDialog, setSaveDialog] = useState<{
+    isOpen: boolean;
+    source: 'action-bar' | 'video-menu' | 'settings';
+    initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean };
+  }>({
+    isOpen: false,
+    source: 'settings'
+  });
+
+  const openSaveDialog = useCallback((
+    source: 'action-bar' | 'video-menu' | 'settings',
+    initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }
+  ) => {
+    setSaveDialog({ isOpen: true, source, initialOptions });
+  }, []);
+
+  const saveLayoutAction = useWidgetStore(s => s.saveLayout);
+  const handleSaveLayout = useCallback((name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => {
+    saveLayoutAction(name, options);
+  }, [saveLayoutAction]);
+
   // Widget Selection & Grouping
   const {
     clearSelection,
@@ -148,22 +171,10 @@ function App() {
   }, []);
 
 
-  // Widget visibility map
-
-
-
-
-
-
   // Find group for a widget
   const findGroupForWidget = useCallback((widgetId: WidgetId): WidgetGroup | undefined => {
     return groupData.groups.find(g => g.memberIds.includes(widgetId));
   }, [groupData]);
-
-  // Helper to map selected widget IDs to their group IDs if they belong to one.
-  // This ensures that selecting ANY member of a group selects the WHOLE group.
-
-  // Wrap toggleSelect to handle group mapping automatically for single-click selection
 
 
   const effectiveSelectionMembers = useMemo(() => {
@@ -196,23 +207,6 @@ function App() {
   }, [isMultiSelectionActive, effectiveSelectionMembers]);
 
 
-
-
-
-
-
-
-  // Ungroup
-
-
-
-
-
-
-
-
-
-
   // Apply OBS mode class to body
   useEffect(() => {
     document.body.classList.remove('obs-green');
@@ -220,12 +214,6 @@ function App() {
       document.body.classList.add('obs-green');
     }
   }, [obsMode]);
-
-  // Shared State
-  // Persist activePreset
-  useEffect(() => {
-    // Already handled by useWidgetStore subscriber
-  }, [activePreset]);
 
   // Persistent Tool State
   const lastDotTapRef = useRef<number>(0);
@@ -278,7 +266,7 @@ function App() {
     const result = ((array[0] % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6;
     setDiceValue(result);
     setDiceKey(prev => prev + 1);
-  }, []);
+  }, [setDiceValue]);
 
   const handleFlipCoin = useCallback(() => {
     const array = new Uint32Array(1);
@@ -286,7 +274,7 @@ function App() {
     const result = (array[0] % 2) as 1 | 0;
     setCoinValue(result);
     setCoinKey(prev => prev + 1);
-  }, []);
+  }, [setCoinValue]);
 
 
   const toggleVideoSource = useCallback(() => {
@@ -294,7 +282,7 @@ function App() {
     const nextIndex = (sources.indexOf(videoSource) + 1) % sources.length;
     const nextSource = sources[nextIndex];
     setVideoSource(nextSource);
-  }, [videoSource]);
+  }, [videoSource, setVideoSource]);
 
 
   // Keyboard Shortcuts & Global Context Menu
@@ -489,14 +477,14 @@ function App() {
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('mousedown', handleMouseDown, true);
     };
-  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, groupSelectedWidgets]);
+  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets]);
 
 
   if (import.meta.env.DEV) {
     useEffect(() => {
       console.log(`[App] Global State - isScanning: ${isScanning}, isLoading: ${isLoading}, hasAccess: ${hasAccess}, isSyncing: ${isSyncing}`);
       console.log(`[App] Overlay Condition: ${isScanning || isSyncing || (isLoading && (hasAccess || !rootHandle))}`);
-    }, [isScanning, isLoading, hasAccess, isSyncing]);
+    }, [isScanning, isLoading, hasAccess, isSyncing, rootHandle, isSyncing]);
   }
 
   // Render termination overlay if this instance should be closed
@@ -732,7 +720,13 @@ function App() {
       </main>
 
 
+      <MoveableController
+        effectiveSelectionMembers={effectiveSelectionMembers}
+        widgetRefsMap={widgetRefsMap}
+        isAdjustingVideo={isAdjustingVideo}
+      />
 
+      {!isSearchView && <SelectionActionBar onOpenSaveDialog={openSaveDialog} />}
 
       {/* 4. Removed Initial Help Screen (now in Settings Guide tab) */}
 
@@ -745,6 +739,7 @@ function App() {
             onVideoSourceChange={setVideoSource}
             isAdjustingVideo={isAdjustingVideo}
             onToggleVideoAdjust={toggleAdjustmentMode}
+            onOpenSaveDialog={openSaveDialog}
             activePreset={activePreset}
             onPresetChange={handlePresetChange}
             obsMode={obsMode}
@@ -798,40 +793,36 @@ function App() {
                 へのアクセスをあらためて許可してください。
               </p>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4 max-w-[320px] mx-auto">
                 <button
                   onClick={verifyPermissionAndScan}
-                  className="w-full py-5 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-blue-900/30 flex items-center justify-center gap-3 group"
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-2xl font-bold transition-all shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2"
                 >
-                  <Layers size={22} className="group-hover:rotate-12 transition-transform" />
+                  <RefreshCw size={20} />
                   アクセスを許可して開始
                 </button>
-
-                <div className="flex flex-row items-center gap-3">
-                  <button
-                    onClick={requestAccess}
-                    className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold text-xs transition-all border border-white/10 whitespace-nowrap"
-                  >
-                    別のフォルダに接続
-                  </button>
-                  <div className="w-px h-6 bg-black flex-shrink-0" />
-                  <button
-                    onClick={dropAccess}
-                    className="flex-1 py-2.5 bg-red-900/10 hover:bg-red-900/20 text-red-400 rounded-xl font-bold text-xs transition-all border border-red-900/20 whitespace-nowrap"
-                  >
-                    拒否する
-                  </button>
-                </div>
+                <button
+                  onClick={dropAccess}
+                  className="w-full py-4 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-2xl font-bold transition-all border border-white/5"
+                >
+                  別のフォルダを選択
+                </button>
               </div>
+
             </div>
           </div>
         )
       }
 
-
-      {!isSearchView && <MoveableController />}
-      {!isSearchView && <SelectionActionBar />}
-    </div >
+      {/* Layout Save Dialog */}
+      <SaveLayoutDialog
+        isOpen={saveDialog.isOpen}
+        source={saveDialog.source}
+        initialOptions={saveDialog.initialOptions}
+        onClose={() => setSaveDialog(prev => ({ ...prev, isOpen: false }))}
+        onSave={handleSaveLayout}
+      />
+    </div>
   );
 }
 

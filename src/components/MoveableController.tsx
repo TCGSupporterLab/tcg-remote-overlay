@@ -22,7 +22,17 @@ interface ActiveState extends WidgetState {
     height: number;
 }
 
-export const MoveableController: React.FC = () => {
+interface MoveableControllerProps {
+    effectiveSelectionMembers: WidgetId[];
+    widgetRefsMap: React.RefObject<Map<WidgetId, HTMLDivElement>>;
+    isAdjustingVideo: boolean;
+}
+
+export const MoveableController: React.FC<MoveableControllerProps> = ({
+    effectiveSelectionMembers,
+    widgetRefsMap,
+    isAdjustingVideo
+}) => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
     const groupData = useWidgetStore(s => s.groupData);
     const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
@@ -155,7 +165,7 @@ export const MoveableController: React.FC = () => {
         targets.forEach(t => resizeObserver.observe(t));
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (selectedWidgetIds.length < 1) return;
+            if (effectiveSelectionMembers.length < 1) return;
             if (document.activeElement?.tagName === 'INPUT' ||
                 document.activeElement?.tagName === 'TEXTAREA' ||
                 (document.activeElement as HTMLElement)?.isContentEditable) {
@@ -173,16 +183,9 @@ export const MoveableController: React.FC = () => {
 
             if (dx === 0 && dy === 0) return;
 
-            const allMemberIds = new Set<string>();
-            selectedWidgetIds.forEach(id => {
-                const group = groupData.groups.find(g => g.id === id);
-                if (group) group.memberIds.forEach(mid => allMemberIds.add(mid));
-                else allMemberIds.add(id);
-            });
-
-            const items = Array.from(allMemberIds).map(id => {
-                const s = useWidgetStore.getState().widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
-                const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
+            const items = effectiveSelectionMembers.map(id => {
+                const s = useWidgetStore.getState().widgetStates[id] || { px: 0, py: 0, scale: 1, rotation: 0 };
+                const el = widgetRefsMap.current?.get(id) || document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
                 if (!el) return null;
                 return {
                     id,
@@ -220,7 +223,7 @@ export const MoveableController: React.FC = () => {
             });
 
             items.forEach(({ id, state }) => {
-                updateWidgetState(id as WidgetId, {
+                updateWidgetState(id, {
                     px: (state.posX + finalDelta[0]) / window.innerWidth,
                     py: (state.posY + finalDelta[1]) / window.innerHeight,
                 });
@@ -242,7 +245,7 @@ export const MoveableController: React.FC = () => {
             window.removeEventListener('resize', handleResize);
             resizeObserver.disconnect();
         };
-    }, [selectedWidgetIds, targets, updateWidgetState, setActiveMoveableRect, syncMoveableRect, groupData.groups, SCALING_BASE_H, SCALING_BASE_W, setViewSize]);
+    }, [targets, updateWidgetState, setActiveMoveableRect, syncMoveableRect, SCALING_BASE_H, SCALING_BASE_W, setViewSize, effectiveSelectionMembers, widgetRefsMap, setIsTransforming]);
 
     // リサイズやターゲット変更完了後にMoveableの枠を同期
     useEffect(() => {
@@ -283,18 +286,11 @@ export const MoveableController: React.FC = () => {
             const timer = setTimeout(checkAndSync, 32);
             return () => clearTimeout(timer);
         }
-    }, [viewSize, targets, syncMoveableRect, syncActionBarDOM, setIsTransforming, selectedWidgetIds]);
+    }, [viewSize, targets, syncMoveableRect, syncActionBarDOM, setIsTransforming]);
 
     useEffect(() => {
-        const allMemberIds = new Set<string>();
-        selectedWidgetIds.forEach(id => {
-            const group = groupData.groups.find(g => g.id === id);
-            if (group) group.memberIds.forEach(mid => allMemberIds.add(mid));
-            else allMemberIds.add(id);
-        });
-
-        const elements = Array.from(allMemberIds)
-            .map(id => document.querySelector(`[data-widget-id="${id}"]`))
+        const elements = effectiveSelectionMembers
+            .map(id => widgetRefsMap.current?.get(id) || document.querySelector(`[data-widget-id="${id}"]`))
             .filter((el): el is HTMLElement => el !== null);
 
         setTargets(elements);
@@ -315,7 +311,7 @@ export const MoveableController: React.FC = () => {
         } else {
             setActiveMoveableRect(null);
         }
-    }, [selectedWidgetIds, groupData.groups, setActiveMoveableRect]);
+    }, [effectiveSelectionMembers, widgetRefsMap, setActiveMoveableRect]);
 
     // 外部からのリセットなどの要求に応じた同期
     useEffect(() => {
@@ -368,7 +364,7 @@ export const MoveableController: React.FC = () => {
 
         idList.forEach(id => {
             if (!id) return;
-            const el = document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
+            const el = widgetRefsMap.current?.get(id as WidgetId) || document.querySelector(`[data-widget-id="${id}"]`) as HTMLElement;
             if (!el) return;
 
             const s = store.widgetStates[id as WidgetId] || { px: 0, py: 0, scale: 1, rotation: 0 };
@@ -390,7 +386,7 @@ export const MoveableController: React.FC = () => {
             );
             setIsTransforming(true);
         }
-    }, [selectedWidgetIds, groupData.groups, setIsTransforming, SCALING_BASE_H, SCALING_BASE_W]);
+    }, [selectedWidgetIds, groupData.groups, setIsTransforming, SCALING_BASE_H, SCALING_BASE_W, widgetRefsMap]);
 
     const endAction = (ids: string[]) => {
         const w = window.innerWidth;
@@ -700,7 +696,7 @@ export const MoveableController: React.FC = () => {
                     const target = e.inputEvent.target as Element;
                     if (target.closest('.selection-action-bar')) return false;
                     if (target.closest('.settings-overlay')) return false;
-                    if (target.closest('.video-adjustment-overlay')) return false; // ビデオ調整画面も除外
+                    if (isAdjustingVideo) return false;
                     const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
                     const isMoveableElement = !!target.closest('[class*="moveable-"]');
                     const isControl = !!target.closest('[class*="moveable-control"]');
@@ -764,7 +760,7 @@ export const MoveableController: React.FC = () => {
                             if (clientX !== undefined && clientY !== undefined) {
                                 const hitGroup = groupData.groups.find(group => {
                                     const rects = group.memberIds.map(id => {
-                                        const el = document.querySelector(`[data-widget-id="${id}"]`);
+                                        const el = widgetRefsMap.current?.get(id) || document.querySelector(`[data-widget-id="${id}"]`);
                                         return el?.getBoundingClientRect();
                                     }).filter((r): r is DOMRect => !!r);
                                     if (rects.length === 0) return false;
@@ -793,12 +789,6 @@ export const MoveableController: React.FC = () => {
                     }
                     const finalIds = Array.from(nextIds);
                     setSelectedWidgets(finalIds);
-                    const finalElements = finalIds.flatMap(id => {
-                        const group = groupData.groups.find(g => g.id === id);
-                        return group ? group.memberIds : [id];
-                    }).map(mid => document.querySelector(`[data-widget-id="${mid}"]`))
-                        .filter((el): el is HTMLElement => el !== null);
-                    e.currentTarget.setSelectedTargets(finalElements);
                 }}
             />
         </div>

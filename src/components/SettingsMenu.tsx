@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { X, Settings } from 'lucide-react';
-import type { VideoSourceType } from './VideoBackground';
+import type { VideoSourceType } from '../types/widgetTypes';
 import type { LocalCard } from '../hooks/useLocalCards';
 
 // Refactored Components
@@ -27,6 +27,8 @@ interface SettingsMenuProps {
     onPresetChange: (preset: DisplayPreset) => void;
     obsMode: ObsMode;
     onObsModeChange: (mode: ObsMode) => void;
+    // Layout Prop
+    onOpenSaveDialog: (source: 'video-menu' | 'settings', initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
     // File System Access Props
     hasAccess: boolean;
     rootHandleName?: string;
@@ -197,7 +199,7 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                             />
                         )}
 
-                        {props.activeTab === 'layout' && <MyLayoutTab />}
+                        {props.activeTab === 'layout' && <MyLayoutTab onOpenSaveDialog={props.onOpenSaveDialog} />}
 
                         {props.activeTab === 'widgets' && (
                             <WidgetsTab
@@ -227,6 +229,7 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 onVideoSourceChange={props.onVideoSourceChange}
                                 isAdjustingVideo={props.isAdjustingVideo}
                                 onToggleVideoAdjust={props.onToggleVideoAdjust}
+                                onOpenSaveDialog={props.onOpenSaveDialog}
                             />
                         )}
 

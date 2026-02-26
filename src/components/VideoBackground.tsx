@@ -4,23 +4,8 @@ import Moveable from 'react-moveable';
 import type {
     OnDrag, OnScale, OnRotate, OnRotateStart
 } from 'react-moveable';
+import { type CropConfig, DEFAULT_CROP } from '../types/widgetTypes';
 
-export type VideoSourceType = 'none' | 'camera' | 'screen';
-
-export interface CropConfig {
-    x: number;      // translate X (%)
-    y: number;      // translate Y (%)
-    scale: number;  // zoom (1.0 to 5.0)
-    top: number;    // crop top (%)
-    bottom: number; // crop bottom (%)
-    left: number;   // crop left (%)
-    right: number;  // crop right (%)
-    rotation: number; // 0, 90, 180, 270
-    flipH: boolean;
-    flipV: boolean;
-}
-
-export const DEFAULT_CROP: CropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
 
 interface VideoBackgroundProps {
     sourceType: VideoSourceType;
@@ -441,7 +426,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         <div className="bg-[#0f172a] text-white pl-5 pr-[25px] py-5 rounded-none flex items-center justify-between w-[640px] border border-[#ff0000] shadow-[0_0_50px_rgba(255,0,0,0.2)]">
                             <div className="flex items-center gap-4">
                                 <div className="w-2 h-2 bg-[#ff0000] shadow-[0_0_10px_rgba(255,0,0,0.8)] animate-pulse" />
-                                <span className="font-black text-lg tracking-tight text-[#ff0000]">ビデオ調整中</span>
+                                <span className="font-black text-lg tracking-tight text-[#ff0000]">映像調整中</span>
                             </div>
                             <div className="flex gap-4">
                                 <button

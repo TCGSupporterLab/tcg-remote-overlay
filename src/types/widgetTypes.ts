@@ -1,6 +1,7 @@
-// ウィジェットの識別子。
 // 新ウィジェット追加時は新しい文字列を割り当てるだけで自動的にグループ化対象になる。
 export type WidgetId = string;
+
+export type VideoSourceType = 'none' | 'camera' | 'screen';
 
 // グループ定義
 export interface WidgetGroup {
@@ -35,6 +36,22 @@ export interface WidgetState {
     rotation: number;
 }
 
+// 映像調整設定
+export interface CropConfig {
+    x: number;      // translate X (%)
+    y: number;      // translate Y (%)
+    scale: number;  // zoom (1.0 to 5.0)
+    top: number;    // crop top (%)
+    bottom: number; // crop bottom (%)
+    left: number;   // crop left (%)
+    right: number;  // crop right (%)
+    rotation: number; // 0, 90, 180, 270
+    flipH: boolean;
+    flipV: boolean;
+}
+
+export const DEFAULT_CROP: CropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
+
 // マイレイアウト定義
 export interface MyLayout {
     id: string;
@@ -50,6 +67,8 @@ export interface MyLayout {
     visibility: Record<WidgetId, boolean>; // 対象ウィジェットの表示状態
     widgetOrder: WidgetId[];              // 対象ウィジェット間の相対的な重なり順
     viewSize: { w: number; h: number };   // 保存時のウィンドウサイズ
+    videoCrop?: CropConfig;               // 映像調整設定（任意）
+    hideOthers: boolean;                  // 適用時に他のウィジェットを非表示にするか
     createdAt: number;
     isDefault?: boolean;
 }

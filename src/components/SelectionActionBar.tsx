@@ -2,7 +2,11 @@ import React from 'react';
 import { useWidgetStore } from '../store/useWidgetStore';
 import { Link, Unlink, Undo2, Save } from 'lucide-react';
 
-export const SelectionActionBar: React.FC = () => {
+interface SelectionActionBarProps {
+    onOpenSaveDialog: (source: 'action-bar', initialOptions: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
+}
+
+export const SelectionActionBar: React.FC<SelectionActionBarProps> = ({ onOpenSaveDialog }) => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
     const groups = useWidgetStore(s => s.groupData.groups);
     const activeMoveableRect = useWidgetStore(s => s.activeMoveableRect);
@@ -11,7 +15,6 @@ export const SelectionActionBar: React.FC = () => {
     const resetWidgets = useWidgetStore(s => s.resetWidgets);
     const isTransforming = useWidgetStore(s => s.isTransforming);
     const setIsTransforming = useWidgetStore(s => s.setIsTransforming);
-    const saveLayout = useWidgetStore(s => s.saveLayout);
 
     if (selectedWidgetIds.length < 1 || isTransforming) return null;
 
@@ -84,8 +87,7 @@ export const SelectionActionBar: React.FC = () => {
                 <div className="flex items-center gap-1 p-1">
                     <button
                         onClick={() => {
-                            const name = window.prompt('レイアウト名を入力してください');
-                            if (name) saveLayout(name);
+                            onOpenSaveDialog('action-bar', { includeWidgets: true, includeVideo: false, hideOthers: false });
                         }}
                         className="group p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/10 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
                         title="マイレイアウトに追加"

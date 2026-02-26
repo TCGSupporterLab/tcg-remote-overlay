@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup, type MyLayout } from '../types/widgetTypes';
-import { type VideoSourceType, type CropConfig } from '../components/VideoBackground';
+import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup, type MyLayout, type VideoSourceType, type CropConfig, DEFAULT_CROP } from '../types/widgetTypes';
 
 // Default Layouts
 const DEFAULT_LAYOUT_MODULES = import.meta.glob('../data/default_layout/*.json', { eager: true });
@@ -55,7 +54,7 @@ interface WidgetStoreState {
     activeMoveableRect: MoveableRect | null;
     isTransforming: boolean;
 
-    // システム/ビデオ設定
+    // システム/映像設定
     obsMode: ObsMode;
     videoSource: VideoSourceType;
     videoCrop: CropConfig;
@@ -71,7 +70,6 @@ interface WidgetStoreState {
     // マイレイアウト
     myLayouts: MyLayout[];
     hasImportedDefaultLayouts: boolean;
-    hideNonLayoutWidgets: boolean;
 
     // Actions
     updateWidgetState: (id: WidgetId, state: Partial<WidgetState>) => void;
@@ -98,11 +96,10 @@ interface WidgetStoreState {
     ungroupSelectedWidgets: () => void;
 
     // マイレイアウト Actions
-    saveLayout: (name: string) => void;
+    saveLayout: (name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
     applyLayout: (id: string) => void;
     deleteLayout: (id: string) => void;
     importLayout: (data: unknown) => { success: boolean; message?: string };
-    setHideNonLayoutWidgets: (val: boolean) => void;
     importDefaultLayouts: () => void;
 }
 
@@ -112,8 +109,6 @@ const STORAGE_KEYS = {
     SETTINGS: 'tcg_remote_settings_v4',
     LAYOUTS: 'tcg_remote_my_layouts_v1',
 };
-
-const DEFAULT_CROP: CropConfig = { x: 0, y: 0, scale: 1, top: 0, bottom: 0, left: 0, right: 0, rotation: 0, flipH: false, flipV: false };
 
 const getInitialState = () => {
     const savedWidgets = localStorage.getItem(STORAGE_KEYS.WIDGETS);
@@ -152,7 +147,6 @@ const getInitialState = () => {
         widgetOrder: [] as WidgetId[],
         myLayouts: [],
         hasImportedDefaultLayouts: localStorage.getItem('tcg_remote_layout_imported') === 'true',
-        hideNonLayoutWidgets: localStorage.getItem('tcg_remote_hide_non_layout') !== 'false',
     };
 
     const savedLayouts = localStorage.getItem(STORAGE_KEYS.LAYOUTS);
@@ -447,36 +441,42 @@ export const useWidgetStore = create<WidgetStoreState>()(
             };
         }),
 
-        setHideNonLayoutWidgets: (val) => {
-            localStorage.setItem('tcg_remote_hide_non_layout', val ? 'true' : 'false');
-            set({ hideNonLayoutWidgets: val });
-        },
+        saveLayout: (name, options) => set((state) => {
+            const { selectedWidgetIds, widgetStates, widgetOrder, visibility, groupData, viewSize, videoCrop } = state;
+            const { includeWidgets, includeVideo, hideOthers } = options;
 
-        saveLayout: (name) => set((state) => {
-            const { selectedWidgetIds, widgetStates, widgetOrder, visibility, groupData, viewSize } = state;
-            if (selectedWidgetIds.length === 0) return state;
+            // 保存対象のウィジェットIDセット
+            // hideOthersがONの場合は全ウィジェット、OFFの場合は選択中のもの（アクションバー等の文脈による）
+            // ※呼び出し側ですでにフィルタリングされている想定だが、ここで最終確定
+            const targetIds = hideOthers
+                ? ['dice', 'coin', 'lp_calculator', 'card_widget', 'sp_marker']
+                : selectedWidgetIds;
 
-            const layoutWidgets = selectedWidgetIds.map(id => ({
+            if (!includeWidgets && !includeVideo) return state;
+
+            const layoutWidgets = includeWidgets ? targetIds.map(id => ({
                 id,
                 state: widgetStates[id] || { px: 0, py: 0, scale: 1, rotation: 0 }
-            }));
+            })) : [];
 
-            // 選択されたメンバー全員が含まれるグループのみ保存
-            const relevantGroups = groupData.groups.filter(g =>
-                g.memberIds.every(mid => selectedWidgetIds.includes(mid))
-            );
+            // メンバー全員が保存対象に含まれるグループのみ保存
+            const relevantGroups = includeWidgets ? groupData.groups.filter(g =>
+                g.memberIds.every(mid => targetIds.includes(mid))
+            ) : [];
 
-            // 選択されたウィジェットの表示状態を記録
+            // 表示状態の記録
             const layoutVisibility: Record<WidgetId, boolean> = {};
-            selectedWidgetIds.forEach(id => {
-                if (id === 'dice') layoutVisibility[id] = visibility.isDiceVisible;
-                if (id === 'coin') layoutVisibility[id] = visibility.isCoinVisible;
-                if (id === 'lp_calculator') layoutVisibility[id] = visibility.isLPVisible;
-                if (id === 'card_widget') layoutVisibility[id] = visibility.isCardWidgetVisible;
-                if (id === 'sp_marker') layoutVisibility[id] = visibility.isSPMarkerVisible;
-            });
+            if (includeWidgets) {
+                targetIds.forEach(id => {
+                    if (id === 'dice') layoutVisibility[id] = visibility.isDiceVisible;
+                    if (id === 'coin') layoutVisibility[id] = visibility.isCoinVisible;
+                    if (id === 'lp_calculator') layoutVisibility[id] = visibility.isLPVisible;
+                    if (id === 'card_widget') layoutVisibility[id] = visibility.isCardWidgetVisible;
+                    if (id === 'sp_marker') layoutVisibility[id] = visibility.isSPMarkerVisible;
+                });
+            }
 
-            const layoutOrder = widgetOrder.filter(id => selectedWidgetIds.includes(id));
+            const layoutOrder = includeWidgets ? widgetOrder.filter(id => targetIds.includes(id)) : [];
 
             const newLayout: MyLayout = {
                 id: `layout_${Date.now()}`,
@@ -486,12 +486,14 @@ export const useWidgetStore = create<WidgetStoreState>()(
                 visibility: layoutVisibility,
                 widgetOrder: layoutOrder,
                 viewSize: { ...viewSize },
+                videoCrop: includeVideo ? { ...videoCrop } : undefined,
+                hideOthers,
                 createdAt: Date.now(),
             };
 
             const nextLayouts = [...state.myLayouts, newLayout];
             localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
-            localStorage.setItem('tcg_remote_layout_imported', 'true'); // デフォルト読み込みをスキップさせるため
+            localStorage.setItem('tcg_remote_layout_imported', 'true');
 
             return {
                 myLayouts: nextLayouts,
@@ -511,66 +513,76 @@ export const useWidgetStore = create<WidgetStoreState>()(
 
             const layoutWidgetIds = layout.widgets.map(w => w.id);
 
-            // 1. レイアウト対象ウィジェットの既存グループ解除
-            const filteredGroups = currentGroups.filter(g =>
-                !g.memberIds.some(mid => layoutWidgetIds.includes(mid))
-            );
+            // 1. 他を隠す (Snapshot Mode)
+            if (layout.hideOthers) {
+                nextVisibility.isDiceVisible = false;
+                nextVisibility.isCoinVisible = false;
+                nextVisibility.isLPVisible = false;
+                nextVisibility.isCardWidgetVisible = false;
+                nextVisibility.isSPMarkerVisible = false;
+            }
 
-            // 2. 状態適用と表示ON
-            layout.widgets.forEach(lw => {
-                nextWidgetStates[lw.id] = lw.state;
-                if (lw.id === 'dice') nextVisibility.isDiceVisible = true;
-                if (lw.id === 'coin') nextVisibility.isCoinVisible = true;
-                if (lw.id === 'lp_calculator') nextVisibility.isLPVisible = true;
-                if (lw.id === 'card_widget') nextVisibility.isCardWidgetVisible = true;
-                if (lw.id === 'sp_marker') nextVisibility.isSPMarkerVisible = true;
-            });
+            // 2. ウィジェット復元 (保存内容がある場合)
+            if (layout.widgets.length > 0) {
+                // レイアウト対象ウィジェットの既存グループ解除
+                const filteredGroups = currentGroups.filter(g =>
+                    !g.memberIds.some(mid => layoutWidgetIds.includes(mid))
+                );
 
-            // 3. グループの再適用
-            const nextGroups = [...filteredGroups, ...layout.groups];
+                // 状態適用と表示ON
+                layout.widgets.forEach(lw => {
+                    nextWidgetStates[lw.id] = lw.state;
+                    const isVisibleInLayout = layout.visibility[lw.id] !== false; // 明示的にfalseでない限り表示
+                    if (lw.id === 'dice') nextVisibility.isDiceVisible = isVisibleInLayout;
+                    if (lw.id === 'coin') nextVisibility.isCoinVisible = isVisibleInLayout;
+                    if (lw.id === 'lp_calculator') nextVisibility.isLPVisible = isVisibleInLayout;
+                    if (lw.id === 'card_widget') nextVisibility.isCardWidgetVisible = isVisibleInLayout;
+                    if (lw.id === 'sp_marker') nextVisibility.isSPMarkerVisible = isVisibleInLayout;
+                });
 
-            // 相対座標の再計算 (anchorベース)
-            layout.groups.forEach(g => {
-                const anchorState = nextWidgetStates[g.anchorId];
-                if (anchorState) {
-                    const aspect = window.innerWidth / window.innerHeight;
-                    g.memberIds.forEach(mid => {
-                        const ms = nextWidgetStates[mid];
-                        if (ms) {
-                            nextRelativeTransforms[mid] = {
-                                dx: (ms.px - anchorState.px) * aspect,
-                                dy: ms.py - anchorState.py,
-                                dScale: ms.scale / anchorState.scale,
-                                dRotation: ms.rotation - anchorState.rotation,
-                            };
-                        }
-                    });
-                }
-            });
+                // グループの再適用
+                const nextGroups = [...filteredGroups, ...layout.groups];
 
-            // 4. 重なり順の調整（レイアウトに含まれるものを前面へ）
-            // まず既存の順序からレイアウト対象を除去
-            nextWidgetOrder = nextWidgetOrder.filter(oid => !layoutWidgetIds.includes(oid));
-            // レイアウト内の順序を最高優先度（末尾）に追加
-            nextWidgetOrder = [...nextWidgetOrder, ...layout.widgetOrder];
+                // 相対座標の再計算 (anchorベース)
+                layout.groups.forEach(g => {
+                    const anchorState = nextWidgetStates[g.anchorId];
+                    if (anchorState) {
+                        const aspect = window.innerWidth / window.innerHeight;
+                        g.memberIds.forEach(mid => {
+                            const ms = nextWidgetStates[mid];
+                            if (ms) {
+                                nextRelativeTransforms[mid] = {
+                                    dx: (ms.px - anchorState.px) * aspect,
+                                    dy: ms.py - anchorState.py,
+                                    dScale: ms.scale / anchorState.scale,
+                                    dRotation: ms.rotation - anchorState.rotation,
+                                };
+                            }
+                        });
+                    }
+                });
 
-            // 5. オプション: 他を隠す
-            if (state.hideNonLayoutWidgets) {
-                if (!layoutWidgetIds.includes('dice')) nextVisibility.isDiceVisible = false;
-                if (!layoutWidgetIds.includes('coin')) nextVisibility.isCoinVisible = false;
-                if (!layoutWidgetIds.includes('lp_calculator')) nextVisibility.isLPVisible = false;
-                if (!layoutWidgetIds.includes('card_widget')) nextVisibility.isCardWidgetVisible = false;
-                if (!layoutWidgetIds.includes('sp_marker')) nextVisibility.isSPMarkerVisible = false;
+                // 重なり順の調整
+                nextWidgetOrder = nextWidgetOrder.filter(oid => !layoutWidgetIds.includes(oid));
+                nextWidgetOrder = [...nextWidgetOrder, ...layout.widgetOrder];
+
+                // 更新
+                state.groupData.groups = nextGroups;
+                state.groupData.relativeTransforms = nextRelativeTransforms;
+            }
+
+            // 3. 映像設定の復元
+            if (layout.videoCrop) {
+                localStorage.setItem('tcg_remote_video_crop', JSON.stringify(layout.videoCrop));
+                state.videoCrop = layout.videoCrop;
             }
 
             return {
                 widgetStates: nextWidgetStates,
                 visibility: nextVisibility,
                 widgetOrder: nextWidgetOrder,
-                groupData: {
-                    groups: nextGroups,
-                    relativeTransforms: nextRelativeTransforms,
-                },
+                videoCrop: state.videoCrop,
+                groupData: { ...state.groupData },
                 needsSync: true,
             };
         }),
@@ -584,27 +596,23 @@ export const useWidgetStore = create<WidgetStoreState>()(
         importLayout: (data) => {
             try {
                 const d = data as any;
-                if (!d.name || !Array.isArray(d.widgets)) {
+                if (!d.name || (!Array.isArray(d.widgets) && !d.videoCrop)) {
                     return { success: false, message: '不正なレイアウトデータです。' };
                 }
 
                 // サニタイズ
                 const VALID_IDS: WidgetId[] = ['dice', 'coin', 'lp_calculator', 'card_widget', 'sp_marker'];
-                const sanitizedWidgets = d.widgets
+                const sanitizedWidgets = Array.isArray(d.widgets) ? d.widgets
                     .filter((w: any) => VALID_IDS.includes(w.id))
                     .map((w: any) => ({
                         id: w.id as WidgetId,
                         state: {
-                            px: Math.max(0, Math.min(1, Number(w.state?.px) || 0.5)),
-                            py: Math.max(0, Math.min(1, Number(w.state?.py) || 0.5)),
+                            px: Math.max(-0.5, Math.min(0.5, Number(w.state?.px) || 0)),
+                            py: Math.max(-0.5, Math.min(0.5, Number(w.state?.py) || 0)),
                             scale: Math.max(0.1, Math.min(5, Number(w.state?.scale) || 1)),
                             rotation: (Number(w.state?.rotation) || 0) % 360,
                         }
-                    }));
-
-                if (sanitizedWidgets.length === 0) {
-                    return { success: false, message: '有効なウィジェットが含まれていません。' };
-                }
+                    })) : [];
 
                 const newLayout: MyLayout = {
                     id: `layout_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -614,6 +622,8 @@ export const useWidgetStore = create<WidgetStoreState>()(
                     visibility: d.visibility || {},
                     widgetOrder: Array.isArray(d.widgetOrder) ? d.widgetOrder.filter((id: any) => VALID_IDS.includes(id)) : sanitizedWidgets.map((w: any) => w.id),
                     viewSize: d.viewSize || { w: window.innerWidth, h: window.innerHeight },
+                    videoCrop: d.videoCrop,
+                    hideOthers: !!d.hideOthers,
                     createdAt: Date.now(),
                 };
 
@@ -641,7 +651,8 @@ export const useWidgetStore = create<WidgetStoreState>()(
                     id: `default_${fileName}`,
                     name: layoutData.name || fileName,
                     isDefault: true,
-                    createdAt: Date.now() // データ構造上必要だがUIでは非表示にする
+                    hideOthers: layoutData.hideOthers ?? true, // デフォルトテンプレートは基本Snapshot
+                    createdAt: Date.now()
                 };
             });
 
@@ -657,7 +668,7 @@ export const useWidgetStore = create<WidgetStoreState>()(
     }))
 );
 
-// 状態変更時の保存処理（保存に特化）
+// 状態変更時の保存処理
 let updateTimer: ReturnType<typeof setTimeout> | null = null;
 
 useWidgetStore.subscribe(
@@ -665,7 +676,6 @@ useWidgetStore.subscribe(
     (state) => {
         if (updateTimer) clearTimeout(updateTimer);
         updateTimer = setTimeout(() => {
-            // ウィジェットの基本状態を永続化
             localStorage.setItem(STORAGE_KEYS.WIDGETS, JSON.stringify({
                 widgetStates: state.widgetStates,
                 visibility: state.visibility,
@@ -673,7 +683,6 @@ useWidgetStore.subscribe(
                 widgetOrder: state.widgetOrder,
             }));
             localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(state.groupData));
-            // ビデオ設定等は各アクション側で保存済み
-        }, 100); // 同一ウィンドウ内での保存なので、少し余裕を持たせる
+        }, 100);
     }
 );
