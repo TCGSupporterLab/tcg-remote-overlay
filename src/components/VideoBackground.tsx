@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import Moveable from 'react-moveable';
 import type {
-    OnDrag, OnScale, OnRotate, OnDragStart, OnScaleStart, OnRotateStart
+    OnDrag, OnScale, OnRotate, OnRotateStart
 } from 'react-moveable';
 
 export type VideoSourceType = 'none' | 'camera' | 'screen';
@@ -47,15 +47,22 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     const [isActive, setIsActive] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
-    const [isShiftPressed, setIsShiftPressed] = useState(false);
+    const [isAltPressed, setIsAltPressed] = useState(false);
+    const [dragMode, setDragMode] = useState<'none' | 'scale' | 'clip'>('none');
 
     useEffect(() => {
         if (!isAdjustmentMode) return;
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Shift') setIsShiftPressed(true);
+            if (e.key === 'Alt') {
+                e.preventDefault();
+                setIsAltPressed(true);
+            }
         };
         const handleKeyUp = (e: KeyboardEvent) => {
-            if (e.key === 'Shift') setIsShiftPressed(false);
+            if (e.key === 'Alt') {
+                e.preventDefault();
+                setIsAltPressed(false);
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
@@ -192,7 +199,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         return `inset(${pT}% ${pR}% ${pB}% ${pL}%)`;
     };
 
-    const handleMoveableDragStart = (e: OnDragStart) => {
+    const handleMoveableDragStart = (e: any) => {
+        if (isAltPressed || e.inputEvent?.altKey) {
+            e.stopDrag();
+            return;
+        }
         if (e.set) {
             e.set([cropConfig.x, cropConfig.y]);
         }
@@ -206,8 +217,14 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         onCropChange({ ...current, x: current.x + dx, y: current.y + dy });
     };
 
-    const handleMoveableScaleStart = (e: OnScaleStart) => {
+    const handleMoveableScaleStart = (e: any) => {
+        if (isAltPressed || e.inputEvent?.altKey) {
+            console.log('[Moveable] Scale START CANCELLED - Alt is pressed');
+            e.stopDrag();
+            return;
+        }
         console.log('[Moveable] Scale START');
+        setDragMode('scale');
         e.set([cropConfig.scale, cropConfig.scale]);
         if (e.dragStart) {
             e.dragStart.set([cropConfig.x, cropConfig.y]);
@@ -252,16 +269,24 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     };
 
     const handleMoveableClip = (e: any) => {
-        if (!onCropChange || !e.clipPath) return;
-        const clipPathStr = e.clipPath as string;
+        const clipPathStr = e.clipStyle || e.clipPath;
+        if (!onCropChange || !clipPathStr) {
+            console.log('[Moveable] Clip Progress SKIPPED - Missing cropChange or clipPath', e);
+            return;
+        }
         console.log('[Moveable] Clip Progress:', clipPathStr);
 
-        const match = clipPathStr.match(/inset\(([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?/);
+        // Direct style update for real-time preview
+        if (videoRef.current) {
+            videoRef.current.style.clipPath = clipPathStr;
+        }
+
+        const match = clipPathStr.match(/inset\(\s*([\d.%px]+)\s+([\d.%px]+)\s+([\d.%px]+)\s+([\d.%px]+)\s*\)/i) ||
+            clipPathStr.match(/inset\(\s*([\d.%px]+)\s*\)/i);
+
         if (match) {
-            let [_, pT, pR, pB, pL] = match.map(Number);
-            if (videoRef.current) {
-                videoRef.current.style.clipPath = clipPathStr;
-            }
+            const values = match.slice(1).map((v: string) => parseFloat(v));
+            let [pT, pR, pB, pL] = values.length === 1 ? [values[0], values[0], values[0], values[0]] : values;
             const current = cropConfig;
             const r = ((current.rotation % 360) + 360) % 360;
             let vT, vR, vB, vL;
@@ -313,39 +338,63 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
             {isAdjustmentMode && (
                 <>
-                    <Moveable
-                        target={videoRef.current}
-                        container={document.body}
-                        draggable={true}
-                        scalable={!isShiftPressed}
-                        rotatable={true}
-                        clippable={isShiftPressed}
-                        clipRelative={true}
-                        dragWithClip={true}
-                        keepRatio={!isShiftPressed}
-                        onDragStart={handleMoveableDragStart}
-                        throttleRotate={0}
-                        throttleDrag={0}
-                        throttleScale={0}
-                        snapRotationDegrees={[0, 90, 180, 270]}
-                        snapRotationThreshold={5}
-                        defaultClipPath={clipPath}
-                        onDrag={handleMoveableDrag}
-                        onScaleStart={handleMoveableScaleStart}
-                        onScale={handleMoveableScale}
-                        onRotateStart={handleMoveableRotateStart}
-                        onRotate={handleMoveableRotate}
-                        onClipStart={() => console.log('[Moveable] Clip START')}
-                        onClip={handleMoveableClip}
-                        renderDirections={["nw", "ne", "sw", "se", "n", "s", "e", "w"]}
-                        className="video-moveable"
-                    />
+                    {(() => {
+                        const isClipping = dragMode === 'clip' || (dragMode === 'none' && isAltPressed);
+                        return (
+                            <Moveable
+                                target={videoRef.current}
+                                container={document.body}
+                                draggable={!isClipping}
+                                scalable={!isClipping}
+                                rotatable={!isClipping}
+                                clippable={isClipping}
+                                clipRelative={true}
+                                clipArea={true}
+                                clipTargetBounds={false}
+                                dragWithClip={false}
+                                keepRatio={!isClipping}
+                                onDragStart={(e) => {
+                                    handleMoveableDragStart(e);
+                                }}
+                                onDrag={handleMoveableDrag}
+                                onDragEnd={() => setDragMode('none')}
+                                onScaleStart={(e) => {
+                                    handleMoveableScaleStart(e);
+                                }}
+                                onScale={handleMoveableScale}
+                                onScaleEnd={() => setDragMode('none')}
+                                onRotateStart={(e) => {
+                                    handleMoveableRotateStart(e);
+                                    setDragMode('scale');
+                                }}
+                                onRotate={handleMoveableRotate}
+                                onRotateEnd={() => setDragMode('none')}
+                                throttleRotate={0}
+                                throttleDrag={0}
+                                throttleScale={0}
+                                snapRotationDegrees={[0, 90, 180, 270]}
+                                snapRotationThreshold={5}
+                                defaultClipPath={clipPath}
+                                onClipStart={(e) => {
+                                    console.log('[Moveable] Clip START', e);
+                                    setDragMode('clip');
+                                }}
+                                onClip={handleMoveableClip}
+                                onClipEnd={(e) => {
+                                    console.log('[Moveable] Clip END', e);
+                                    setDragMode('none');
+                                }}
+                                renderDirections={["nw", "ne", "sw", "se", "n", "s", "e", "w"]}
+                                className="video-moveable"
+                            />
+                        );
+                    })()}
 
                     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-[500] 
                         bg-black/80 text-white px-4 py-2 rounded-full border border-white/20 text-sm">
-                        {isShiftPressed
+                        {isAltPressed
                             ? "🎦 トリミングモード（端をドラッグして切り抜き）"
-                            : "📐 拡大・移動モード（Shiftキーを押しながらトリミング）"}
+                            : "📐 拡大・移動モード（Altキーを押しながらトリミング）"}
                     </div>
 
                     {/* Guides */}
