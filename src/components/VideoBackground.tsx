@@ -165,11 +165,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         const r = ((cropConfig.rotation % 360) + 360) % 360;
         let pT, pR, pB, pL;
         if (r === 90) {
-            [pT, pR, pB, pL] = [vR, vB, vL, vT];
+            [pT, pR, pB, pL] = [vL, vT, vR, vB];
         } else if (r === 180) {
             [pT, pR, pB, pL] = [vB, vL, vT, vR];
         } else if (r === 270) {
-            [pT, pR, pB, pL] = [vL, vT, vR, vB];
+            [pT, pR, pB, pL] = [vR, vB, vL, vT];
         } else {
             [pT, pR, pB, pL] = [vT, vR, vB, vL];
         }
@@ -238,17 +238,25 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     const handleMoveableClip = (e: any) => {
         if (!onCropChange || !e.clipPath) return;
 
-        const match = (e.clipPath as string).match(/inset\(([\d.]+)% ([\d.]+)% ([\d.]+)% ([\d.]+)%\)/);
+        const match = (e.clipPath as string).match(/inset\(([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\s+([\d.]+)(?:%|px)?\)/);
         if (match) {
             let [_, pT, pR, pB, pL] = match.map(Number);
 
             const current = cropConfig;
             const r = ((current.rotation % 360) + 360) % 360;
             let vT, vR, vB, vL;
-            if (r === 90) { [vR, vB, vL, vT] = [pT, pR, pB, pL]; }
-            else if (r === 180) { [vB, vL, vT, vR] = [pT, pR, pB, pL]; }
-            else if (r === 270) { [vL, vT, vR, vB] = [pT, pR, pB, pL]; }
-            else { [vT, vR, vB, vL] = [pT, pR, pB, pL]; }
+            if (r === 90) {
+                // pT=vL, pR=vT, pB=vR, pL=vB
+                [vL, vT, vR, vB] = [pT, pR, pB, pL];
+            } else if (r === 180) {
+                // pT=vB, pR=vL, pB=vT, pL=vR
+                [vB, vL, vT, vR] = [pT, pR, pB, pL];
+            } else if (r === 270) {
+                // pT=vR, pR=vB, pB=vL, pL=vT
+                [vR, vB, vL, vT] = [pT, pR, pB, pL];
+            } else {
+                [vT, vR, vB, vL] = [pT, pR, pB, pL];
+            }
             if (current.flipV) [vT, vB] = [vB, vT];
             if (current.flipH) [vL, vR] = [vR, vL];
 
@@ -299,6 +307,8 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                         scalable={true}
                         rotatable={true}
                         clippable={true}
+                        clipRelative={true}
+                        keepRatio={true}
                         edge={true}
                         onDragStart={handleMoveableDragStart}
                         throttleRotate={0}
