@@ -1,32 +1,34 @@
 # ホロライブカードデータ取得・更新ルール (Hololive Data Development Rule)
 
 ## 概要
-`hololive-cards.json` に影響を与えるスクリプトやロジックの修正を行う際は、公式サイトへの負荷を最小限に抑え、安全かつ高速に開発・検証を行うため、必ず「開発モード」を使用してください。
+`tools/` フォルダ内のスクリプトは、ホロライブのカード情報を取得・整理するための個人用・テスト用ツールです。
+これらは本プロジェクトの配布物には含まれず、GitHub等にもアップロードされません。
+これらを使用して `hololive-cards.json` を更新・修正する際は、公式サイトへの負荷を最小限に抑えるため、必ず「開発モード」を使用してください。
 
 ## 対象ファイル
 以下のファイル、およびこれに関連するデータパース・保存ロジックを変更する場合が対象となります。
-- `scripts/fetch-hololive-data.js`
-- `scripts/download-images.js`
-- `scripts/enrich-cards.js`
-- `scripts/download-type-icons.js`
+- `tools/fetch-hololive-data.js`
+- `tools/download-images.js`
+- `tools/enrich-cards.js`
+- `tools/download-type-icons.js`
 - `src/data/hololive-cards.json` (直接編集または構造変更時)
 
 ## 開発モードの使用手順
-`fetch-hololive-data.js` を実行する際は、環境変数 `DEV=true` を付与して実行し、ローカルキャッシュ（`scripts/cache/hololive/`）を利用してください。
+`fetch-hololive-data.js` を実行する際は、環境変数 `DEV=true` を付与して実行し、ローカルキャッシュ（`tools/cache/hololive/`）を利用してください。
 
 ### 実行コマンド例
-- **PowerShell**: `$env:DEV="true"; node scripts/fetch-hololive-data.js`
-- **Cmd**: `set DEV=true&& node scripts/fetch-hololive-data.js`
+- **PowerShell**: `$env:DEV="true"; node tools/fetch-hololive-data.js`
+- **Cmd**: `set DEV=true&& node tools/fetch-hololive-data.js`
 
 ## ルール適用基準
 1. **ロジック修正後の初回テスト**: 解析ロジック（セレクタの変更、新フィールドの追加等）を変更した後の動作確認は、必ずキャッシュを用いて行います。
 2. **データの整合性確認**: 取得件数の不一致や順序の変更など、意図しないデータ破壊を防ぐための検証にも開発モードを用います。
 3. **不要なアクセス禁止**: データの加工（かな変換や画像パス修正など）のみが目的で、公式サイトから最新情報を取得する必要がない場合は開発モードを維持します。
-4. **迅速な相談**: 特定のデータ項目（例：アイコンのファイル名）の特定や、HTML解析に苦戦した場合は、一人で長時間悩み続けず、**即座にユーザーに確認**してください。これにより無駄な推測や試行錯誤を排除します。
+4. **迅速な相談**: 特定のデータ項目（例：アイコンのファイル名）の特定や、HTML解析に苦戦した場合は、一人で長時間悩み続けず、**即座にユーザーに確認**してください。
 
-## GitHub Actions における運用
-GitHub Actions 等の CI/CD 環境で自動更新ワークフローを実行する際は、公式サイトから常に最新の情報を取得するため、環境変数 `DEV=false` を明示的に指定して実行します。
-これにより、キャッシュに依存せず、常に最新かつ正確なデータをレポジトリに反映させることを保証します。
+## メンテナンスと管理
+これらのツールと生成されたデータは `.gitignore` により Git 管理から除外されています。
+パブリックリポジトリに誤って個人利用目的のデータやスクリプトを混入させないよう注意してください。
 
 ---
 

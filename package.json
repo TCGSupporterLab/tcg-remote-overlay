@@ -7,25 +7,18 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "download-images": "node scripts/download-images.js",
-    "download-type-icons": "node scripts/download-type-icons.js",
-    "fetch-data": "node scripts/fetch-hololive-data.js",
-    "update-data": "npm run fetch-data && npm run download-images && npm run download-type-icons"
+    "preview": "vite preview"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "idb-keyval": "^6.2.2",
     "lucide-react": "^0.564.0",
-    "puppeteer": "^24.37.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-moveable": "^0.56.0",
     "react-selecto": "^1.26.3",
     "selecto": "^1.26.3",
-    "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0",
-    "tesseract.js": "^7.0.0",
     "uuid": "^13.0.0",
     "zustand": "^5.0.11"
   },

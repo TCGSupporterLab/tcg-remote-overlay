@@ -111,7 +111,6 @@ interface WidgetStoreState {
 const STORAGE_KEYS = {
     WIDGETS: 'tcg_remote_widget_store_v3',
     GROUPS: 'widget_groups',
-    SETTINGS: 'tcg_remote_settings_v4',
     LAYOUTS: 'tcg_remote_my_layouts_v1',
 };
 

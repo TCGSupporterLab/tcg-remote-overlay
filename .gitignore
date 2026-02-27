@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Tools/Private
+tools
+src/data/hololive-cards.json
+public/images/cardlist
+public/images/icons
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

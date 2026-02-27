@@ -6,11 +6,10 @@
 ### 同信方式
 - **BroadcastChannel API**: 以下の複数の目的別チャンネルを使用して、同一ブラウザ内の別タブ・別ウィンドウ間でメッセージを送信します。
     - `tcg_remote_sync`: ウィジェットのグループ化（Grouping）情報の同期
-    - `tcg_remote_search_sync`: カード検索状態、ピン留め、パス階層、表示番号の同期
+    - `tcg_remote_search_sync`: カード検索状態、ピン留め、パス階層、表示番号、および**表示モード（Simple/Library）**の同期
     - `tcg_remote_sync_lp`: ライフポイント（P1/P2/ターゲット/入力中数値）の同期
     - `tcg_remote_widget_settings`: 全ウィジェット（ダイス、コイン、LP、カード）の表示ON/OFF、初期ライフ設定の同期
     - `tcg_remote_sp_marker_sync`: SPマーカーの状態（表示ON/OFF、表裏面、強制非表示）の同期
-    - `tcg_remote_search_sync`: カード検索状態、ピン留め、パス階層、表示番号、および**表示モード（Simple/Library）**の同期
 - **同期されるデータ**:
     - 各ウィジェットの表示・非表示
     - ライフポイント、ログ、入力中の計算数値
