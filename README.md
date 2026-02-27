@@ -55,6 +55,11 @@ OBSなどの配信ソフトでの使用や、Discord等の画面共有を用い�
 
 ## 🚀 使い方
 
+### 推奨ブラウザ
+
+- **Google Chrome** または **Microsoft Edge**（デスクトップ版）
+- カード画像のフォルダ読み込み機能（File System Access API）がChromium系ブラウザにのみ対応しているため、FirefoxやSafariではフル機能を利用できません。
+
 ### セットアップ
 
 1.  **リポジトリをクローン**

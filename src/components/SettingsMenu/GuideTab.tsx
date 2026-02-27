@@ -39,6 +39,9 @@ export const GuideTab = () => {
                 <p className="text-xs text-white/50 leading-relaxed">
                     <Kbd>Esc</Kbd> または<span className="font-bold text-white">背景を右クリック</span>で、いつでも設定メニューを開閉できます。
                 </p>
+                <p className="text-xs text-white/40 leading-relaxed">
+                    推奨ブラウザ：<span className="font-bold text-white/60">Google Chrome</span> または <span className="font-bold text-white/60">Microsoft Edge</span>（デスクトップ版）
+                </p>
             </div>
 
             {/* セットアップガイド */}
