@@ -33,6 +33,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     const streamRef = useRef<MediaStream | null>(null);
     const [isActive, setIsActive] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const lastSourceTypeRef = useRef<VideoSourceType>(sourceType);
     const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
     const [isAltPressed, setIsAltPressed] = useState(false);
     const [dragMode, setDragMode] = useState<'none' | 'scale' | 'clip'>('none');
@@ -203,6 +204,10 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     };
 
     useEffect(() => {
+        if (lastSourceTypeRef.current !== sourceType) {
+            setError(null);
+            lastSourceTypeRef.current = sourceType;
+        }
         stopStream();
     }, [sourceType, stopStream]);
 
