@@ -94,6 +94,7 @@ interface WidgetStoreState {
     clearGroups: () => void;
     groupSelectedWidgets: () => void;
     ungroupSelectedWidgets: () => void;
+    hideSelectedWidgets: () => void;
 
     // マイレイアウト Actions
     saveLayout: (name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
@@ -438,6 +439,26 @@ export const useWidgetStore = create<WidgetStoreState>()(
                     ...groupData,
                     groups: nextGroups,
                 }
+            };
+        }),
+
+        hideSelectedWidgets: () => set((state) => {
+            const { selectedWidgetIds, visibility } = state;
+            if (selectedWidgetIds.length === 0) return state;
+
+            const nextVisibility = { ...visibility };
+            selectedWidgetIds.forEach(id => {
+                if (id === 'dice') nextVisibility.isDiceVisible = false;
+                else if (id === 'coin') nextVisibility.isCoinVisible = false;
+                else if (id === 'lp_calculator') nextVisibility.isLPVisible = false;
+                else if (id === 'card_widget') nextVisibility.isCardWidgetVisible = false;
+                else if (id === 'sp_marker') nextVisibility.isSPMarkerVisible = false;
+            });
+
+            return {
+                visibility: nextVisibility,
+                selectedWidgetIds: [], // 非表示にした後は選択を解除
+                needsSync: true
             };
         }),
 

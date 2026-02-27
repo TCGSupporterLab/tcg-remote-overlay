@@ -70,6 +70,7 @@ function App() {
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
   const importDefaultLayouts = useWidgetStore(s => s.importDefaultLayouts);
   const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
+  const hideSelectedWidgets = useWidgetStore(s => s.hideSelectedWidgets);
 
   const {
     isDiceVisible,
@@ -317,6 +318,15 @@ function App() {
         }
         setShowSettings(prev => !prev);
         return;
+      }
+
+      // Handle Delete (Hide Selected Widgets)
+      if (e.key === 'Delete') {
+        if (selectedWidgetIds.length > 0) {
+          e.preventDefault();
+          hideSelectedWidgets();
+          return;
+        }
       }
 
       // Handle Ctrl+A (Select All Widgets)
