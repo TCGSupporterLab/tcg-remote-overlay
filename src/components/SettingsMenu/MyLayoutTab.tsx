@@ -1,4 +1,4 @@
-import { Layout, Play, Download, Upload, Trash2, Save, Layers, Video } from 'lucide-react';
+import { Layout, Play, Download, Upload, Trash2, Save, Layers, Video, EyeOff } from 'lucide-react';
 import { useWidgetStore } from '../../store/useWidgetStore';
 
 interface MyLayoutTabProps {
@@ -109,6 +109,11 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                                 <Video size={14} />
                                             </div>
                                         )}
+                                        {layout.hideOthers && (
+                                            <div title="他を隠す" className="p-1 bg-amber-500/10 text-amber-500 rounded">
+                                                <EyeOff size={14} />
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-col">
@@ -116,9 +121,6 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                             <span className="font-bold text-gray-200 group-hover:text-white transition-colors text-sm">
                                                 {layout.name}
                                             </span>
-                                            {layout.hideOthers && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded-full font-bold">Snapshot</span>
-                                            )}
                                         </div>
                                         {!layout.isDefault && (
                                             <span className="text-[10px] text-gray-500">

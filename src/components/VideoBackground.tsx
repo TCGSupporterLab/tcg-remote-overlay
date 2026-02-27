@@ -4,7 +4,7 @@ import Moveable from 'react-moveable';
 import type {
     OnDrag, OnScale, OnRotate, OnRotateStart
 } from 'react-moveable';
-import { type CropConfig, DEFAULT_CROP } from '../types/widgetTypes';
+import { type CropConfig, DEFAULT_CROP, type VideoSourceType } from '../types/widgetTypes';
 
 
 interface VideoBackgroundProps {
@@ -165,7 +165,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             setIsActive(true);
         } catch (err: any) {
             console.error('Error accessing media devices:', err);
-            setError(err.name === 'NotAllowedError' ? 'カメラの使用許可が必要です' : '映像を取得できませんでした');
+            setError(err.name === 'NotAllowedError' ? (sourceType === 'camera' ? 'カメラの使用許可が必要です' : '画面共有の使用許可が必要です') : '映像を取得できませんでした');
             setIsActive(false);
         }
     };
@@ -527,7 +527,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             {!isActive && (
                 <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-[1000] p-6 text-center">
                     <p className="text-white mb-4 text-sm font-medium">
-                        {error || (sourceType === 'camera' ? 'カメラ映像を表示します' : '画面共有を開始します')}
+                        {error || (sourceType === 'camera' ? 'カメラの使用許可が必要です' : '画面共有の使用許可が必要です')}
                     </p>
                     <button
                         onClick={startStream}

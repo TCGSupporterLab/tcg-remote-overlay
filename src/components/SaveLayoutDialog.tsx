@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Layers, Video, ShieldCheck } from 'lucide-react';
+import { X, Save, Layers, Video, EyeOff } from 'lucide-react';
 
 interface SaveLayoutDialogProps {
     isOpen: boolean;
@@ -137,10 +137,10 @@ export const SaveLayoutDialog = ({ isOpen, onClose, onSave, initialOptions, sour
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${hideOthers ? 'bg-purple-600/20 text-purple-400' : 'bg-gray-800 text-gray-500'}`}>
-                                    <ShieldCheck size={18} />
+                                    <EyeOff size={18} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white">他を隠す (Snapshot)</p>
+                                    <p className="text-sm font-bold text-white">他を隠す</p>
                                     <p className="text-[10px] text-gray-500">保存時以外のものを非表示にする</p>
                                 </div>
                             </div>
