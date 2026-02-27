@@ -4,7 +4,7 @@ import { get, set, del } from 'idb-keyval';
 import { LPCalculator } from './components/LPCalculator';
 
 import { useCardSearch, restoreFolderCache } from './hooks/useCardSearch';
-import { useWidgetStore, type DisplayPreset } from './store/useWidgetStore';
+import { useWidgetStore } from './store/useWidgetStore';
 import { VideoBackground } from './components/VideoBackground';
 import { type VideoSourceType, DEFAULT_CROP } from './types/widgetTypes';
 import { SettingsMenu } from './components/SettingsMenu';
@@ -89,8 +89,8 @@ function App() {
   const {
     initialLP,
     onlyShowPlayer1,
-    activePreset,
     spMarkerFace,
+    lpTargetPlayer,
   } = settings;
 
   // Actions for compatibility or simplified calling
@@ -100,10 +100,12 @@ function App() {
   const setCardWidgetVisible = (val: boolean) => setVisibility({ isCardWidgetVisible: val });
   const setInitialLP = (val: number) => setSettings({ initialLP: val });
   const setOnlyShowPlayer1 = (val: boolean) => setSettings({ onlyShowPlayer1: val });
-  const setActivePreset = (preset: DisplayPreset) => setSettings({ activePreset: preset });
   const toggleSPMarkerMode = () => setVisibility({ isSPMarkerVisible: !isSPMarkerVisible });
   const toggleSPMarkerFace = () => setSettings({ spMarkerFace: spMarkerFace === 'front' ? 'back' : 'front' });
   const toggleSPMarkerForceHidden = () => setVisibility({ showSPMarkerForceHidden: !showSPMarkerForceHidden });
+  const setLPTargetPlayer = (val: 'p1' | 'p2' | null) => {
+    if (val !== null) setSettings({ lpTargetPlayer: val });
+  };
 
   // Sync folder name for caching logic
   useEffect(() => {
@@ -223,11 +225,13 @@ function App() {
   }, [obsMode]);
 
   // Persistent Tool State
-  const dotTimerRef = useRef<number | null>(null);
+  const dotTimerRef = useRef<number | undefined>(undefined);
   const lastDotTapRef = useRef<number>(0);
-  const rPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const oTimerRef = useRef<number | undefined>(undefined); // Added
+  const lastOTapRef = useRef<number>(0); // Added
+  const rPressTimerRef = useRef<number | undefined>(undefined);
   const displayCardNoBufferRef = useRef<string>("");
-  const displayCardNoTimerRef = useRef<number | null>(null);
+  const displayCardNoTimerRef = useRef<number | undefined>(undefined);
   // View mode detection
   const searchViewParam = new URLSearchParams(window.location.search).get('view');
   const isSearchView = searchViewParam === 'search';
@@ -326,9 +330,7 @@ function App() {
     };
   }, [isSearchView]);
 
-  const handlePresetChange = (preset: DisplayPreset) => {
-    setActivePreset(preset);
-  };
+
 
   const handleRollDice = useCallback(() => {
     const array = new Uint32Array(1);
@@ -437,75 +439,70 @@ function App() {
         toggleAdjustmentMode();
       }
 
-      // Preset Quick Toggle
-      if (e.altKey) {
-        if (e.key === '1') setSettings({ activePreset: 'yugioh' });
-        if (e.key === '2') setSettings({ activePreset: 'hololive' });
-      }
 
-      // Reset Long Press (3s)
+
+      // Reset Long Press (1.5s)
       if (e.key === 'r' || e.key === 'R') {
         if (!rPressTimerRef.current) {
           if (import.meta.env.DEV) console.log("[Shortcut] R key pressed, starting long press timer...");
-          rPressTimerRef.current = setTimeout(() => {
+          rPressTimerRef.current = window.setTimeout(() => {
             fullReset();
-            rPressTimerRef.current = null;
-            if (import.meta.env.DEV) console.log("[Shortcut] Full Reset triggered by 3s hold");
-          }, 3000);
+            rPressTimerRef.current = undefined;
+            if (import.meta.env.DEV) console.log('[App] Full reset triggered by R long press');
+          }, 1500);
         }
       }
-      if (activePreset === 'hololive' && (e.key === 'o' || e.key === 'O')) {
+      // SP Marker Shortcuts (O: Flip, Double tap: Temporary Toggle)
+      if (e.key === 'o' || e.key === 'O') {
         e.preventDefault();
-        toggleSPMarkerForceHidden();
+        const now = Date.now();
+        const diff = now - lastOTapRef.current;
+
+        if (diff > 0 && diff < 200) {
+          // Double tap!
+          if (oTimerRef.current) {
+            window.clearTimeout(oTimerRef.current);
+            oTimerRef.current = undefined;
+          }
+          toggleSPMarkerForceHidden();
+          lastOTapRef.current = 0; // Reset
+        } else {
+          // First tap or outside double-tap window
+          lastOTapRef.current = now;
+          if (oTimerRef.current) window.clearTimeout(oTimerRef.current);
+          oTimerRef.current = window.setTimeout(() => {
+            toggleSPMarkerFace();
+            oTimerRef.current = undefined;
+            lastOTapRef.current = 0;
+          }, 200);
+        }
       }
 
 
 
-      // Numpad "." (Roll Dice / Double tap for Coin or SP Flip)
+      // Numpad "." (Roll Dice / Double tap for Coin)
       if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
         e.preventDefault();
         const now = Date.now();
         const diff = now - lastDotTapRef.current;
 
-        if (activePreset === 'yugioh') {
-          if (diff > 0 && diff < 150) {
-            // Double tap!
-            if (dotTimerRef.current) {
-              window.clearTimeout(dotTimerRef.current);
-              dotTimerRef.current = null;
-            }
-            handleFlipCoin();
-            lastDotTapRef.current = 0; // Reset
-          } else {
-            // First tap or outside double-tap window
-            lastDotTapRef.current = now;
-            if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
-            dotTimerRef.current = window.setTimeout(() => {
-              handleRollDice();
-              dotTimerRef.current = null;
-              lastDotTapRef.current = 0;
-            }, 150);
+        if (diff > 0 && diff < 150) {
+          // Double tap!
+          if (dotTimerRef.current) {
+            window.clearTimeout(dotTimerRef.current);
+            dotTimerRef.current = undefined;
           }
+          handleFlipCoin();
+          lastDotTapRef.current = 0; // Reset
         } else {
-          // Hololive mode
-          if (diff > 0 && diff < 200) {
-            // Double tap!
-            if (dotTimerRef.current) {
-              window.clearTimeout(dotTimerRef.current);
-              dotTimerRef.current = null;
-            }
-            toggleSPMarkerFace();
-            lastDotTapRef.current = 0; // Reset
-          } else {
-            // First tap
-            lastDotTapRef.current = now;
-            if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
-            dotTimerRef.current = window.setTimeout(() => {
-              handleRollDice();
-              dotTimerRef.current = null;
-              lastDotTapRef.current = 0;
-            }, 200);
-          }
+          // First tap or outside double-tap window
+          lastDotTapRef.current = now;
+          if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
+          dotTimerRef.current = window.setTimeout(() => {
+            handleRollDice();
+            dotTimerRef.current = undefined;
+            lastDotTapRef.current = 0;
+          }, 150);
         }
       }
 
@@ -550,7 +547,7 @@ function App() {
 
           displayCardNoTimerRef.current = window.setTimeout(() => {
             displayCardNoBufferRef.current = "";
-            displayCardNoTimerRef.current = null;
+            displayCardNoTimerRef.current = undefined;
           }, 200); // Match Hololive card selection window (200ms)
         }
       }
@@ -571,8 +568,8 @@ function App() {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'r' || e.key === 'R') {
         if (rPressTimerRef.current) {
-          clearTimeout(rPressTimerRef.current);
-          rPressTimerRef.current = null;
+          window.clearTimeout(rPressTimerRef.current);
+          rPressTimerRef.current = undefined;
           if (import.meta.env.DEV) console.log("[Shortcut] R key released, timer cancelled");
         }
       }
@@ -588,7 +585,7 @@ function App() {
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('mousedown', handleMouseDown, true);
     };
-  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets, fullReset]);
+  }, [handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets, fullReset]);
 
 
   if (import.meta.env.DEV) {
@@ -768,6 +765,8 @@ function App() {
                 isLPVisible={true}
                 initialLP={initialLP}
                 onlyShowPlayer1={onlyShowPlayer1}
+                targetPlayer={lpTargetPlayer}
+                onTargetPlayerChange={setLPTargetPlayer}
               />
             </div>
           </OverlayWidget>
@@ -862,8 +861,6 @@ function App() {
             isAdjustingVideo={isAdjustingVideo}
             onToggleVideoAdjust={toggleAdjustmentMode}
             onOpenSaveDialog={openSaveDialog}
-            activePreset={activePreset}
-            onPresetChange={handlePresetChange}
             obsMode={obsMode}
             onObsModeChange={setObsMode}
             // Tab State Props (Lifted)

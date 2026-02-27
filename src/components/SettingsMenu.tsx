@@ -12,7 +12,6 @@ import { SettingsTabs, type TabType } from './SettingsMenu/SettingsTabs';
 import { MyLayoutTab } from './SettingsMenu/MyLayoutTab';
 
 type ObsMode = 'normal' | 'green';
-type DisplayPreset = 'yugioh' | 'hololive' | 'none';
 
 interface SettingsMenuProps {
     onClose: () => void;
@@ -22,8 +21,6 @@ interface SettingsMenuProps {
     isAdjustingVideo: boolean;
     onToggleVideoAdjust: () => void;
     // Core App Props
-    activePreset: DisplayPreset;
-    onPresetChange: (preset: DisplayPreset) => void;
     obsMode: ObsMode;
     onObsModeChange: (mode: ObsMode) => void;
     // Layout Prop
@@ -78,17 +75,17 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
         const saved = localStorage.getItem('settings_isCardSectionOpen');
         return saved !== null ? saved === 'true' : true;
     });
-    const [isYugiohSectionOpen, setIsYugiohSectionOpen] = useState(() => {
-        const saved = localStorage.getItem('settings_isYugiohSectionOpen');
-        return saved !== null ? saved === 'true' : false;
-    });
-    const [isHololiveSectionOpen, setIsHololiveSectionOpen] = useState(() => {
-        const saved = localStorage.getItem('settings_isHololiveSectionOpen');
-        return saved !== null ? saved === 'true' : false;
-    });
     const [isLPSectionOpen, setIsLPSectionOpen] = useState(() => {
         const saved = localStorage.getItem('settings_isLPSectionOpen');
         return saved !== null ? saved === 'true' : false;
+    });
+    const [isYugiohSectionOpen, setIsYugiohSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isYugiohSectionOpen');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [isHololiveSectionOpen, setIsHololiveSectionOpen] = useState(() => {
+        const saved = localStorage.getItem('settings_isHololiveSectionOpen');
+        return saved !== null ? saved === 'true' : true;
     });
     const [isOrderSectionOpen, setIsOrderSectionOpen] = useState(() => {
         const saved = localStorage.getItem('settings_isOrderSectionOpen');
@@ -114,16 +111,16 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
     }, [isCardSectionOpen]);
 
     useEffect(() => {
+        localStorage.setItem('settings_isLPSectionOpen', String(isLPSectionOpen));
+    }, [isLPSectionOpen]);
+
+    useEffect(() => {
         localStorage.setItem('settings_isYugiohSectionOpen', String(isYugiohSectionOpen));
     }, [isYugiohSectionOpen]);
 
     useEffect(() => {
         localStorage.setItem('settings_isHololiveSectionOpen', String(isHololiveSectionOpen));
     }, [isHololiveSectionOpen]);
-
-    useEffect(() => {
-        localStorage.setItem('settings_isLPSectionOpen', String(isLPSectionOpen));
-    }, [isLPSectionOpen]);
 
     useEffect(() => {
         localStorage.setItem('settings_isOrderSectionOpen', String(isOrderSectionOpen));
@@ -204,12 +201,12 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 {...props}
                                 isCardSectionOpen={isCardSectionOpen}
                                 onToggleCardSectionOpen={() => setIsCardSectionOpen(!isCardSectionOpen)}
+                                isLPSectionOpen={isLPSectionOpen}
+                                onToggleLPSectionOpen={() => setIsLPSectionOpen(!isLPSectionOpen)}
                                 isYugiohSectionOpen={isYugiohSectionOpen}
                                 onToggleYugiohSectionOpen={() => setIsYugiohSectionOpen(!isYugiohSectionOpen)}
                                 isHololiveSectionOpen={isHololiveSectionOpen}
                                 onToggleHololiveSectionOpen={() => setIsHololiveSectionOpen(!isHololiveSectionOpen)}
-                                isLPSectionOpen={isLPSectionOpen}
-                                onToggleLPSectionOpen={() => setIsLPSectionOpen(!isLPSectionOpen)}
                                 isOrderSectionOpen={isOrderSectionOpen}
                                 onToggleOrderSectionOpen={() => setIsOrderSectionOpen(!isOrderSectionOpen)}
                                 isGenericCategoryOpen={isGenericCategoryOpen}

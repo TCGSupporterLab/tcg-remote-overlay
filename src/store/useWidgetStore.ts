@@ -6,7 +6,6 @@ import { type WidgetId, type WidgetState, type WidgetGroupData, type WidgetGroup
 const DEFAULT_LAYOUT_MODULES = import.meta.glob('../data/default_layout/*.json', { eager: true });
 
 export type ObsMode = 'normal' | 'green';
-export type DisplayPreset = 'yugioh' | 'hololive' | 'none';
 export type SPMarkerFace = 'front' | 'back';
 
 interface SelectionRect {
@@ -40,10 +39,10 @@ interface WidgetStoreState {
     settings: {
         initialLP: number;
         onlyShowPlayer1: boolean;
-        activePreset: DisplayPreset;
         spMarkerFace: SPMarkerFace;
         hideSettingsOnStart: boolean;
         cardMode: 'library' | 'simple';
+        lpTargetPlayer: 'p1' | 'p2';
         simpleCardImage?: { name: string; type: string };
     };
     // 選択
@@ -68,7 +67,6 @@ interface WidgetStoreState {
 
     // 順序管理
     widgetOrder: WidgetId[];
-    pinnedCardIds: string[];
     simpleCardImageUrl: string | null;
     // マイレイアウト
     myLayouts: MyLayout[];
@@ -132,10 +130,10 @@ const getInitialState = () => {
         settings: {
             initialLP: 8000,
             onlyShowPlayer1: false,
-            activePreset: 'yugioh' as DisplayPreset,
             spMarkerFace: 'front' as SPMarkerFace,
             hideSettingsOnStart: false,
             cardMode: 'library' as 'library' | 'simple',
+            lpTargetPlayer: 'p1' as 'p1' | 'p2',
         },
         selectedWidgetIds: [],
         groupData: savedGroups ? JSON.parse(savedGroups) : { groups: [], relativeTransforms: {} },
@@ -151,7 +149,6 @@ const getInitialState = () => {
         needsSync: false,
         viewSize: { w: window.innerWidth, h: window.innerHeight },
         widgetOrder: [] as WidgetId[],
-        pinnedCardIds: [],
         simpleCardImageUrl: null,
         myLayouts: [],
         hasImportedDefaultLayouts: localStorage.getItem('tcg_remote_layout_imported') === 'true',
@@ -170,9 +167,23 @@ const getInitialState = () => {
         try {
             const parsed = JSON.parse(savedWidgets);
             if (parsed.widgetStates) base.widgetStates = parsed.widgetStates;
-            if (parsed.visibility) base.visibility = { ...base.visibility, ...parsed.visibility };
-            if (parsed.settings) base.settings = { ...base.settings, ...parsed.settings };
-            if (!base.settings.cardMode) base.settings.cardMode = 'library';
+            if (parsed.visibility) {
+                base.visibility = {
+                    ...base.visibility,
+                    ...parsed.visibility,
+                    // アプリケーション再起動時は一時非表示状態を強制解除
+                    showSPMarkerForceHidden: false
+                };
+            }
+
+            if (parsed.settings) {
+                base.settings = {
+                    ...base.settings,
+                    ...parsed.settings
+                };
+                // フィールド欠落時のデフォルト（移行用）
+                if (!base.settings.cardMode) base.settings.cardMode = 'library';
+            }
             if (parsed.widgetOrder) {
                 base.widgetOrder = (parsed.widgetOrder as string[]).map(id => {
                     if (id === 'lp') return 'lp_calculator' as WidgetId;
@@ -723,6 +734,7 @@ export const useWidgetStore = create<WidgetStoreState>()(
                 settings: {
                     ...state.settings,
                     spMarkerFace: 'front',
+                    lpTargetPlayer: 'p1',
                 },
                 needsSync: true
             };

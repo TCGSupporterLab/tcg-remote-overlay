@@ -239,7 +239,7 @@ export const YugiohSection = ({
             <div className="flex items-center gap-[10px] flex-1">
                 <RectangleVertical size={18} className="text-blue-400 group-hover:text-blue-300 transition-colors drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]" />
                 <div className="flex items-center gap-[8px]">
-                    <h3 className="text-[15px] font-bold text-gray-300 group-hover:text-white tracking-wide uppercase">遊戯王</h3>
+                    <h3 className="text-[15px] font-bold text-gray-300 group-hover:text-white tracking-wide uppercase">遊戯王 OCG</h3>
                     <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
                 </div>
             </div>
@@ -293,7 +293,7 @@ export const HololiveSection = ({
             <div className="flex items-center gap-[10px] flex-1">
                 <RectangleVertical size={18} className="text-cyan-400 group-hover:text-cyan-300 transition-colors drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]" />
                 <div className="flex items-center gap-[8px]">
-                    <h3 className="text-[15px] font-bold text-gray-300 group-hover:text-white tracking-wide uppercase">ホロライブ</h3>
+                    <h3 className="text-[15px] font-bold text-gray-300 group-hover:text-white tracking-wide uppercase">ホロライブ OCG</h3>
                     <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
                 </div>
             </div>

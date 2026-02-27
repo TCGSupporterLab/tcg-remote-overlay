@@ -1,4 +1,4 @@
-# ホロライブカードデータ取得・更新ルール (Hololive Data Development Rule)
+# ローカルカードデータ取得・更新ルール (Local Data Development Rule)
 
 ## 概要
 `tools/` フォルダ内のスクリプトは、ホロライブのカード情報を取得・整理するための個人用・テスト用ツールです。

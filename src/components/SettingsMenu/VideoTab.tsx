@@ -80,7 +80,7 @@ export const VideoTab = ({
                 </div>
 
                 <div className="p-[16px] rounded-xl bg-white/5 border border-white/10 space-y-[8px]">
-                    <h3 className="text-base font-bold text-white">プリセットとして保存</h3>
+                    <h3 className="text-base font-bold text-white">レイアウトとして保存</h3>
                     <p className="text-xs text-gray-400">現在の映像調整内容をレイアウトとして保存します。</p>
                     <button
                         onClick={() => onOpenSaveDialog('video-menu', { includeWidgets: false, includeVideo: true, hideOthers: false })}

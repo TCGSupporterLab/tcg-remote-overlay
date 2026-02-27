@@ -1,4 +1,4 @@
-import { Settings2, Layers, Settings, ChevronRight } from 'lucide-react';
+import { Settings2, Layers, Settings, ChevronRight, RefreshCw } from 'lucide-react';
 import { SectionHeader } from './SettingsUI';
 import { DiceSetting, CoinSetting, CardSetting, YugiohSection, HololiveSection } from './WidgetSections';
 import { WidgetOrderUI } from './WidgetOrderUI';
@@ -15,10 +15,6 @@ interface WidgetsTabProps {
     // Persistence props
     isCardSectionOpen: boolean;
     onToggleCardSectionOpen: () => void;
-    isYugiohSectionOpen: boolean;
-    onToggleYugiohSectionOpen: () => void;
-    isHololiveSectionOpen: boolean;
-    onToggleHololiveSectionOpen: () => void;
     isLPSectionOpen: boolean;
     onToggleLPSectionOpen: () => void;
     // Card Mode
@@ -56,6 +52,11 @@ interface WidgetsTabProps {
     onToggleGenericCategoryOpen: () => void;
     isSpecializedCategoryOpen: boolean;
     onToggleSpecializedCategoryOpen: () => void;
+    // Game Specific Sections
+    isYugiohSectionOpen: boolean;
+    onToggleYugiohSectionOpen: () => void;
+    isHololiveSectionOpen: boolean;
+    onToggleHololiveSectionOpen: () => void;
     isCommonCategoryOpen: boolean;
     onToggleCommonCategoryOpen: () => void;
     onResetWidgetPosition: (id: string) => void;
@@ -76,19 +77,26 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                 {props.isCommonCategoryOpen && (
                     <div className="space-y-[4px] animate-in slide-in-from-top-2 duration-200">
                         {/* 状態リセット */}
-                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 p-[16px] space-y-[12px] mb-[4px]">
-                            <div className="space-y-[4px]">
-                                <h3 className="text-[15px] font-semibold text-gray-200">状態リセット</h3>
-                                <p className="text-[12px] text-gray-400">
-                                    コイン、ダイス、ライフポイント、SPマーカーの状態を初期化します。
-                                </p>
+                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all mb-[4px]">
+                            <div className="flex items-center justify-between p-[6px] px-[16px] min-h-[52px]">
+                                <div className="flex items-center gap-[12px] flex-1 min-w-0">
+                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 shrink-0">
+                                        <RefreshCw size={18} />
+                                    </div>
+                                    <div className="flex items-center gap-[12px] min-w-0">
+                                        <h3 className="text-[15px] font-semibold text-gray-200 shrink-0">状態リセット</h3>
+                                        <p className="text-[11px] text-gray-400 leading-none truncate">
+                                            コイン、ダイス、ライフポイント、SPマーカーの状態を初期化します。
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={props.onFullReset}
+                                    className="px-[12px] py-[6px] bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg font-bold text-[11px] transition-all active:scale-[0.98] shadow-sm shrink-0 ml-[12px]"
+                                >
+                                    リセットを実行
+                                </button>
                             </div>
-                            <button
-                                onClick={props.onFullReset}
-                                className="w-full py-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-bold transition-all active:scale-[0.98]"
-                            >
-                                全ての状態をリセット
-                            </button>
                         </div>
 
                         {/* 優先表示順 */}

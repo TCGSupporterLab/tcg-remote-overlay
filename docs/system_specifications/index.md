@@ -14,10 +14,10 @@ TCG Remote Overlayは、リモート環境でのカードゲーム対戦をサ�
 - **マイレイアウト機能（配置・映像調整の保存・復元、「他を隠す」機能、JSON入出力、デフォルト配置自動読み込み）**
 - **誤操作防止（Action Shield）と入力遮断（Interaction Exclusion）**
 - データの永続化とリセット、ウィンドウ管理
-- [ホロライブデータ開発ルール (Data Development Rule)](./core/hololive_data_development_rule.md)
+- [ローカルデータ開発ルール (Local Data Development Rule)](./core/local_data_development_rule.md)
 - [カードデータ形式仕様 (Card Data Format)](./core/data_format.md)
 
-### 2. [カード検索 & SPマーカー仕様 (Card Search & SP Marker)](./features/hololive_toolset.md)
+### 2. [カード検索 & SPマーカー仕様 (Card Search & SP Marker)](./features/card_and_sp_marker.md)
 - カード検索エンジン（正規化、ひらがな対応、複数条件フィルタ）
 - **2つの表示モード（Simple/Library）とD&Dによる自動遷移**
 - ピン留め機能（最大1,000枚制限）とドラッグ＆ドロップ並び替え
@@ -25,12 +25,12 @@ TCG Remote Overlayは、リモート環境でのカードゲーム対戦をサ�
 - 独立カードウィジェットとShift+数字キーによる高速切替
 - SPマーカーの状態管理と表示
 
-### 3. [ライフ計算機仕様 (LP Calculator Widget)](./features/yugioh_toolset.md)
+### 3. [ライフ計算機仕様 (LP Calculator Widget)](./features/lp_calculator_widget.md)
 - ライフポイント管理（P1/P2）
 - 計算機機能と履歴（Undo/Redo）
 - ショートカットキー操作、ログ記録、反転設定
 
-### 4. [共通ツール仕様 (Common Tools)](./features/common_tools.md)
+### 4. [共通ツール仕様 (Common Tools)](./features/dice_and_coin.md)
 - ダイスロール（3Dアニメーション）
 - コインタス（3Dアニメーション）
 - デジタルディスプレイ（ネオンエフェクト）

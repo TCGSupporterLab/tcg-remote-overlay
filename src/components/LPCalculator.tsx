@@ -27,6 +27,8 @@ interface LPCalculatorProps {
     isLPVisible?: boolean;
     initialLP?: number;
     onlyShowPlayer1?: boolean;
+    targetPlayer?: 'p1' | 'p2' | null;
+    onTargetPlayerChange?: (player: 'p1' | 'p2' | null) => void;
 }
 
 export const LPCalculator: React.FC<LPCalculatorProps> = ({
@@ -38,12 +40,19 @@ export const LPCalculator: React.FC<LPCalculatorProps> = ({
     isCoinVisible = true,
     isLPVisible = true,
     initialLP = 8000,
-    onlyShowPlayer1 = false
+    onlyShowPlayer1 = false,
+    targetPlayer: propTargetPlayer,
+    onTargetPlayerChange
 }: LPCalculatorProps) => {
     const [p1, setP1] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [p2, setP2] = useState<PlayerState>({ life: initialLP, log: [initialLP], isRotated: false });
     const [inputValue, setInputValue] = useState<string>('');
-    const [targetPlayer, setTargetPlayer] = useState<'p1' | 'p2' | null>('p1');
+    const [internalTargetPlayer, setInternalTargetPlayer] = useState<'p1' | 'p2' | null>('p1');
+    const targetPlayer = propTargetPlayer !== undefined ? propTargetPlayer : internalTargetPlayer;
+    const setTargetPlayer = (val: 'p1' | 'p2' | null) => {
+        if (onTargetPlayerChange) onTargetPlayerChange(val);
+        else setInternalTargetPlayer(val);
+    };
 
     const [history, setHistory] = useState<{ p1: PlayerState, p2: PlayerState }[]>([
         { p1: { life: initialLP, log: [initialLP], isRotated: false }, p2: { life: initialLP, log: [initialLP], isRotated: false } }

@@ -182,8 +182,8 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
             style={{
                 width: '400px',
                 height: '560px',
-                backgroundColor: isImageAvailable ? 'transparent' : 'rgba(0, 0, 0, 0.6)',
-                backdropFilter: isImageAvailable ? 'none' : 'blur(4px)',
+                backgroundColor: isImageAvailable ? 'transparent' : '#1a1b23',
+                backdropFilter: 'none',
                 border: isImageAvailable
                     ? (dragOverType !== 'none' ? '4px dashed rgba(59, 130, 246, 0.6)' : 'none')
                     : (dragOverType !== 'none' ? '4px dashed rgba(59, 130, 246, 0.8)' : '2px dashed rgba(255, 255, 255, 0.3)'),

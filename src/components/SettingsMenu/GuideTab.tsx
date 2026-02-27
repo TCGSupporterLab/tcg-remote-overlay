@@ -23,10 +23,10 @@ export const GuideTab = () => (
             <div className="bg-white/5 rounded-lg p-[0px] border border-white/5 hover:bg-white/10 transition-colors group">
                 <h3 className="text-sm font-bold flex items-center gap-[6px] text-white mb-[0px]">
                     <Layers size={16} className="text-green-400 group-hover:scale-110 transition-transform" />
-                    ゲームモードの選択
+                    レイアウトの選択
                 </h3>
                 <p className="text-xs text-white/70 ml-[22px]">
-                    「基本設定」から表示プリセットを選択できます。
+                    「マイレイアウト」から保存した配置を呼び出せます。
                 </p>
             </div>
 
@@ -47,8 +47,8 @@ export const GuideTab = () => (
                 </h3>
                 <div className="text-xs text-white/70 ml-[22px] space-y-1">
                     <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">Shift + V</kbd> : カメラ/画面共有/なし を<b>逆順</b>で切り替え</p>
-                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">Alt + 1 / 2</kbd> : プリセット(遊戯王/ホロライブ)のクイック切り替え</p>
-                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">R</kbd> を 3秒間長押し : 全ての状態（ライフ、ダイス、コイン等）をリセット</p>
+                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">R</kbd> を 1.5秒間長押し : 全ての状態をリセット</p>
+                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">O</kbd> : SPマーカーの表裏反転（素早く2Tapで一時表示切替）</p>
                 </div>
             </div>
 
