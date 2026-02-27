@@ -58,11 +58,20 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                 setIsAltPressed(false);
             }
         };
+        const handleResize = () => {
+            requestAnimationFrame(() => {
+                moveableRef.current?.updateRect();
+            });
+        };
+
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('resize', handleResize);
+
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('resize', handleResize);
             clearTimeout(timer);
         };
     }, [isAdjustmentMode]);
