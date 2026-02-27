@@ -1,12 +1,12 @@
 import React from 'react';
-import { Info } from 'lucide-react';
+import { Info, Settings2, Camera, Save, Heart } from 'lucide-react';
 
 export type TabType = 'guide' | 'layout' | 'widgets' | 'video' | 'about';
 
 interface TabItem {
     id: TabType;
     label: string;
-    icon?: React.ReactNode;
+    icon: React.ReactNode;
 }
 
 interface SettingsTabsProps {
@@ -15,11 +15,11 @@ interface SettingsTabsProps {
 }
 
 const TABS: TabItem[] = [
-    { id: 'widgets', label: 'ウィジェット' },
-    { id: 'video', label: '背景・映像' },
-    { id: 'layout', label: 'マイレイアウト' },
-    { id: 'guide', label: '操作説明', icon: <Info size={18} className="text-blue-400" /> },
-    { id: 'about', label: 'About' }
+    { id: 'widgets', label: 'ウィジェット', icon: <Settings2 size={18} className="text-purple-400" /> },
+    { id: 'video', label: '背景・映像', icon: <Camera size={18} className="text-blue-400" /> },
+    { id: 'layout', label: 'マイレイアウト', icon: <Save size={18} className="text-green-400" /> },
+    { id: 'guide', label: '操作説明', icon: <Info size={18} className="text-cyan-400" /> },
+    { id: 'about', label: 'About', icon: <Heart size={18} className="text-red-400" /> }
 ];
 
 export const SettingsTabs = ({ activeTab, onTabChange }: SettingsTabsProps) => (
