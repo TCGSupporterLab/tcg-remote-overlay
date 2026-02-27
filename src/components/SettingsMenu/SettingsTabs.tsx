@@ -15,10 +15,10 @@ interface SettingsTabsProps {
 }
 
 const TABS: TabItem[] = [
-    { id: 'guide', label: '操作説明', icon: <Info size={18} className="text-blue-400" /> },
-    { id: 'layout', label: 'マイレイアウト' },
     { id: 'widgets', label: 'ウィジェット' },
     { id: 'video', label: '背景・映像' },
+    { id: 'layout', label: 'マイレイアウト' },
+    { id: 'guide', label: '操作説明', icon: <Info size={18} className="text-blue-400" /> },
     { id: 'about', label: 'About' }
 ];
 

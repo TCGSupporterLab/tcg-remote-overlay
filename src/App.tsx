@@ -125,7 +125,7 @@ function App() {
 
   const [isAdjustingVideo, setIsAdjustingVideo] = useState(false);
   const [showSettings, setShowSettings] = useState(() => !useWidgetStore.getState().settings.hideSettingsOnStart);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<TabType>('guide');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<TabType>('widgets');
 
   // Layout Saving Dialog State
   const [saveDialog, setSaveDialog] = useState<{
