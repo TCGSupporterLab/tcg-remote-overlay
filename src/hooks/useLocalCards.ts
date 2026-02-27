@@ -68,11 +68,11 @@ export const useLocalCards = () => {
                     console.log(`[Sync] Loading ${path}: Found ${entries.length} entries. DirPrefix: "${dirPrefix}"`);
                 }
                 entries.forEach(([fileName, data]) => {
-                    const fullKey = `${dirPrefix}${fileName.toLowerCase()}`;
+                    const fullKey = `${dirPrefix}${fileName}`;
                     cardMetadataMap.set(fullKey, data as any);
 
                     // 特定のカードが登録されたかチェック
-                    if (import.meta.env.DEV && (fullKey.includes('hbd24-001') || fullKey.includes('korone'))) {
+                    if (import.meta.env.DEV && (fullKey.includes('hBD24-001') || fullKey.includes('korone'))) {
                         console.log(`[Sync] Registered metaKey: "${fullKey}"`);
                     }
                 });
@@ -106,10 +106,11 @@ export const useLocalCards = () => {
                 if (signal.aborted) return;
 
                 if (entry.kind === 'file') {
-                    const name = entry.name.toLowerCase();
-                    const isImage = name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp');
-                    const isJson = name.endsWith('.json');
-                    const isLink = name === '_link.txt';
+                    const rawName = entry.name;
+                    const lowerName = rawName.toLowerCase();
+                    const isImage = lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.webp');
+                    const isJson = lowerName.endsWith('.json');
+                    const isLink = lowerName === '_link.txt';
 
                     if (isImage || isJson || isLink) {
                         const file = await (entry as any).getFile();
@@ -129,7 +130,7 @@ export const useLocalCards = () => {
                         else if (isImage) {
                             foundCards.push({
                                 id: `${handle.name}/${currentPath}`,
-                                name: getExtStripped(name),
+                                name: getExtStripped(rawName),
                                 path: currentPath,
                                 fullPath: `${handle.name}/${currentPath}`,
                                 url: URL.createObjectURL(file),
@@ -183,16 +184,15 @@ export const useLocalCards = () => {
 
                     if (targetPath.startsWith(linkObj.folderPath + '/')) continue;
 
-                    // 【修正】大文字小文字を区別せずにターゲットカードを検索
-                    const targetPathLower = targetPath.toLowerCase();
-                    const targetCard = foundCards.find(c => c.path.toLowerCase() === targetPathLower);
+                    // ターゲットカードを完全一致で検索
+                    const targetCard = foundCards.find(c => c.path === targetPath);
 
                     if (targetCard) {
                         foundCards.push({
                             ...targetCard,
-                            id: `${handle.name}/${linkObj.folderPath}/${getBasename(targetPath)}`,
+                            id: `${handle.name}/${targetPath}`,
                             path: `${linkObj.folderPath}/${getBasename(targetPath)}`,
-                            fullPath: `${handle.name}/${linkObj.folderPath}/${getBasename(targetPath)}`,
+                            fullPath: `${handle.name}/${targetPath}`,
                             folderName: linkObj.folder,
                             ocgName: linkObj.ocg,
                             deckName: linkObj.folder,
@@ -210,13 +210,13 @@ export const useLocalCards = () => {
             }
 
             const finalCards: LocalCard[] = foundCards.sort((a, b) => a.path.split('/').length - b.path.split('/').length).map(card => {
-                const pathLower = card.path.toLowerCase();
-                const pathParts = pathLower.split('/');
+                const path = card.path;
+                const pathParts = path.split('/');
                 const fileName = pathParts[pathParts.length - 1];
                 const ocgName = pathParts[0];
 
-                // 1. まずはフルパスで照合
-                let data = cardMetadataMap.get(pathLower);
+                // 1. まずはフルパスの実測ケースで照合
+                let data = cardMetadataMap.get(path);
 
                 // 2. 失敗した場合、OCG直下のファイル名としてフォールバック (all/, test/ などの階層を無視)
                 if (!data && pathParts.length > 2) {
@@ -226,15 +226,15 @@ export const useLocalCards = () => {
 
                 // 3. リンク元のパスでも同様に試行
                 if (!data && card._linkedFrom) {
-                    const linkLower = card._linkedFrom.toLowerCase();
-                    const linkParts = linkLower.split('/');
+                    const linkPath = card._linkedFrom;
+                    const linkParts = linkPath.split('/');
                     const linkFileName = linkParts[linkParts.length - 1];
-                    data = cardMetadataMap.get(linkLower) || cardMetadataMap.get(`${ocgName}/${linkFileName}`);
+                    data = cardMetadataMap.get(linkPath) || cardMetadataMap.get(`${ocgName}/${linkFileName}`);
                 }
 
                 const finalData = data || {};
 
-                if (import.meta.env.DEV && (pathLower.includes('hbd24-001') || pathLower.includes('korone'))) {
+                if (import.meta.env.DEV && (path.includes('hBD24-001') || path.includes('korone'))) {
                     console.log(`[Sync] Mapping for ${card.path}: found=${!!data}, metaKey="${ocgName}/${fileName}"`);
                 }
 
