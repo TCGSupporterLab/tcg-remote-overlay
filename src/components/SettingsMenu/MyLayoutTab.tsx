@@ -119,32 +119,32 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                     : 'border-white/5 hover:border-white/10 hover:bg-white/10'
                                     }`}
                             >
-                                <div className="flex items-center min-w-0">
-                                    {/* 番号とアイコン */}
-                                    <div className="flex items-center gap-4 flex-shrink-0 mr-12">
-                                        <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/20 border border-white/10 text-xs font-black text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-400 transition-all duration-300 shadow-inner">
+                                <div className="flex items-center min-w-0 flex-1">
+                                    {/* 番号とアイコン (固定幅140px) */}
+                                    <div className="w-[140px] flex-shrink-0 flex items-center gap-4">
+                                        <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg bg-blue-500/20 border border-white/10 text-xs font-black text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-400 transition-all duration-300 shadow-inner">
                                             {index}
                                         </div>
                                         <div className="flex items-center gap-1.5">
                                             {layout.widgets && layout.widgets.length > 0 && (
-                                                <div title="ウィジェットを含む" className="p-1 bg-blue-500/10 text-blue-400 rounded">
+                                                <div title="ウィジェットを含む" className="p-1 flex-shrink-0 bg-blue-500/10 text-blue-400 rounded">
                                                     <Layers size={14} />
                                                 </div>
                                             )}
                                             {layout.videoCrop && (
-                                                <div title="映像調整を含む" className="p-1 bg-purple-500/10 text-purple-400 rounded">
+                                                <div title="映像調整を含む" className="p-1 flex-shrink-0 bg-purple-500/10 text-purple-400 rounded">
                                                     <Video size={14} />
                                                 </div>
                                             )}
                                             {layout.hideOthers && (
-                                                <div title="他を隠す" className="p-1 bg-amber-500/10 text-amber-500 rounded">
+                                                <div title="他を隠す" className="p-1 flex-shrink-0 bg-amber-500/10 text-amber-500 rounded">
                                                     <EyeOff size={14} />
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="min-w-0 pr-4">
+                                    <div className="min-w-0 flex-1 px-4">
                                         <span className="font-bold text-gray-200 group-hover:text-white transition-colors text-sm truncate block">
                                             {layout.name}
                                         </span>
