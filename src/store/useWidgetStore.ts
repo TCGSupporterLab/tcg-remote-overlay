@@ -635,6 +635,20 @@ export const useWidgetStore = create<WidgetStoreState>()(
                         }
                     })) : [];
 
+                // VideoCropのサニタイズ
+                const sanitizedVideoCrop = d.videoCrop ? {
+                    x: Math.max(-100, Math.min(100, Number(d.videoCrop.x) || 0)),
+                    y: Math.max(-100, Math.min(100, Number(d.videoCrop.y) || 0)),
+                    scale: Math.max(1, Math.min(5, Number(d.videoCrop.scale) || 1)),
+                    top: Math.max(0, Math.min(100, Number(d.videoCrop.top) || 0)),
+                    bottom: Math.max(0, Math.min(100, Number(d.videoCrop.bottom) || 0)),
+                    left: Math.max(0, Math.min(100, Number(d.videoCrop.left) || 0)),
+                    right: Math.max(0, Math.min(100, Number(d.videoCrop.right) || 0)),
+                    rotation: (Number(d.videoCrop.rotation) || 0) % 360,
+                    flipH: !!d.videoCrop.flipH,
+                    flipV: !!d.videoCrop.flipV,
+                } : undefined;
+
                 const newLayout: MyLayout = {
                     id: `layout_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
                     name: String(d.name).substring(0, 40),
@@ -643,7 +657,7 @@ export const useWidgetStore = create<WidgetStoreState>()(
                     visibility: d.visibility || {},
                     widgetOrder: Array.isArray(d.widgetOrder) ? d.widgetOrder.filter((id: any) => VALID_IDS.includes(id)) : sanitizedWidgets.map((w: any) => w.id),
                     viewSize: d.viewSize || { w: window.innerWidth, h: window.innerHeight },
-                    videoCrop: d.videoCrop,
+                    videoCrop: sanitizedVideoCrop,
                     hideOthers: !!d.hideOthers,
                     createdAt: Date.now(),
                 };
