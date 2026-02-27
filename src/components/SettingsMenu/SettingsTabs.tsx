@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, Settings2, Camera, Save, Heart, Keyboard } from 'lucide-react';
+import { Info, Settings2, Camera, Save, MoreHorizontal, Keyboard } from 'lucide-react';
 
 export type TabType = 'guide' | 'shortcuts' | 'layout' | 'widgets' | 'video' | 'about';
 
@@ -20,7 +20,7 @@ const TABS: TabItem[] = [
     { id: 'layout', label: 'マイレイアウト', icon: <Save size={18} className="text-green-400" /> },
     { id: 'guide', label: '操作説明', icon: <Info size={18} className="text-cyan-400" /> },
     { id: 'shortcuts', label: 'ショートカット', icon: <Keyboard size={18} className="text-orange-400" /> },
-    { id: 'about', label: 'About', icon: <Heart size={18} className="text-red-400" /> }
+    { id: 'about', label: 'その他', icon: <MoreHorizontal size={18} className="text-gray-400" /> }
 ];
 
 export const SettingsTabs = ({ activeTab, onTabChange }: SettingsTabsProps) => (

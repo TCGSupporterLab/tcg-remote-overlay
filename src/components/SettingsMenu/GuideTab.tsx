@@ -87,6 +87,9 @@ export const GuideTab = () => {
                             <p className="flex items-center gap-2"><CircleDot size={12} className="text-sky-400" /> コイン — コイントスの裏表判定に（<Kbd>C</Kbd>）</p>
                             <p className="flex items-center gap-2"><Scan size={12} className="text-purple-400" /> カード表示 — 自分のカード画像を相手に見せる</p>
                         </div>
+                        <p className="text-white/40">
+                            ウィジェットは<Kbd>Ctrl</Kbd>+クリックや、ドラッグで囲んで選択できます。選択後は位置・サイズ・回転を自由に調整できます。
+                        </p>
                     </Step>
 
                     <Step num={4} title="カード画像を使う（任意）">
