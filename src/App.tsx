@@ -62,6 +62,7 @@ function App() {
   const groupData = useWidgetStore(s => s.groupData);
   const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
   const simpleCardImageUrl = useWidgetStore(s => s.simpleCardImageUrl);
+  const myLayouts = useWidgetStore(s => s.myLayouts);
 
   const setVisibility = useWidgetStore(s => s.setVisibility);
   const setSettings = useWidgetStore(s => s.setSettings);
@@ -75,6 +76,7 @@ function App() {
   const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
   const hideSelectedWidgets = useWidgetStore(s => s.hideSelectedWidgets);
   const setSimpleCardImageUrl = useWidgetStore(s => s.setSimpleCardImageUrl);
+  const applyLayout = useWidgetStore(s => s.applyLayout);
   const fullReset = useWidgetStore(s => s.fullReset);
 
   const {
@@ -232,6 +234,8 @@ function App() {
   const rPressTimerRef = useRef<number | undefined>(undefined);
   const displayCardNoBufferRef = useRef<string>("");
   const displayCardNoTimerRef = useRef<number | undefined>(undefined);
+  const layoutBufferRef = useRef<string>("");
+  const layoutTimerRef = useRef<number | undefined>(undefined);
   // View mode detection
   const searchViewParam = new URLSearchParams(window.location.search).get('view');
   const isSearchView = searchViewParam === 'search';
@@ -424,7 +428,9 @@ function App() {
       if (showSettings) return;
 
       // Ignore single-key shortcuts if Ctrl, Meta, or Alt is held
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // (Alt is allowed if it's a digit key for layout switching)
+      const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
+      if (e.ctrlKey || e.metaKey || (e.altKey && !digitMatch)) return;
 
       if (e.key === 'd' || e.key === 'D') {
         handleRollDice();
@@ -507,10 +513,36 @@ function App() {
       }
 
 
-      // Shift + Number keys (Digit0-9 or Numpad0-9) for Display Card Number
-      // Support multi-digit input by buffering digits within a 200ms window
-      const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
+      // Number keys (Digit0-9 or Numpad0-9) for Selection / Layouts
       if (digitMatch) {
+        // Alt + Number keys for Layout selection
+        // Support multi-digit input by buffering digits within a 200ms window
+        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          e.preventDefault();
+          const digit = digitMatch[2];
+
+          if (layoutTimerRef.current) {
+            window.clearTimeout(layoutTimerRef.current);
+          } else {
+            layoutBufferRef.current = "";
+          }
+
+          layoutBufferRef.current += digit;
+
+          const num = parseInt(layoutBufferRef.current, 10);
+          if (!isNaN(num) && myLayouts[num]) {
+            applyLayout(myLayouts[num].id);
+            if (import.meta.env.DEV) console.log(`[Shortcut] Applied layout at index ${num}: ${myLayouts[num].name}`);
+          }
+
+          layoutTimerRef.current = window.setTimeout(() => {
+            layoutBufferRef.current = "";
+            layoutTimerRef.current = undefined;
+          }, 200);
+          return;
+        }
+
+        // Shift + Number keys (Digit0-9 or Numpad0-9) for Display Card Number
         const isNumpad = digitMatch[1] === 'Numpad';
         const isNumLock = e.getModifierState('NumLock');
         const isShift = e.shiftKey || e.getModifierState('Shift');
@@ -585,7 +617,7 @@ function App() {
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('mousedown', handleMouseDown, true);
     };
-  }, [handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets, fullReset]);
+  }, [handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets, fullReset, myLayouts, applyLayout]);
 
 
   if (import.meta.env.DEV) {

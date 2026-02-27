@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Layout, Play, Download, Upload, Trash2, Save, Layers, Video, EyeOff } from 'lucide-react';
 import { useWidgetStore } from '../../store/useWidgetStore';
 
@@ -10,6 +11,9 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
     const applyLayout = useWidgetStore(s => s.applyLayout);
     const deleteLayout = useWidgetStore(s => s.deleteLayout);
     const importLayout = useWidgetStore(s => s.importLayout);
+
+    const reorderLayouts = useWidgetStore(s => s.reorderLayouts);
+    const [draggingId, setDraggingId] = useState<string | null>(null);
 
     const handleExport = (id: string) => {
         const layout = myLayouts.find(l => l.id === id);
@@ -91,29 +95,53 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                             <p className="text-gray-500 text-sm">レイアウトがありません</p>
                         </div>
                     ) : (
-                        myLayouts.map((layout) => (
+                        myLayouts.map((layout, index) => (
                             <div
                                 key={layout.id}
-                                className="group flex items-center justify-between p-3 px-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-all"
+                                draggable
+                                onDragStart={(e) => {
+                                    setDraggingId(layout.id);
+                                    e.dataTransfer.effectAllowed = 'move';
+                                }}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = 'move';
+                                }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    if (draggingId && draggingId !== layout.id) {
+                                        reorderLayouts(draggingId, layout.id);
+                                    }
+                                }}
+                                onDragEnd={() => setDraggingId(null)}
+                                className={`group flex items-center justify-between p-3 px-4 bg-white/5 rounded-xl border transition-all ${draggingId === layout.id
+                                    ? 'opacity-40 border-blue-500/50 bg-blue-500/5 shadow-inner'
+                                    : 'border-white/5 hover:border-white/10 hover:bg-white/10'
+                                    }`}
                             >
                                 <div className="flex items-center gap-4">
-                                    {/* 内蔵アイコンを表示 */}
-                                    <div className="flex items-center gap-1.5 min-w-[40px]">
-                                        {layout.widgets && layout.widgets.length > 0 && (
-                                            <div title="ウィジェットを含む" className="p-1 bg-blue-500/10 text-blue-400 rounded">
-                                                <Layers size={14} />
-                                            </div>
-                                        )}
-                                        {layout.videoCrop && (
-                                            <div title="映像調整を含む" className="p-1 bg-purple-500/10 text-purple-400 rounded">
-                                                <Video size={14} />
-                                            </div>
-                                        )}
-                                        {layout.hideOthers && (
-                                            <div title="他を隠す" className="p-1 bg-amber-500/10 text-amber-500 rounded">
-                                                <EyeOff size={14} />
-                                            </div>
-                                        )}
+                                    {/* 番号とアイコン */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-5 h-5 flex items-center justify-center rounded bg-white/10 text-[10px] font-bold text-gray-400 group-hover:bg-blue-500/20 group-hover:text-blue-400 transition-colors">
+                                            {index}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 min-w-[40px]">
+                                            {layout.widgets && layout.widgets.length > 0 && (
+                                                <div title="ウィジェットを含む" className="p-1 bg-blue-500/10 text-blue-400 rounded">
+                                                    <Layers size={14} />
+                                                </div>
+                                            )}
+                                            {layout.videoCrop && (
+                                                <div title="映像調整を含む" className="p-1 bg-purple-500/10 text-purple-400 rounded">
+                                                    <Video size={14} />
+                                                </div>
+                                            )}
+                                            {layout.hideOthers && (
+                                                <div title="他を隠す" className="p-1 bg-amber-500/10 text-amber-500 rounded">
+                                                    <EyeOff size={14} />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="flex flex-col">
@@ -161,6 +189,11 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                         ))
                     )}
                 </div>
+                {myLayouts.length > 0 && (
+                    <div className="mt-2 text-[10px] text-gray-500 text-center italic">
+                        ※ ドラッグして順番を入れ替えられます。Alt + [番号] キーで即座に適用できます。
+                    </div>
+                )}
             </section>
         </div>
     );

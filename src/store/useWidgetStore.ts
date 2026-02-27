@@ -104,6 +104,7 @@ interface WidgetStoreState {
     deleteLayout: (id: string) => void;
     importLayout: (data: unknown) => { success: boolean; message?: string };
     importDefaultLayouts: () => void;
+    reorderLayouts: (draggedId: string, targetId: string) => void;
     fullReset: () => void;
 }
 
@@ -631,6 +632,20 @@ export const useWidgetStore = create<WidgetStoreState>()(
 
         deleteLayout: (id) => set((state) => {
             const nextLayouts = state.myLayouts.filter(l => l.id !== id);
+            localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
+            return { myLayouts: nextLayouts };
+        }),
+
+        reorderLayouts: (draggedId, targetId) => set((state) => {
+            const nextLayouts = [...state.myLayouts];
+            const draggedIndex = nextLayouts.findIndex(l => l.id === draggedId);
+            const targetIndex = nextLayouts.findIndex(l => l.id === targetId);
+
+            if (draggedIndex === -1 || targetIndex === -1) return state;
+
+            const [removed] = nextLayouts.splice(draggedIndex, 1);
+            nextLayouts.splice(targetIndex, 0, removed);
+
             localStorage.setItem(STORAGE_KEYS.LAYOUTS, JSON.stringify(nextLayouts));
             return { myLayouts: nextLayouts };
         }),
