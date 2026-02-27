@@ -341,6 +341,7 @@ export const useLocalCards = () => {
         toggleMergeSameFileCards,
         isLoading,
         error,
+        scanDirectory,
         rescan: () => rootHandle && scanDirectory(rootHandle)
     };
 };

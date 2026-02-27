@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { get, set, del } from 'idb-keyval';
 
 import { LPCalculator } from './components/LPCalculator';
 
@@ -40,7 +41,8 @@ function App() {
     dropAccess,
     mergeSameFileCards,
     toggleMergeSameFileCards,
-    isLoading
+    isLoading,
+    scanDirectory
   } = useLocalCards();
 
   const {
@@ -59,6 +61,7 @@ function App() {
   const coinValue = useWidgetStore(s => s.coinValue);
   const groupData = useWidgetStore(s => s.groupData);
   const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
+  const simpleCardImageUrl = useWidgetStore(s => s.simpleCardImageUrl);
 
   const setVisibility = useWidgetStore(s => s.setVisibility);
   const setSettings = useWidgetStore(s => s.setSettings);
@@ -71,6 +74,7 @@ function App() {
   const importDefaultLayouts = useWidgetStore(s => s.importDefaultLayouts);
   const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
   const hideSelectedWidgets = useWidgetStore(s => s.hideSelectedWidgets);
+  const setSimpleCardImageUrl = useWidgetStore(s => s.setSimpleCardImageUrl);
 
   const {
     isDiceVisible,
@@ -101,15 +105,12 @@ function App() {
   const toggleSPMarkerForceHidden = () => setVisibility({ showSPMarkerForceHidden: !showSPMarkerForceHidden });
 
   // Sync folder name for caching logic
-  const prevFolderRef = useRef(rootFolderName);
   useEffect(() => {
     const currentName = rootHandle?.name || savedRootName || '';
     if (currentName !== rootFolderName) {
-      const wasEmpty = !prevFolderRef.current;
       setRootFolderName(currentName);
-      prevFolderRef.current = currentName;
-      // フォルダ接続時にキャッシュから復元
-      if (wasEmpty && currentName) {
+      // フォルダ接続時または切り替え時にキャッシュから復元
+      if (currentName) {
         restoreFolderCache(currentName);
       }
     }
@@ -227,6 +228,68 @@ function App() {
   const searchViewParam = new URLSearchParams(window.location.search).get('view');
   const isSearchView = searchViewParam === 'search';
   const [isTerminated, setIsTerminated] = useState(false);
+
+  // Simple Card Image Selection logic
+  const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleSimpleFile = useCallback(async (file: File) => {
+    try {
+      // 1. 保存
+      await set('tcg_remote_simple_card_blob', file);
+
+      // 2. State更新
+      setSettings({
+        simpleCardImage: { name: file.name, type: file.type }
+      });
+
+      // 3. ObjectURL作成
+      if (simpleCardImageUrl) URL.revokeObjectURL(simpleCardImageUrl);
+      const url = URL.createObjectURL(file);
+      setSimpleCardImageUrl(url);
+
+      if (import.meta.env.DEV) console.log(`[App] Processed simple card image: ${file.name}`);
+    } catch (err) {
+      console.error('Failed to process simple card image:', err);
+    }
+  }, [simpleCardImageUrl, setSettings, setSimpleCardImageUrl]);
+
+  const handleSimpleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleSimpleFile(file);
+  }, [handleSimpleFile]);
+
+  const handleClearSimpleCard = useCallback(async () => {
+    try {
+      await del('tcg_remote_simple_card_blob');
+      if (simpleCardImageUrl) URL.revokeObjectURL(simpleCardImageUrl);
+      setSimpleCardImageUrl(null);
+      setSettings({ simpleCardImage: undefined });
+      if (import.meta.env.DEV) console.log(`[App] Cleared simple card image`);
+    } catch (err) {
+      console.error('Failed to clear simple card image:', err);
+    }
+  }, [simpleCardImageUrl, setSimpleCardImageUrl, setSettings]);
+
+  // Load simple card image on mount
+  useEffect(() => {
+    const loadSimpleCard = async () => {
+      try {
+        const blob = await get<Blob>('tcg_remote_simple_card_blob');
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          setSimpleCardImageUrl(url);
+          if (import.meta.env.DEV) console.log(`[App] Loaded simple card image from IDB`);
+        }
+      } catch (err) {
+        console.error('Failed to load simple card image from IDB:', err);
+      }
+    };
+    loadSimpleCard();
+
+    return () => {
+      if (simpleCardImageUrl) URL.revokeObjectURL(simpleCardImageUrl);
+    };
+  }, [setSimpleCardImageUrl]); // Once on mount
 
   // Document Title & Single Instance Control
   useEffect(() => {
@@ -521,7 +584,7 @@ function App() {
 
   const ScanningOverlay = (
     <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col gap-4">
         <div className="w-20 h-20 flex items-center justify-center">
           <svg width="80" height="80" viewBox="0 0 100 100">
             {/* 外周の回転リング */}
@@ -628,6 +691,16 @@ function App() {
               savedRootName={savedRootName}
               onRequestAccess={requestAccess}
               onVerifyPermission={verifyPermissionAndScan}
+              onSelectSimpleCard={() => simpleFileInputRef.current?.click()}
+              onDropFile={(file) => {
+                setSettings({ cardMode: 'simple' });
+                handleSimpleFile(file);
+              }}
+              onDropFolder={async (handle) => {
+                setSettings({ cardMode: 'library' });
+                await set('tcg_remote_root_handle', handle);
+                scanDirectory(handle);
+              }}
             />
           </OverlayWidget>
         )}
@@ -789,6 +862,11 @@ function App() {
             onResetWidgetPosition={resetWidgetPosition}
             hideSettingsOnStart={settings.hideSettingsOnStart}
             onToggleHideSettingsOnStart={(val) => setSettings({ hideSettingsOnStart: val })}
+            cardMode={settings.cardMode}
+            onCardModeChange={(mode) => setSettings({ cardMode: mode })}
+            onSelectSimpleCard={() => simpleFileInputRef.current?.click()}
+            onClearSimpleCard={handleClearSimpleCard}
+            simpleCardImageName={settings.simpleCardImage?.name}
           />
         )
       }
@@ -828,6 +906,14 @@ function App() {
       }
 
       {/* Layout Save Dialog */}
+      <input
+        type="file"
+        ref={simpleFileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleSimpleFileSelect}
+      />
+
       <SaveLayoutDialog
         isOpen={saveDialog.isOpen}
         source={saveDialog.source}

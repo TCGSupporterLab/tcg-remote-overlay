@@ -43,6 +43,8 @@ interface WidgetStoreState {
         activePreset: DisplayPreset;
         spMarkerFace: SPMarkerFace;
         hideSettingsOnStart: boolean;
+        cardMode: 'library' | 'simple';
+        simpleCardImage?: { name: string; type: string };
     };
     // 選択
     selectedWidgetIds: WidgetId[];
@@ -66,7 +68,8 @@ interface WidgetStoreState {
 
     // 順序管理
     widgetOrder: WidgetId[];
-
+    pinnedCardIds: string[];
+    simpleCardImageUrl: string | null;
     // マイレイアウト
     myLayouts: MyLayout[];
     hasImportedDefaultLayouts: boolean;
@@ -95,6 +98,7 @@ interface WidgetStoreState {
     groupSelectedWidgets: () => void;
     ungroupSelectedWidgets: () => void;
     hideSelectedWidgets: () => void;
+    setSimpleCardImageUrl: (url: string | null) => void;
 
     // マイレイアウト Actions
     saveLayout: (name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean, allWidgets?: boolean }) => void;
@@ -131,6 +135,7 @@ const getInitialState = () => {
             activePreset: 'yugioh' as DisplayPreset,
             spMarkerFace: 'front' as SPMarkerFace,
             hideSettingsOnStart: false,
+            cardMode: 'library' as 'library' | 'simple',
         },
         selectedWidgetIds: [],
         groupData: savedGroups ? JSON.parse(savedGroups) : { groups: [], relativeTransforms: {} },
@@ -146,6 +151,8 @@ const getInitialState = () => {
         needsSync: false,
         viewSize: { w: window.innerWidth, h: window.innerHeight },
         widgetOrder: [] as WidgetId[],
+        pinnedCardIds: [],
+        simpleCardImageUrl: null,
         myLayouts: [],
         hasImportedDefaultLayouts: localStorage.getItem('tcg_remote_layout_imported') === 'true',
     };
@@ -165,6 +172,7 @@ const getInitialState = () => {
             if (parsed.widgetStates) base.widgetStates = parsed.widgetStates;
             if (parsed.visibility) base.visibility = { ...base.visibility, ...parsed.visibility };
             if (parsed.settings) base.settings = { ...base.settings, ...parsed.settings };
+            if (!base.settings.cardMode) base.settings.cardMode = 'library';
             if (parsed.widgetOrder) {
                 base.widgetOrder = (parsed.widgetOrder as string[]).map(id => {
                     if (id === 'lp') return 'lp_calculator' as WidgetId;
@@ -338,6 +346,8 @@ export const useWidgetStore = create<WidgetStoreState>()(
         }),
 
         setViewSize: (viewSize) => set({ viewSize }),
+
+        setSimpleCardImageUrl: (url) => set({ simpleCardImageUrl: url }),
 
         clearGroups: () => {
             set({ groupData: { groups: [], relativeTransforms: {} } });

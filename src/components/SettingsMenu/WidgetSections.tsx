@@ -1,4 +1,4 @@
-import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Layout, FolderX, FolderPlus, FolderSearch, Unlock, Undo2 } from 'lucide-react';
+import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Library, Image, FolderX, FolderPlus, FolderSearch, Unlock, Undo2 } from 'lucide-react';
 import { SettingsToggle, SettingItem } from './SettingsUI';
 import type { LocalCard } from '../../hooks/useLocalCards';
 
@@ -41,6 +41,11 @@ export const CoinSetting = ({ visible, onToggle, onReset }: { visible: boolean, 
 interface CardSettingProps {
     visible: boolean;
     onToggle: (val: boolean) => void;
+    cardMode: 'library' | 'simple';
+    onCardModeChange: (mode: 'library' | 'simple') => void;
+    onSelectSimpleCard: () => void;
+    onClearSimpleCard: () => void;
+    simpleCardImageName?: string;
     isOpen: boolean;
     onToggleOpen: () => void;
     hasAccess: boolean;
@@ -57,7 +62,7 @@ interface CardSettingProps {
 }
 
 export const CardSetting = ({
-    visible, onToggle, isOpen, onToggleOpen, hasAccess, rootHandleName, localCards,
+    visible, onToggle, cardMode, onCardModeChange, onSelectSimpleCard, onClearSimpleCard, simpleCardImageName, isOpen, onToggleOpen, hasAccess, rootHandleName, localCards,
     mergeSameFileCards, onToggleMergeSameFileCards, isScanning, onDropAccess,
     onRequestAccess, onVerifyPermission, cardCount, onReset
 }: CardSettingProps) => (
@@ -72,91 +77,146 @@ export const CardSetting = ({
                     <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
                 </div>
             </div>
-            <div className="flex items-center gap-[20px]">
-                <SettingsToggle checked={visible} onChange={onToggle} />
-                <ResetButton onClick={onReset} />
+            <div className="flex items-center gap-[12px]">
+                {/* モード切り替え器 */}
+                <div className="flex bg-black/40 p-[2px] rounded-lg border border-white/5 shrink-0">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onCardModeChange('library'); }}
+                        className={`p-[4px] rounded-md transition-all cursor-pointer ${cardMode === 'library' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        title="ライブラリスキャン"
+                    >
+                        <Library size={14} />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onCardModeChange('simple'); }}
+                        className={`p-[4px] rounded-md transition-all cursor-pointer ${cardMode === 'simple' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        title="カスタム画像"
+                    >
+                        <Image size={14} />
+                    </button>
+                </div>
+                <div className="flex items-center gap-[20px]">
+                    <SettingsToggle checked={visible} onChange={onToggle} />
+                    <ResetButton onClick={onReset} />
+                </div>
             </div>
         </div>
 
         {isOpen && (
             <div className="pl-[46px] pr-[16px] pt-[0px] pb-[4px] mt-[0px] animate-in slide-in-from-top-2 duration-200">
-                <div className="py-[1px] flex flex-col gap-[2px]">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="text-[14px] font-semibold text-gray-200">・表示フォルダ選択</h4>
-                            {hasAccess ? (
-                                <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">
-                                    接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
-                                        {(() => {
-                                            if (!localCards) return 0;
-                                            let displayCards = localCards.filter(c => !c._linkedFrom && c.path.split('/').length === 3);
-                                            if (mergeSameFileCards) {
-                                                const seen = new Set<string>();
-                                                displayCards = displayCards.filter(c => {
-                                                    if (seen.has(c.name)) return false;
-                                                    seen.add(c.name);
-                                                    return true;
-                                                });
-                                            }
-                                            return displayCards.length;
-                                        })()}枚</span>
-                                </p>
-                            ) : rootHandleName ? (
-                                <div className="space-y-[2px] mt-[4px] ml-[12px]">
-                                    <p className="text-[11px] text-red-400 font-bold flex items-center gap-[4px]">
-                                        <Info size={12} /> 再接続が必要です
-                                    </p>
-                                    <p className="text-[10px] text-gray-400">接続先: <span className="text-gray-200">{rootHandleName}</span></p>
+                {cardMode === 'library' ? (
+                    <>
+                        <div className="py-[1px] flex flex-col gap-[2px]">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-[14px] font-semibold text-gray-200">・表示フォルダ選択</h4>
+                                    {hasAccess ? (
+                                        <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">
+                                            接続先: <span className="text-gray-100">{rootHandleName || '不明'}</span> | 枚数: <span className="text-blue-400 font-bold tracking-widest">
+                                                {(() => {
+                                                    if (!localCards) return 0;
+                                                    let displayCards = localCards.filter(c => !c._linkedFrom && c.path.split('/').length === 3);
+                                                    if (mergeSameFileCards) {
+                                                        const seen = new Set<string>();
+                                                        displayCards = displayCards.filter(c => {
+                                                            if (seen.has(c.name)) return false;
+                                                            seen.add(c.name);
+                                                            return true;
+                                                        });
+                                                    }
+                                                    return displayCards.length;
+                                                })()}枚</span>
+                                        </p>
+                                    ) : rootHandleName ? (
+                                        <div className="space-y-[2px] mt-[4px] ml-[12px]">
+                                            <p className="text-[11px] text-red-400 font-bold flex items-center gap-[4px]">
+                                                <Info size={12} /> 再接続が必要です
+                                            </p>
+                                            <p className="text-[10px] text-gray-400">接続先: <span className="text-gray-200">{rootHandleName}</span></p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">フォルダ未接続</p>
+                                    )}
                                 </div>
-                            ) : (
-                                <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">フォルダ未接続</p>
-                            )}
+                                <div className="flex gap-[8px] shrink-0">
+                                    {(hasAccess || rootHandleName) && (
+                                        <button onClick={onDropAccess} className="px-[12px] py-[6px] bg-red-500/5 border border-red-500/20 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 shadow-sm flex items-center gap-[6px]">
+                                            <FolderX size={14} />
+                                            解除
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={hasAccess ? onRequestAccess : (rootHandleName ? onVerifyPermission : onRequestAccess)}
+                                        disabled={isScanning}
+                                        className={`px-[12px] py-[6px] rounded-lg font-bold text-[11px] transition-all disabled:opacity-50 flex items-center gap-[6px] cursor-pointer pointer-events-auto z-50 border shadow-sm ${!hasAccess && rootHandleName ? 'bg-yellow-500/5 border-yellow-500/20 text-yellow-500/80 hover:bg-yellow-500/20 hover:text-yellow-400 hover:border-yellow-500/40' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20'}`}
+                                    >
+                                        {isScanning ? <><RefreshCw size={14} className="animate-spin" />スキャン中</> :
+                                            hasAccess ? <><FolderPlus size={14} />別フォルダを選択</> :
+                                                rootHandleName ? <><Unlock size={14} />アクセスを許可</> :
+                                                    <><FolderSearch size={14} />フォルダを選択</>}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex gap-[8px] shrink-0">
-                            {(hasAccess || rootHandleName) && (
-                                <button onClick={onDropAccess} className="px-[12px] py-[6px] bg-red-500/5 border border-red-500/20 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 shadow-sm flex items-center gap-[6px]">
-                                    <FolderX size={14} />
-                                    解除
+
+                        <div className="py-[1px] flex items-center justify-between">
+                            <h4 className="text-[14px] font-semibold text-gray-200">・同名ファイルの統合</h4>
+                            <SettingsToggle checked={mergeSameFileCards} onChange={onToggleMergeSameFileCards} />
+                        </div>
+
+                        {hasAccess && cardCount > 0 && localCards && (
+                            <div className="py-[1px] flex items-center justify-between">
+                                <h4 className="text-[14px] font-semibold text-gray-200 whitespace-nowrap">・表示カード選択画面を開く</h4>
+                                <div className="flex gap-[6px] shrink-0">
+                                    <button onClick={() => window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', '_blank')} className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm">
+                                        <Library size={14} />
+                                        別タブ
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const width = 1200; const height = 800;
+                                            const left = (window.screen.width - width) / 2; const top = (window.screen.height - height) / 2;
+                                            window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', 'CardSearchWindow', `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+                                        }}
+                                        className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm"
+                                    >
+                                        <ExternalLink size={14} />
+                                        別ウィンドウ
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="py-[8px] flex flex-col gap-[12px]">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h4 className="text-[14px] font-semibold text-gray-200">・表示画像を選択</h4>
+                                <p className="text-[11px] text-gray-400 mt-[4px] ml-[12px]">画像を個別に指定して表示します</p>
+                                {simpleCardImageName && (
+                                    <p className="text-[11px] text-blue-400 mt-[4px] ml-[12px] font-bold italic">
+                                        選択中: {simpleCardImageName}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex gap-[8px] shrink-0">
+                                {simpleCardImageName && (
+                                    <button
+                                        onClick={onClearSimpleCard}
+                                        className="px-[12px] py-[6px] bg-red-500/5 border border-red-500/20 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 shadow-sm flex items-center gap-[6px]"
+                                    >
+                                        <FolderX size={14} />
+                                        解除
+                                    </button>
+                                )}
+                                <button
+                                    onClick={onSelectSimpleCard}
+                                    className={`px-[12px] py-[6px] rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm ${simpleCardImageName ? 'bg-blue-600/20 border-blue-600/40 text-blue-400 hover:bg-blue-600/30' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}
+                                >
+                                    <Sparkles size={14} />
+                                    {simpleCardImageName ? '画像を変更' : '画像を選択'}
                                 </button>
-                            )}
-                            <button
-                                onClick={hasAccess ? onRequestAccess : (rootHandleName ? onVerifyPermission : onRequestAccess)}
-                                disabled={isScanning}
-                                className={`px-[12px] py-[6px] rounded-lg font-bold text-[11px] transition-all disabled:opacity-50 flex items-center gap-[6px] cursor-pointer pointer-events-auto z-50 border shadow-sm ${!hasAccess && rootHandleName ? 'bg-yellow-500/5 border-yellow-500/20 text-yellow-500/80 hover:bg-yellow-500/20 hover:text-yellow-400 hover:border-yellow-500/40' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20'}`}
-                            >
-                                {isScanning ? <><RefreshCw size={14} className="animate-spin" />スキャン中</> :
-                                    hasAccess ? <><FolderPlus size={14} />別フォルダを選択</> :
-                                        rootHandleName ? <><Unlock size={14} />アクセスを許可</> :
-                                            <><FolderSearch size={14} />フォルダを選択</>}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="py-[1px] flex items-center justify-between">
-                    <h4 className="text-[14px] font-semibold text-gray-200">・同名ファイルの統合</h4>
-                    <SettingsToggle checked={mergeSameFileCards} onChange={onToggleMergeSameFileCards} />
-                </div>
-
-                {hasAccess && cardCount > 0 && localCards && (
-                    <div className="py-[1px] flex items-center justify-between">
-                        <h4 className="text-[14px] font-semibold text-gray-200 whitespace-nowrap">・表示カード選択画面を開く</h4>
-                        <div className="flex gap-[6px] shrink-0">
-                            <button onClick={() => window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', '_blank')} className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm">
-                                <Layout size={14} />
-                                別タブ
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const width = 1200; const height = 800;
-                                    const left = (window.screen.width - width) / 2; const top = (window.screen.height - height) / 2;
-                                    window.open(window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search', 'CardSearchWindow', `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
-                                }}
-                                className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 flex items-center gap-[6px] shadow-sm"
-                            >
-                                <ExternalLink size={14} />
-                                別ウィンドウ
-                            </button>
+                            </div>
                         </div>
                     </div>
                 )}

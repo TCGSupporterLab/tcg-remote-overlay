@@ -63,6 +63,11 @@ interface SettingsMenuProps {
     onResetWidgetPosition: (id: string) => void;
     hideSettingsOnStart: boolean;
     onToggleHideSettingsOnStart: (val: boolean) => void;
+    cardMode: 'library' | 'simple';
+    onCardModeChange: (mode: 'library' | 'simple') => void;
+    onSelectSimpleCard: () => void;
+    onClearSimpleCard: () => void;
+    simpleCardImageName?: string;
 }
 
 export const SettingsMenu = (props: SettingsMenuProps) => {
@@ -212,6 +217,11 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 onToggleSpecializedCategoryOpen={() => setIsSpecializedCategoryOpen(!isSpecializedCategoryOpen)}
                                 isCommonCategoryOpen={isCommonCategoryOpen}
                                 onToggleCommonCategoryOpen={() => setIsCommonCategoryOpen(!isCommonCategoryOpen)}
+                                cardMode={props.cardMode}
+                                onCardModeChange={props.onCardModeChange}
+                                onSelectSimpleCard={props.onSelectSimpleCard}
+                                onClearSimpleCard={props.onClearSimpleCard}
+                                simpleCardImageName={props.simpleCardImageName}
                             />
                         )}
 

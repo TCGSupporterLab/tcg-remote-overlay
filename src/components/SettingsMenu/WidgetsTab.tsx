@@ -21,6 +21,12 @@ interface WidgetsTabProps {
     onToggleHololiveSectionOpen: () => void;
     isLPSectionOpen: boolean;
     onToggleLPSectionOpen: () => void;
+    // Card Mode
+    cardMode: 'library' | 'simple';
+    onCardModeChange: (mode: 'library' | 'simple') => void;
+    onSelectSimpleCard: () => void;
+    onClearSimpleCard: () => void;
+    simpleCardImageName?: string;
     // Data & Actions
     hasAccess: boolean;
     rootHandleName?: string;
@@ -73,6 +79,11 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                         <CardSetting
                             visible={props.isCardWidgetVisible}
                             onToggle={props.onToggleCardWidgetVisible}
+                            cardMode={props.cardMode}
+                            onCardModeChange={props.onCardModeChange}
+                            onSelectSimpleCard={props.onSelectSimpleCard}
+                            onClearSimpleCard={props.onClearSimpleCard}
+                            simpleCardImageName={props.simpleCardImageName}
                             isOpen={props.isCardSectionOpen}
                             onToggleOpen={props.onToggleCardSectionOpen}
                             hasAccess={props.hasAccess}

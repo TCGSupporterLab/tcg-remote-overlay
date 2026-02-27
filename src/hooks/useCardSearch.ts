@@ -633,7 +633,7 @@ export const useCardSearch = (
                 selectedCard: freshSelected
             });
         }
-    }, [normalizedData]);
+    }, [normalizedData, sharedState.pinnedCards]);
 
     // 設定変更時のピン留め属性の変換
     useEffect(() => {
