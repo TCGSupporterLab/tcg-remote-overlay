@@ -120,12 +120,12 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                     }`}
                             >
                                 <div className="flex items-center min-w-0 flex-1">
-                                    {/* 番号とアイコン (固定幅140px) */}
-                                    <div className="w-[140px] flex-shrink-0 flex items-center gap-4">
+                                    {/* 番号とアイコン (現在115pxに調整。ここを w-[XXXpx] で調整できます) */}
+                                    <div className="w-[80px] flex-shrink-0 flex items-center gap-[15px]">
                                         <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg bg-blue-500/20 border border-white/10 text-xs font-black text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-400 transition-all duration-300 shadow-inner">
                                             {index}
                                         </div>
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1">
                                             {layout.widgets && layout.widgets.length > 0 && (
                                                 <div title="ウィジェットを含む" className="p-1 flex-shrink-0 bg-blue-500/10 text-blue-400 rounded">
                                                     <Layers size={14} />
