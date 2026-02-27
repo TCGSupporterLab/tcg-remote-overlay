@@ -146,8 +146,10 @@ function App() {
 
   const saveLayoutAction = useWidgetStore(s => s.saveLayout);
   const handleSaveLayout = useCallback((name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => {
-    saveLayoutAction(name, options);
-  }, [saveLayoutAction]);
+    // 選択アクションバーから呼び出された場合は、選択中のウィジェットのみを対象とする
+    const allWidgets = saveDialog.source !== 'action-bar';
+    saveLayoutAction(name, { ...options, allWidgets });
+  }, [saveLayoutAction, saveDialog.source]);
 
   // Widget Selection & Grouping
   const {

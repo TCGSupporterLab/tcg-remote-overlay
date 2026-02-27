@@ -97,7 +97,7 @@ interface WidgetStoreState {
     hideSelectedWidgets: () => void;
 
     // マイレイアウト Actions
-    saveLayout: (name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
+    saveLayout: (name: string, options: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean, allWidgets?: boolean }) => void;
     applyLayout: (id: string) => void;
     deleteLayout: (id: string) => void;
     importLayout: (data: unknown) => { success: boolean; message?: string };
@@ -464,12 +464,12 @@ export const useWidgetStore = create<WidgetStoreState>()(
 
         saveLayout: (name, options) => set((state) => {
             const { selectedWidgetIds, widgetStates, widgetOrder, visibility, groupData, viewSize, videoCrop } = state;
-            const { includeWidgets, includeVideo, hideOthers } = options;
+            const { includeWidgets, includeVideo, hideOthers, allWidgets } = options;
 
             // 保存対象のウィジェットIDセット
-            // hideOthersがONの場合は全ウィジェット、OFFの場合は選択中のもの（アクションバー等の文脈による）
-            // ※呼び出し側ですでにフィルタリングされている想定だが、ここで最終確定
-            const targetIds = hideOthers
+            // allWidgetsが真、または指定がない場合は hideOthers がONなら全ウィジェット（Snapshot）
+            // allWidgetsが偽なら選択中のもの
+            const targetIds = (allWidgets ?? hideOthers)
                 ? ['dice', 'coin', 'lp_calculator', 'card_widget', 'sp_marker']
                 : selectedWidgetIds;
 
