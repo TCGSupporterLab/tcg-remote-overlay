@@ -1,4 +1,4 @@
-import { MousePointer2, Scan, Box, Camera, Monitor, Dice6, CircleDot, Save } from 'lucide-react';
+import { MousePointer2, Scan, Box, Camera, Monitor, Dice6, CircleDot, Save, Download, Sparkles } from 'lucide-react';
 
 export const GuideTab = () => {
     const Kbd = ({ children }: { children: React.ReactNode }) => (
@@ -94,13 +94,26 @@ export const GuideTab = () => {
 
                     <Step num={4} title="カード画像を使う（任意）">
                         <p>
-                            カードウィジェットの設定で<span className="font-bold text-white">フォルダを指定</span>すると、
+                            カードウィジェットの設定で<span className="font-bold text-white">画像を1枚だけ選んで表示</span>することが可能です。
+                        </p>
+                        <p className="mt-1">
+                            また、<span className="font-bold text-white">フォルダを指定</span>すると、
                             フォルダ内の画像をまとめてスキャンし、<Kbd>Shift+数字</Kbd> で素早く切り替えて表示できます。
                         </p>
-                        <p>
-                            フォルダではなく<span className="font-bold text-white">画像を1枚だけ選んで表示</span>することも可能です。
-                        </p>
-                        <p className="text-white/40">
+                        <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-lg space-y-2">
+                            <a
+                                href={`${import.meta.env.BASE_URL}assets/templates/card_image_template.zip`}
+                                download
+                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-bold transition-colors"
+                            >
+                                <Download size={12} />
+                                画像フォルダテンプレート構成をダウンロード
+                            </a>
+                            <p className="text-white/40 leading-relaxed" style={{ paddingLeft: '24px', fontSize: '12px' }}>
+                                検索フィルタ（色・タイプなど）や詳細データを設定するためのフォルダ構成の雛形です。zipファイルを展開して参考にしてください。
+                            </p>
+                        </div>
+                        <p className="mt-3 text-white/40">
                             相手から「そのカードなに？」と聞かれた時に、画像をすぐに表示できます。
                         </p>
                     </Step>
@@ -143,7 +156,6 @@ export const GuideTab = () => {
                 </div>
             </div>
 
-            {/* レイアウト管理 */}
             <div className="space-y-[16px]">
                 <h3 className="text-base font-bold text-white flex items-center gap-[8px] border-b border-white/10 pb-[8px]">
                     <Save size={18} className="text-emerald-400" />
@@ -160,6 +172,23 @@ export const GuideTab = () => {
                     </p>
                     <p className="text-white/40">
                         例：遊戯王用レイアウトとホロライブOCG用レイアウトを保存しておき、ゲームに応じて切り替える使い方ができます。
+                    </p>
+                </div>
+            </div>
+
+            {/* ロードマップ */}
+            <div className="pt-4 p-5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-white/5 rounded-2xl space-y-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Sparkles size={16} className="text-yellow-400" />
+                    今後のアップデート予定
+                </h3>
+                <div className="text-[11px] text-white/60 leading-relaxed space-y-2">
+                    <p>
+                        <span className="text-white font-bold">GUIによる直感的なデッキ構築機能</span>を構想中です。
+                    </p>
+                    <p>
+                        現在はテキストファイル（_link.txt）の編集が必要ですが、将来的にはブラウザ画面上でカードを選んでフォルダへ放り込むだけで、
+                        実体ファイルをコピーすることなく、仮想的なデッキを作成できる仕組みの提供を目指しています。
                     </p>
                 </div>
             </div>
