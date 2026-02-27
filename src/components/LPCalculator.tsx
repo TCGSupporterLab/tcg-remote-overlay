@@ -55,6 +55,15 @@ export const LPCalculator: React.FC<LPCalculatorProps> = ({
         const channel = new BroadcastChannel(CHANNEL_NAME);
         channel.onmessage = (event) => {
             const data = event.data;
+            if (data.type === 'reset') {
+                const initial = { life: data.initialLP || 8000, log: [data.initialLP || 8000], isRotated: false };
+                setP1(initial);
+                setP2(initial);
+                setHistory([{ p1: initial, p2: initial }]);
+                setCurrentStep(0);
+                setInputValue('');
+                return;
+            }
             if (data.p1) setP1(data.p1);
             if (data.p2) setP2(data.p2);
             if (data.target !== undefined) setTargetPlayer(data.target);

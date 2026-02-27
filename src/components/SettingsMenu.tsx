@@ -61,6 +61,7 @@ interface SettingsMenuProps {
     onToggleSPMarkerMode: () => void;
     onVerifyPermission: () => void;
     onResetWidgetPosition: (id: string) => void;
+    onFullReset: () => void;
     hideSettingsOnStart: boolean;
     onToggleHideSettingsOnStart: (val: boolean) => void;
     cardMode: 'library' | 'simple';
@@ -222,6 +223,7 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 onSelectSimpleCard={props.onSelectSimpleCard}
                                 onClearSimpleCard={props.onClearSimpleCard}
                                 simpleCardImageName={props.simpleCardImageName}
+                                onFullReset={props.onFullReset}
                             />
                         )}
 

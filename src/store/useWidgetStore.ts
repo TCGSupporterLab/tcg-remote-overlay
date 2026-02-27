@@ -106,6 +106,7 @@ interface WidgetStoreState {
     deleteLayout: (id: string) => void;
     importLayout: (data: unknown) => { success: boolean; message?: string };
     importDefaultLayouts: () => void;
+    fullReset: () => void;
 }
 
 const STORAGE_KEYS = {
@@ -707,6 +708,23 @@ export const useWidgetStore = create<WidgetStoreState>()(
             return {
                 myLayouts: nextLayouts,
                 hasImportedDefaultLayouts: true
+            };
+        }),
+
+        fullReset: () => set((state) => {
+            // Trigger LP Reset via BroadcastChannel
+            const lpChannel = new BroadcastChannel('tcg_remote_sync_lp');
+            lpChannel.postMessage({ type: 'reset', initialLP: state.settings.initialLP });
+            lpChannel.close();
+
+            return {
+                diceValue: 1,
+                coinValue: 1,
+                settings: {
+                    ...state.settings,
+                    spMarkerFace: 'front',
+                },
+                needsSync: true
             };
         }),
     }))

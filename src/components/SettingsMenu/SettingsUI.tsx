@@ -52,7 +52,7 @@ export const SectionHeader = ({ icon, title, borderTop, isOpen, onToggle }: Sect
                 {icon}
             </div>
             <div className="flex items-center gap-[8px]">
-                <h2 className={`text-lg font-bold tracking-wide drop-shadow-md transition-colors ${isOpen === false ? 'text-gray-400 group-hover:text-gray-200' : 'text-white'}`}>
+                <h2 className={`text-[20px] font-bold tracking-wide drop-shadow-md transition-colors ${isOpen === false ? 'text-gray-400 group-hover:text-gray-200' : 'text-white'}`}>
                     {title}
                 </h2>
                 {onToggle && (

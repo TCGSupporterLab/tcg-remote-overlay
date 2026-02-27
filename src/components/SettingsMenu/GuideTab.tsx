@@ -42,6 +42,18 @@ export const GuideTab = () => (
 
             <div className="bg-white/5 rounded-lg p-[0px] border border-white/5 hover:bg-white/10 transition-colors group">
                 <h3 className="text-sm font-bold flex items-center gap-[6px] text-white mb-[0px]">
+                    <span className="p-1 bg-white/10 rounded-md text-orange-400 group-hover:scale-110 transition-transform">⌨</span>
+                    便利なショートカット
+                </h3>
+                <div className="text-xs text-white/70 ml-[22px] space-y-1">
+                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">Shift + V</kbd> : カメラ/画面共有/なし を<b>逆順</b>で切り替え</p>
+                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">Alt + 1 / 2</kbd> : プリセット(遊戯王/ホロライブ)のクイック切り替え</p>
+                    <p><kbd className="bg-white/10 px-1 py-0.5 rounded text-white font-mono shadow-sm border border-white/20">R</kbd> を 3秒間長押し : 全ての状態（ライフ、ダイス、コイン等）をリセット</p>
+                </div>
+            </div>
+
+            <div className="bg-white/5 rounded-lg p-[0px] border border-white/5 hover:bg-white/10 transition-colors group">
+                <h3 className="text-sm font-bold flex items-center gap-[6px] text-white mb-[0px]">
                     <Info size={16} className="text-yellow-400 group-hover:scale-110 transition-transform" />
                     OBS配信ソフト
                 </h3>

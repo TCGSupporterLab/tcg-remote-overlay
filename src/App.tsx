@@ -75,6 +75,7 @@ function App() {
   const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
   const hideSelectedWidgets = useWidgetStore(s => s.hideSelectedWidgets);
   const setSimpleCardImageUrl = useWidgetStore(s => s.setSimpleCardImageUrl);
+  const fullReset = useWidgetStore(s => s.fullReset);
 
   const {
     isDiceVisible,
@@ -222,8 +223,9 @@ function App() {
   }, [obsMode]);
 
   // Persistent Tool State
-  const lastDotTapRef = useRef<number>(0);
   const dotTimerRef = useRef<number | null>(null);
+  const lastDotTapRef = useRef<number>(0);
+  const rPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const displayCardNoBufferRef = useRef<string>("");
   const displayCardNoTimerRef = useRef<number | null>(null);
   // View mode detection
@@ -345,9 +347,11 @@ function App() {
   }, [setCoinValue]);
 
 
-  const toggleVideoSource = useCallback(() => {
+  const toggleVideoSource = useCallback((reverse = false) => {
     const sources: VideoSourceType[] = ['none', 'camera', 'screen'];
-    const nextIndex = (sources.indexOf(videoSource) + 1) % sources.length;
+    const currentIndex = sources.indexOf(videoSource);
+    const step = reverse ? -1 : 1;
+    const nextIndex = (currentIndex + step + sources.length) % sources.length;
     const nextSource = sources[nextIndex];
     setVideoSource(nextSource);
   }, [videoSource, setVideoSource]);
@@ -427,10 +431,28 @@ function App() {
         handleFlipCoin();
       }
       if (e.key === 'v' || e.key === 'V') {
-        toggleVideoSource();
+        toggleVideoSource(e.shiftKey);
       }
       if (e.key === 'a' || e.key === 'A') {
         toggleAdjustmentMode();
+      }
+
+      // Preset Quick Toggle
+      if (e.altKey) {
+        if (e.key === '1') setSettings({ activePreset: 'yugioh' });
+        if (e.key === '2') setSettings({ activePreset: 'hololive' });
+      }
+
+      // Reset Long Press (3s)
+      if (e.key === 'r' || e.key === 'R') {
+        if (!rPressTimerRef.current) {
+          if (import.meta.env.DEV) console.log("[Shortcut] R key pressed, starting long press timer...");
+          rPressTimerRef.current = setTimeout(() => {
+            fullReset();
+            rPressTimerRef.current = null;
+            if (import.meta.env.DEV) console.log("[Shortcut] Full Reset triggered by 3s hold");
+          }, 3000);
+        }
       }
       if (activePreset === 'hololive' && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
@@ -546,15 +568,27 @@ function App() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'r' || e.key === 'R') {
+        if (rPressTimerRef.current) {
+          clearTimeout(rPressTimerRef.current);
+          rPressTimerRef.current = null;
+          if (import.meta.env.DEV) console.log("[Shortcut] R key released, timer cancelled");
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('mousedown', handleMouseDown, true);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('mousedown', handleMouseDown, true);
     };
-  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets]);
+  }, [activePreset, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets, fullReset]);
 
 
   if (import.meta.env.DEV) {
@@ -862,6 +896,7 @@ function App() {
             onToggleSPMarkerMode={toggleSPMarkerMode}
             onVerifyPermission={verifyPermissionAndScan}
             onResetWidgetPosition={resetWidgetPosition}
+            onFullReset={fullReset}
             hideSettingsOnStart={settings.hideSettingsOnStart}
             onToggleHideSettingsOnStart={(val) => setSettings({ hideSettingsOnStart: val })}
             cardMode={settings.cardMode}

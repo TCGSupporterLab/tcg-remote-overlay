@@ -59,16 +59,71 @@ interface WidgetsTabProps {
     isCommonCategoryOpen: boolean;
     onToggleCommonCategoryOpen: () => void;
     onResetWidgetPosition: (id: string) => void;
+    onFullReset: () => void;
 }
 
 export const WidgetsTab = (props: WidgetsTabProps) => {
     return (
         <div className="space-y-[12px] pb-[20px]">
+            {/* 共通設定 */}
+            <div className="space-y-[4px]">
+                <SectionHeader
+                    icon={<Settings size={20} />}
+                    title="共通設定"
+                    isOpen={props.isCommonCategoryOpen}
+                    onToggle={props.onToggleCommonCategoryOpen}
+                />
+                {props.isCommonCategoryOpen && (
+                    <div className="space-y-[4px] animate-in slide-in-from-top-2 duration-200">
+                        {/* 状態リセット */}
+                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 p-[16px] space-y-[12px] mb-[4px]">
+                            <div className="space-y-[4px]">
+                                <h3 className="text-[15px] font-semibold text-gray-200">状態リセット</h3>
+                                <p className="text-[12px] text-gray-400">
+                                    コイン、ダイス、ライフポイント、SPマーカーの状態を初期化します。
+                                </p>
+                            </div>
+                            <button
+                                onClick={props.onFullReset}
+                                className="w-full py-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-bold transition-all active:scale-[0.98]"
+                            >
+                                全ての状態をリセット
+                            </button>
+                        </div>
+
+                        {/* 優先表示順 */}
+                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
+                            <div
+                                className="flex items-center justify-between p-[6px] px-[16px] hover:bg-white/10 rounded-xl group transition-all cursor-pointer"
+                                onClick={props.onToggleOrderSectionOpen}
+                            >
+                                <div className="flex items-center gap-[12px]">
+                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
+                                        <Layers size={18} />
+                                    </div>
+                                    <div className="flex items-center gap-[8px]">
+                                        <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">優先表示順</h3>
+                                        <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${props.isOrderSectionOpen ? 'rotate-90' : ''}`} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {props.isOrderSectionOpen && (
+                                <div className="px-[16px] pb-[12px] animate-in slide-in-from-top-2 duration-200">
+                                    <WidgetOrderUI />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* 汎用ウィジェット */}
             <div className="space-y-[4px]">
                 <SectionHeader
                     icon={<Settings2 size={20} />}
                     title="汎用ウィジェット"
+                    borderTop
                     isOpen={props.isGenericCategoryOpen}
                     onToggle={props.onToggleGenericCategoryOpen}
                 />
@@ -133,43 +188,6 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                             onToggleSPMarkerMode={props.onToggleSPMarkerMode}
                             onReset={() => props.onResetWidgetPosition('sp_marker')}
                         />
-                    </div>
-                )}
-            </div>
-
-            {/* 共通設定 */}
-            <div className="space-y-[4px]">
-                <SectionHeader
-                    icon={<Settings size={20} />}
-                    title="共通設定"
-                    borderTop
-                    isOpen={props.isCommonCategoryOpen}
-                    onToggle={props.onToggleCommonCategoryOpen}
-                />
-                {props.isCommonCategoryOpen && (
-                    <div className="space-y-[4px] animate-in slide-in-from-top-2 duration-200">
-                        <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
-                            <div
-                                className="flex items-center justify-between p-[6px] px-[16px] hover:bg-white/10 rounded-xl group transition-all cursor-pointer"
-                                onClick={props.onToggleOrderSectionOpen}
-                            >
-                                <div className="flex items-center gap-[12px]">
-                                    <div className="p-[8px] rounded-lg bg-black/40 text-gray-400 group-hover:text-secondary transition-colors">
-                                        <Layers size={18} />
-                                    </div>
-                                    <div className="flex items-center gap-[8px]">
-                                        <h3 className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">優先表示順</h3>
-                                        <ChevronRight size={16} className={`text-gray-500 transition-transform duration-300 ${props.isOrderSectionOpen ? 'rotate-90' : ''}`} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {props.isOrderSectionOpen && (
-                                <div className="px-[16px] pb-[12px] animate-in slide-in-from-top-2 duration-200">
-                                    <WidgetOrderUI />
-                                </div>
-                            )}
-                        </div>
                     </div>
                 )}
             </div>
