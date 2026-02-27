@@ -8,6 +8,7 @@ import { GuideTab } from './SettingsMenu/GuideTab';
 import { WidgetsTab } from './SettingsMenu/WidgetsTab';
 import { VideoTab } from './SettingsMenu/VideoTab';
 import { AboutTab } from './SettingsMenu/AboutTab';
+import { ShortcutTab } from './SettingsMenu/ShortcutTab';
 import { SettingsTabs, type TabType } from './SettingsMenu/SettingsTabs';
 import { MyLayoutTab } from './SettingsMenu/MyLayoutTab';
 
@@ -191,8 +192,10 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-hidden flex flex-col">
-                    <div className="flex-1 overflow-y-auto p-[8px] scrollbar-thin">
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden p-[8px] scrollbar-thin">
                         {props.activeTab === 'guide' && <GuideTab />}
+
+                        {props.activeTab === 'shortcuts' && <ShortcutTab />}
 
                         {props.activeTab === 'layout' && <MyLayoutTab onOpenSaveDialog={props.onOpenSaveDialog} />}
 
