@@ -455,7 +455,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                     }}
                                     className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
                                 >
-                                    レイアウト登録
+                                    調整を保存
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onClose?.(); }}
