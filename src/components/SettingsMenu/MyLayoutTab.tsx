@@ -119,13 +119,13 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                     : 'border-white/5 hover:border-white/10 hover:bg-white/10'
                                     }`}
                             >
-                                <div className="flex items-center gap-7">
+                                <div className="flex items-center gap-8">
                                     {/* 番号とアイコン */}
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 flex-shrink-0">
                                         <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/20 border border-white/10 text-xs font-black text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-400 transition-all duration-300 shadow-inner">
                                             {index}
                                         </div>
-                                        <div className="flex items-center gap-1.5 min-w-[40px]">
+                                        <div className="flex items-center gap-1.5">
                                             {layout.widgets && layout.widgets.length > 0 && (
                                                 <div title="ウィジェットを含む" className="p-1 bg-blue-500/10 text-blue-400 rounded">
                                                     <Layers size={14} />
@@ -144,17 +144,10 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-gray-200 group-hover:text-white transition-colors text-sm">
-                                                {layout.name}
-                                            </span>
-                                        </div>
-                                        {!layout.isDefault && (
-                                            <span className="text-[11px] text-gray-400 mt-0.5 opacity-80">
-                                                {new Date(layout.createdAt).toLocaleString()}
-                                            </span>
-                                        )}
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="font-bold text-gray-200 group-hover:text-white transition-colors text-sm truncate">
+                                            {layout.name}
+                                        </span>
                                     </div>
                                 </div>
 
