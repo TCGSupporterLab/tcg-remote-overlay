@@ -119,9 +119,9 @@ export const MyLayoutTab = ({ onOpenSaveDialog }: MyLayoutTabProps) => {
                                     : 'border-white/5 hover:border-white/10 hover:bg-white/10'
                                     }`}
                             >
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-7">
                                     {/* 番号とアイコン */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-4">
                                         <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/20 border border-white/10 text-xs font-black text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-400 transition-all duration-300 shadow-inner">
                                             {index}
                                         </div>
