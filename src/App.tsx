@@ -106,6 +106,8 @@ function App() {
 
   // Sync folder name for caching logic
   useEffect(() => {
+    if (isLoading) return; // スキャン準備が整うまで待機
+
     const currentName = rootHandle?.name || savedRootName || '';
     if (currentName !== rootFolderName) {
       setRootFolderName(currentName);
@@ -114,7 +116,7 @@ function App() {
         restoreFolderCache(currentName);
       }
     }
-  }, [rootHandle?.name, savedRootName, rootFolderName, setRootFolderName]);
+  }, [isLoading, rootHandle?.name, savedRootName, rootFolderName, setRootFolderName]);
 
   useEffect(() => {
     importDefaultLayouts();

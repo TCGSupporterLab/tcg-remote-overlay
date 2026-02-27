@@ -72,10 +72,18 @@ channel.onmessage = (event: MessageEvent<SharedState>) => {
     listeners.forEach(l => l());
 };
 
-const updateShared = (patch: Partial<SharedState>) => {
+const updateShared = (patch: Partial<SharedState>, manual = false, skipBroadcast = false) => {
     const oldFolderName = sharedState.rootFolderName;
     sharedState = { ...sharedState, ...patch };
-    channel.postMessage(sharedState);
+
+    if (manual) {
+        sharedState.userInteracted = true;
+    }
+
+    // Broadcast if not explicitly skipped
+    if (!skipBroadcast) {
+        channel.postMessage(sharedState);
+    }
 
     // 永続化が必要な情報の保存
     if (patch.pinnedCards) {
@@ -85,17 +93,17 @@ const updateShared = (patch: Partial<SharedState>) => {
     }
     if (patch.currentPath !== undefined) {
         set(PATH_STORAGE_KEY, patch.currentPath).catch(err => {
-            console.error('[Sync] Failed to persist current path:', err);
+            console.error('[Sync] Failed to load path:', err);
         });
     }
     if (patch.selectedCard !== undefined) {
         set(SELECTED_CARD_STORAGE_KEY, patch.selectedCard).catch(err => {
-            console.error('[Sync] Failed to persist selected card:', err);
+            console.error('[Sync] Failed to save selected card:', err);
         });
     }
     if (patch.displayCardNo !== undefined) {
         set(DISPLAY_NO_STORAGE_KEY, patch.displayCardNo).catch(err => {
-            console.error('[Sync] Failed to persist display card no:', err);
+            console.error('[Sync] Failed to save display card no:', err);
         });
     }
 
@@ -597,9 +605,9 @@ export const useCardSearch = (
         updateShared(patch);
     };
 
-    // 初期化時（マウント時）にフィルタをリセット
+    // 初期化時（マウント時）にフィルタをリセット（他タブを壊さないようブロードキャストはしない）
     useEffect(() => {
-        updateShared({ filters: { keyword: '', categories: {} } });
+        updateShared({ filters: { keyword: '', categories: {} } }, false, true);
     }, []);
 
     // 永続化されたカードデータの再同期（Blob URLおよびメタデータの更新）
@@ -631,7 +639,7 @@ export const useCardSearch = (
             updateShared({
                 pinnedCards: freshPinned,
                 selectedCard: freshSelected
-            });
+            }, false, true); // ローカルのBlob URL不一致による修正なので、他タブへのbroadcastは行わない（無限ループ防止）
         }
     }, [normalizedData, sharedState.pinnedCards]);
 
@@ -728,7 +736,7 @@ export const useCardSearch = (
             const cur = sharedState.filters.categories[category] || ['all'];
             let next = value === 'all' ? ['all'] : (cur.includes(value) ? cur.filter(v => v !== value) : [...cur.filter(v => v !== 'all'), value]);
             if (!next.length) next = ['all'];
-            updateShared({ filters: { ...sharedState.filters, categories: { ...sharedState.filters.categories, [category]: next } } });
+            updateShared({ filters: { ...sharedState.filters, categories: { ...sharedState.filters.categories, [category]: next } } }, true);
         },
         togglePin: (card: Card) => {
             if (card.isFolder) {
