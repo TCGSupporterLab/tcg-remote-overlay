@@ -219,7 +219,15 @@ export async function restoreFolderCache(folderName: string): Promise<boolean> {
             await set(FOLDER_CACHE_KEY, cache);
             return true;
         } else {
-            if (import.meta.env.DEV) console.log(`[FolderCache] No cache found for "${folderName}"`);
+            if (import.meta.env.DEV) console.log(`[FolderCache] No cache found for "${folderName}". Resetting to initial state.`);
+            // キャッシュがない新しいフォルダの場合は、直前のフォルダの状態を引き継がないようリセットする
+            updateShared({
+                pinnedCards: [],
+                selectedCard: null,
+                currentPath: '',
+                displayCardNo: 0,
+                userInteracted: false // 新しいフォルダなので自動遷移も許可する
+            });
             return false;
         }
     } catch (err) {
@@ -470,14 +478,21 @@ export const useCardSearch = (
         let files: Card[] = [];
         const seenFolders = new Set<string>();
 
+        // 属性フィルタが選択されているか、キーワードがあるかを事前に判定（フラットモード）
+        const hasSelectedCategories = Object.entries(categories).some(([key, selected]) => {
+            return !excludeKeys.includes(key) && selected?.length > 0 && !selected.includes('all') && activeCategories.includes(key);
+        });
+        const isFlatMode = !!keyword || hasSelectedCategories;
+
         results.forEach(card => {
             const path = card.path || '';
 
             // 階層に基づいた検索範囲の判定（表示上の現在地 depth に依存）
             if (depth === 1) {
                 if (!path.startsWith(currentPath + '/')) return;
-                // 第1階層では _link.txt 経由のカードは表示しない
-                if (card._linkedFrom) return;
+                // 第1階層では _link.txt 経由のカードは、検索時（フラットモード）のみ重複を避けるために除外する。
+                // 通常のフォルダブラウジング時は、これを見てサブフォルダ（deck_example等）を認識する必要がある。
+                if (isFlatMode && card._linkedFrom) return;
             } else if (depth >= 2) {
                 if (!path.startsWith(currentPath + '/')) return;
                 const relativePath = path.slice(currentPath.length + 1);
@@ -487,14 +502,6 @@ export const useCardSearch = (
 
             const relative = currentPath ? (path.startsWith(currentPath + '/') ? path.slice(currentPath.length + 1) : path) : path;
             const parts = relative.split('/');
-
-            // 属性フィルタが選択されているかチェック
-            const hasSelectedCategories = Object.entries(categories).some(([key, selected]) => {
-                return !excludeKeys.includes(key) && selected?.length > 0 && !selected.includes('all') && activeCategories.includes(key);
-            });
-
-            // フラット表示モードの判定（キーワード検索中、または属性フィルタ選択中）
-            const isFlatMode = !!keyword || hasSelectedCategories;
 
             // 第0階層（ROOT）では常にファイルを表示しないルール
             if (depth === 0) {
