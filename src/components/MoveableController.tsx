@@ -696,6 +696,7 @@ export const MoveableController: React.FC<MoveableControllerProps> = ({
                     const target = e.inputEvent.target as Element;
                     if (target.closest('.selection-action-bar')) return false;
                     if (target.closest('.settings-overlay')) return false;
+                    if (target.closest('.save-layout-dialog-overlay')) return false;
                     if (isAdjustingVideo) return false;
                     const isCtrl = e.inputEvent.ctrlKey || e.inputEvent.metaKey;
                     const isMoveableElement = !!target.closest('[class*="moveable-"]');
@@ -718,6 +719,7 @@ export const MoveableController: React.FC<MoveableControllerProps> = ({
                     const target = e.inputEvent.target as Element;
                     if (target.closest('.selection-action-bar') ||
                         target.closest('.settings-overlay') ||
+                        target.closest('.save-layout-dialog-overlay') ||
                         target.closest('.video-adjustment-overlay')) {
                         e.stop();
                         return;

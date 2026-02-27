@@ -38,7 +38,7 @@ export const SaveLayoutDialog = ({ isOpen, onClose, onSave, initialOptions, sour
 
     return (
         <div
-            className="fixed inset-0 z-[4000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-[4000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 save-layout-dialog-overlay"
             onClick={onClose}
         >
             <div
