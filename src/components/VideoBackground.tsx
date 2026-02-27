@@ -125,6 +125,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     }, [isAdjustmentMode, cropConfig, getPhysicalInset]);
 
     const stopStream = useCallback(() => {
+        if (import.meta.env.DEV) console.log('[Video] Stopping stream');
         setIsActive(false);
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -163,9 +164,21 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
             streamRef.current = stream;
 
+            if (import.meta.env.DEV) {
+                const track = stream.getVideoTracks()[0];
+                console.log(`[Video] Stream started: ${sourceType}`, {
+                    label: track?.label,
+                    id: track?.id,
+                    enabled: track?.enabled,
+                    readyState: track?.readyState
+                });
+            }
+
             // ストリームが切れた（画面共有停止など）を検知
             stream.getTracks().forEach(track => {
                 track.onended = () => {
+                    if (import.meta.env.DEV) console.log(`[Video] Track ended: ${track.label}`);
+                    setError(`接続がキャンセルされました。\n${sourceType === 'camera' ? 'カメラの許可が必要です。' : '画面共有の許可が必要です。'}`);
                     stopStream();
                 };
             });
@@ -176,7 +189,15 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             setIsActive(true);
         } catch (err: any) {
             console.error('Error accessing media devices:', err);
-            setError(err.name === 'NotAllowedError' ? (sourceType === 'camera' ? 'カメラの使用許可が必要です' : '画面共有の使用許可が必要です') : '映像を取得できませんでした');
+            if (err.name === 'NotAllowedError') {
+                setError(`接続がキャンセルされました。\n${sourceType === 'camera' ? 'カメラの許可が必要です。' : '画面共有の許可が必要です。'}`);
+            } else if (err.name === 'NotReadableError') {
+                setError(`デバイスが既に使用されています。\n他のアプリ（DiscordやOBS等）を確認してください。`);
+            } else if (err.name === 'NotFoundError') {
+                setError(`デバイスが見つかりません。\n${sourceType === 'camera' ? 'カメラ' : 'デバイス'}が正しく接続されているか確認してください。`);
+            } else {
+                setError('映像を取得できませんでした');
+            }
             setIsActive(false);
         }
     };
@@ -550,8 +571,8 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
             {!isActive && (
                 <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-[1000] p-6 text-center">
-                    <p className="text-white mb-4 text-sm font-medium">
-                        {error || (sourceType === 'camera' ? 'カメラの使用許可が必要です' : '画面共有の使用許可が必要です')}
+                    <p className="text-white mb-4 text-sm font-medium whitespace-pre-wrap">
+                        {error || (sourceType === 'camera' ? 'カメラの許可が必要です。' : '画面共有の許可が必要です。')}
                     </p>
                     <button
                         onClick={startStream}
