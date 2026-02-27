@@ -111,6 +111,22 @@ const updateShared = (patch: Partial<SharedState>, manual = false, skipBroadcast
 
 
 
+    // 永続化情報の変更があった場合、現在のフォルダのキャッシュも更新する
+    const isPersistentChange =
+        patch.pinnedCards !== undefined ||
+        patch.currentPath !== undefined ||
+        patch.selectedCard !== undefined ||
+        patch.displayCardNo !== undefined;
+
+    if (isPersistentChange && sharedState.rootFolderName) {
+        saveFolderCache(sharedState.rootFolderName, {
+            pinnedCards: sharedState.pinnedCards,
+            selectedCard: sharedState.selectedCard,
+            currentPath: sharedState.currentPath,
+            displayCardNo: sharedState.displayCardNo
+        });
+    }
+
     // フォルダ名が変更された場合のキャッシュ処理（保存のみ・復元はApp.tsx側で行う）
     if (patch.rootFolderName !== undefined && patch.rootFolderName !== oldFolderName) {
         if (import.meta.env.DEV) console.log(`[FolderCache] Name changed: "${oldFolderName}" -> "${patch.rootFolderName}"`);
@@ -156,8 +172,7 @@ interface FolderCacheEntry {
  * フォルダのキャッシュを保存（fire-and-forget）
  */
 function saveFolderCache(folderName: string, state: Partial<FolderCacheEntry>) {
-    const isMain = !window.location.search.includes('view=');
-    if (IS_OVERLAY || !isMain) return;
+    // どの画面（メイン・検索・オーバーレイ）でも状態を共有・保存できるように制限を解除
 
     get(FOLDER_CACHE_KEY).then((raw) => {
         const cache: Record<string, FolderCacheEntry> = (raw as any) || {};
@@ -214,7 +229,7 @@ export async function restoreFolderCache(folderName: string): Promise<boolean> {
 }
 
 // 永続化された情報の復元
-if (!IS_OVERLAY) {
+{
     // ピン留め
     get(PINNED_STORAGE_KEY).then(saved => {
         if (saved && Array.isArray(saved)) {
