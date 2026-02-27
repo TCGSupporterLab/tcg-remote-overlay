@@ -592,6 +592,7 @@ function App() {
         onReset={() => setVideoCrop(DEFAULT_CROP)}
         onClose={() => setIsAdjustingVideo(false)}
         isAdjustmentMode={isAdjustingVideo}
+        onOpenSaveDialog={openSaveDialog}
       />
 
       {/* 2 & 3. GB and Widgets Layer */}

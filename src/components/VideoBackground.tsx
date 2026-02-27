@@ -15,6 +15,7 @@ interface VideoBackgroundProps {
     onReset?: () => void;
     onClose?: () => void;
     isAdjustmentMode?: boolean;
+    onOpenSaveDialog?: (source: 'action-bar' | 'video-menu' | 'settings', initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
 }
 
 export const VideoBackground: React.FC<VideoBackgroundProps> = ({
@@ -24,7 +25,8 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     onCropChange,
     onReset,
     onClose,
-    isAdjustmentMode = false
+    isAdjustmentMode = false,
+    onOpenSaveDialog
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -441,6 +443,19 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
                                     className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
                                 >
                                     リセット
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onOpenSaveDialog?.('video-menu', {
+                                            includeWidgets: false,
+                                            includeVideo: true,
+                                            hideOthers: false
+                                        });
+                                    }}
+                                    className="w-[110px] flex-shrink-0 bg-white hover:bg-white/90 py-2 rounded-none text-xs font-black text-blue-600 transition-all active:scale-95 shadow-md"
+                                >
+                                    レイアウト登録
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onClose?.(); }}
