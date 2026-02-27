@@ -1,7 +1,7 @@
 import React from 'react';
 import { Info } from 'lucide-react';
 
-export type TabType = 'guide' | 'general' | 'layout' | 'widgets' | 'video' | 'about';
+export type TabType = 'guide' | 'layout' | 'widgets' | 'video' | 'about';
 
 interface TabItem {
     id: TabType;
@@ -16,10 +16,9 @@ interface SettingsTabsProps {
 
 const TABS: TabItem[] = [
     { id: 'guide', label: '操作説明', icon: <Info size={18} className="text-blue-400" /> },
-    { id: 'general', label: '基本設定' },
     { id: 'layout', label: 'マイレイアウト' },
     { id: 'widgets', label: 'ウィジェット' },
-    { id: 'video', label: '映像入力' },
+    { id: 'video', label: '背景・映像' },
     { id: 'about', label: 'About' }
 ];
 

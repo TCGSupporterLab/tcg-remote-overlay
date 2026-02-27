@@ -5,7 +5,6 @@ import type { LocalCard } from '../hooks/useLocalCards';
 
 // Refactored Components
 import { GuideTab } from './SettingsMenu/GuideTab';
-import { GeneralTab } from './SettingsMenu/GeneralTab';
 import { WidgetsTab } from './SettingsMenu/WidgetsTab';
 import { VideoTab } from './SettingsMenu/VideoTab';
 import { AboutTab } from './SettingsMenu/AboutTab';
@@ -192,13 +191,6 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                     <div className="flex-1 overflow-y-auto p-[8px] scrollbar-thin">
                         {props.activeTab === 'guide' && <GuideTab />}
 
-                        {props.activeTab === 'general' && (
-                            <GeneralTab
-                                obsMode={props.obsMode}
-                                onObsModeChange={props.onObsModeChange}
-                            />
-                        )}
-
                         {props.activeTab === 'layout' && <MyLayoutTab onOpenSaveDialog={props.onOpenSaveDialog} />}
 
                         {props.activeTab === 'widgets' && (
@@ -230,6 +222,8 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 isAdjustingVideo={props.isAdjustingVideo}
                                 onToggleVideoAdjust={props.onToggleVideoAdjust}
                                 onOpenSaveDialog={props.onOpenSaveDialog}
+                                obsMode={props.obsMode}
+                                onObsModeChange={props.onObsModeChange}
                             />
                         )}
 
