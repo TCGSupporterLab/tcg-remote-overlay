@@ -94,11 +94,14 @@ export const GuideTab = () => {
 
                     <Step num={4} title="カード画像を使う（任意）">
                         <p>
-                            カードウィジェットの設定で<span className="font-bold text-white">画像を1枚だけ選んで表示</span>することが可能です。
+                            カードウィジェットに<span className="font-bold text-white">画像ファイルを直接ドロップ</span>して1枚だけ表示することが可能です。
                         </p>
                         <p className="mt-1">
-                            また、<span className="font-bold text-white">フォルダを指定</span>すると、
-                            フォルダ内の画像をまとめてスキャンし、<Kbd>Shift+数字</Kbd> で素早く切り替えて表示できます。
+                            また、<span className="font-bold text-white">フォルダまたはZIPファイルをドロップ</span>すると、自動的にカードライブラリとして認識され、
+                            内容をスキャンして <Kbd>Shift+数字</Kbd> で素早く切り替えられるようになります。
+                        </p>
+                        <p className="text-white/40 mt-1">
+                            ※ZIPファイルはドロップ時に自動で展開・解析されるため、事前に解凍しておく必要はありません。
                         </p>
                         <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-lg space-y-2">
                             <a
