@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { get, set, del } from 'idb-keyval';
+import * as fflate from 'fflate';
 
 export interface LocalCard {
     id: string;
@@ -31,6 +32,72 @@ const getInStorage = async (key: string) => {
 // Simple path helpers for browser
 const getBasename = (p: string) => p.split('/').pop() || '';
 const getExtStripped = (p: string) => getBasename(p).replace(/\.[^/.]+$/, "");
+
+export const isZipFile = (file: File) => {
+    return file.name.toLowerCase().endsWith('.zip') ||
+        file.type === 'application/zip' ||
+        file.type === 'application/x-zip-compressed' ||
+        file.type === 'application/zip-compressed';
+};
+
+export interface ZipMetadata {
+    fileName: string;
+    fileCount: number;
+    topFolders: string[];
+    isSingleRoot: boolean;
+    rootName: string | null;
+}
+
+export const analyzeZip = async (file: File): Promise<ZipMetadata> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const zipData = new Uint8Array(arrayBuffer);
+
+    return new Promise((resolve, reject) => {
+        fflate.unzip(zipData, (err, unzipped) => {
+            if (err) return reject(new Error(`ZIPの解析に失敗しました: ${err.message}`));
+
+            // パスを正規化（Windows形式の \ も / に統一）
+            const allPaths = Object.keys(unzipped).map(p => p.replace(/\\/g, '/'));
+            const files = allPaths.filter(p => !p.endsWith('/'));
+
+            // 単一ルートの判定
+            const firstEntry = files[0];
+            const firstPart = firstEntry ? firstEntry.split('/')[0] : null;
+            const isSingleRoot = !!firstPart && files.every(p => p.startsWith(firstPart + '/'));
+
+            const folders = new Set<string>();
+            allPaths.forEach(p => {
+                const parts = p.split('/').filter(Boolean);
+
+                // フォルダ名を抽出
+                if (isSingleRoot) {
+                    // Root/SubFolder/... の SubFolder を取り出す
+                    if (parts.length >= 2) {
+                        // ファイル名（最後の要素）ではないことを確認（フォルダエントリか、さらに下の階層がある場合）
+                        if (p.endsWith('/') || parts.length > 2) {
+                            folders.add(parts[1]);
+                        }
+                    }
+                } else {
+                    // SubFolder/... の SubFolder を取り出す
+                    if (parts.length >= 1) {
+                        if (p.endsWith('/') || parts.length > 1) {
+                            folders.add(parts[0]);
+                        }
+                    }
+                }
+            });
+
+            resolve({
+                fileName: file.name,
+                fileCount: files.length,
+                topFolders: Array.from(folders).slice(0, 10),
+                isSingleRoot,
+                rootName: isSingleRoot ? firstPart : null
+            });
+        });
+    });
+};
 
 export const useLocalCards = () => {
     const [cards, setCards] = useState<LocalCard[]>([]);
@@ -81,7 +148,12 @@ export const useLocalCards = () => {
         return { cardMetadataMap, filterMetadataMap };
     }, []);
 
+    const scanInProgressRef = useRef(false);
     const scanDirectory = useCallback(async (handle: FileSystemDirectoryHandle) => {
+        // 多重実行防止ガード
+        if (scanInProgressRef.current) return;
+        scanInProgressRef.current = true;
+
         if (scanAbortControllerRef.current) {
             scanAbortControllerRef.current.abort();
         }
@@ -265,10 +337,13 @@ export const useLocalCards = () => {
             console.error('Scan error:', err);
             foundCards.forEach(c => URL.revokeObjectURL(c.url));
             setError(err instanceof Error ? err.message : String(err));
+            setIsScanning(false);
+            setIsLoading(false);
         } finally {
             if (scanAbortControllerRef.current === aborter) {
                 scanAbortControllerRef.current = null;
             }
+            scanInProgressRef.current = false;
         }
     }, [loadMetadata]);
 
@@ -317,12 +392,204 @@ export const useLocalCards = () => {
         setSavedRootName(null);
     }, []);
 
+    const unzipInProgressRef = useRef(false);
+    const unzipAndSave = useCallback(async (zipFile: File) => {
+        if (unzipInProgressRef.current) {
+            console.warn('[ZIP] Unzip already in progress, skipping...');
+            return;
+        }
+
+        if (!isZipFile(zipFile)) {
+            setError('ZIPファイルではありません。');
+            return;
+        }
+
+        unzipInProgressRef.current = true;
+
+        try {
+            setIsScanning(true);
+            setIsLoading(true);
+            setError(null);
+
+            // 1. 展開先フォルダの選択
+            if (import.meta.env.DEV) console.log('[ZIP] Opening directory picker...');
+            let targetHandle: FileSystemDirectoryHandle;
+            try {
+                targetHandle = await (window as any).showDirectoryPicker({
+                    mode: 'readwrite',
+                    startIn: 'pictures'
+                });
+            } catch (e: any) {
+                if (e.name === 'AbortError') {
+                    if (import.meta.env.DEV) console.log('[ZIP] Picker aborted by user');
+                    setIsScanning(false);
+                    setIsLoading(false);
+                    unzipInProgressRef.current = false;
+                    return;
+                }
+                throw e;
+            }
+
+            if (!targetHandle) throw new Error('フォルダが選択されませんでした。');
+            if (import.meta.env.DEV) console.log(`[ZIP] Target directory picked: ${targetHandle.name}`);
+
+            // ZIP名に基づいたサブフォルダの作成
+            // Windowsで禁止されている文字を除去
+            const zipBaseName = zipFile.name.replace(/\.[^/.]+$/, "").replace(/[<>:"/\\|?*]/g, '_').trim() || 'unzipped_cards';
+            if (import.meta.env.DEV) console.log(`[ZIP] Creating extraction root: "${zipBaseName}"`);
+
+            let extractionRoot: FileSystemDirectoryHandle;
+            try {
+                extractionRoot = await targetHandle.getDirectoryHandle(zipBaseName, { create: true });
+            } catch (e: any) {
+                console.error(`[ZIP] Failed to create root directory "${zipBaseName}":`, e);
+                throw e;
+            }
+
+            // 2. ZIPデータの取得
+            if (import.meta.env.DEV) console.log('[ZIP] Reading ZIP file data...');
+            const arrayBuffer = await zipFile.arrayBuffer();
+            const zipData = new Uint8Array(arrayBuffer);
+            if (import.meta.env.DEV) console.log(`[ZIP] ZIP data loaded (${zipData.length} bytes)`);
+
+            // 3. 展開 (fflate.unzip はコールバック版を使用)
+            await new Promise<void>((resolve, reject) => {
+                fflate.unzip(zipData, async (err, unzipped) => {
+                    if (err) {
+                        reject(new Error(`ZIPの解析に失敗しました: ${err.message}`));
+                        return;
+                    }
+
+                    try {
+                        // パスを正規化（Windows形式の \ も / に統一し、重複する / も削除）
+                        const rawPaths = Object.keys(unzipped);
+                        const filePaths = rawPaths.map(p => p.replace(/\\/g, '/').replace(/\/+/g, '/'));
+
+                        // マッピング用
+                        const pathMap = new Map<string, string>();
+                        rawPaths.forEach((rp, i) => pathMap.set(filePaths[i], rp));
+
+                        if (filePaths.length === 0) {
+                            reject(new Error('ZIPファイルが空です。'));
+                            return;
+                        }
+
+                        // 4. 階層構造の自動調整 (1段階の共通ルートフォルダをスキップするか判定)
+                        const entries = filePaths.filter(p => !p.endsWith('/'));
+                        if (entries.length === 0) {
+                            reject(new Error('ZIP内にファイルが見つかりません。'));
+                            return;
+                        }
+
+                        const firstEntry = entries[0];
+                        const firstPart = firstEntry.split('/')[0];
+                        // 全てのファイルが共通のトップフォルダ配下にあるか？
+                        const allFilesInSameFolder = firstPart && entries.every(p => p.startsWith(firstPart + '/'));
+                        const prefixLength = allFilesInSameFolder ? firstPart.length + 1 : 0;
+
+                        // 5. 展開先への書き込み
+                        let processedCount = 0;
+                        for (const cleanPathFull of filePaths) {
+                            // フォルダエントリ自体はスキップ（ファイル作成時に getDirectoryHandle で自動作成されるため）
+                            if (cleanPathFull.endsWith('/')) continue;
+
+                            // 共通ルートの除去と先頭スラッシュのトリム
+                            const cleanPath = cleanPathFull.substring(prefixLength).replace(/^\/+/, '');
+                            if (!cleanPath) continue;
+
+                            // セキュリティチェックと不適切なパスの除外
+                            if (cleanPath.includes('..')) continue;
+
+                            const originalPath = pathMap.get(cleanPathFull)!;
+                            const data = unzipped[originalPath];
+
+                            // パスを要素ごとに分解し、"." や空文字を除去
+                            const parts = cleanPath.split('/').map(p => p.trim()).filter(p => p && p !== '.');
+                            if (parts.length === 0) continue;
+
+                            let currentDir = extractionRoot;
+
+                            // ディレクトリの再帰的作成（最後の要素はファイル名なので除外）
+                            for (let i = 0; i < parts.length - 1; i++) {
+                                let dirName = parts[i];
+                                // Windows禁止文字のサニタイズ
+                                dirName = dirName.replace(/[<>:"/\\|?*]/g, '_');
+
+                                try {
+                                    currentDir = await currentDir.getDirectoryHandle(dirName, { create: true });
+                                } catch (e) {
+                                    console.error(`[ZIP] Failed to create directory "${dirName}" in path "${cleanPath}":`, e);
+                                    throw e;
+                                }
+                            }
+
+                            // ファイルの書き込み
+                            let fileName = parts[parts.length - 1];
+                            // Windows禁止文字のサニタイズ
+                            fileName = fileName.replace(/[<>:"/\\|?*]/g, '_');
+
+                            try {
+                                if (import.meta.env.DEV && processedCount % 50 === 0) {
+                                    console.log(`[ZIP] Writing file ${processedCount}/${entries.length}: ${fileName}`);
+                                }
+                                const fileHandle = await currentDir.getFileHandle(fileName, { create: true });
+                                const writable = await fileHandle.createWritable();
+                                await writable.write(data as any);
+                                await writable.close();
+                                processedCount++;
+                            } catch (e) {
+                                console.error(`[ZIP] Failed to write file "${fileName}" in path "${cleanPath}":`, e);
+                                throw e;
+                            }
+                        }
+                        if (import.meta.env.DEV) console.log(`[ZIP] Extraction complete. Total files: ${processedCount}`);
+
+                        // 6. 完了後のスキャンと状態更新
+                        // インデックスDBに保存
+                        await set(ROOT_HANDLE_KEY, extractionRoot);
+                        localStorage.setItem(ROOT_NAME_KEY, extractionRoot.name);
+
+                        // ステート更新
+                        setSavedRootName(extractionRoot.name);
+                        setHasAccess(true);
+                        setIsLoading(true);
+
+                        // 重要: 既存のスキャンを確実にキャンセルし、新規展開先でスキャン開始
+                        if (scanAbortControllerRef.current) {
+                            scanAbortControllerRef.current.abort();
+                        }
+
+                        // cardsステートをクリアしてスキャン開始（新旧カードの混同防止）
+                        setCards([]);
+                        await scanDirectory(extractionRoot);
+
+                        resolve();
+                    } catch (innerErr: any) {
+                        console.error('Inner ZIP Processing Error:', innerErr);
+                        reject(innerErr);
+                    }
+                });
+            });
+
+        } catch (err: any) {
+            console.error('ZIP Process Error:', err);
+            setError(`ZIP展開中にエラーが発生しました: ${err.message}`);
+            setIsScanning(false);
+            setIsLoading(false);
+        } finally {
+            unzipInProgressRef.current = false;
+        }
+    }, [scanDirectory]);
+
     const toggleMergeSameFileCards = useCallback((val: boolean) => {
         setMergeSameFileCards(val);
         localStorage.setItem('tcg_remote_merge_cards', String(val));
     }, []);
 
+    const initialScanRef = useRef(false);
     useEffect(() => {
+        if (initialScanRef.current) return;
+        initialScanRef.current = true;
         verifyPermissionAndScan();
     }, []);
 
@@ -337,6 +604,8 @@ export const useLocalCards = () => {
         requestAccess,
         verifyPermissionAndScan,
         dropAccess,
+        unzipAndSave,
+        analyzeZip,
         mergeSameFileCards,
         toggleMergeSameFileCards,
         isLoading,

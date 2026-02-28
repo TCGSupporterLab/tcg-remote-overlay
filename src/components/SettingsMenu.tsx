@@ -67,6 +67,7 @@ interface SettingsMenuProps {
     onSelectSimpleCard: () => void;
     onClearSimpleCard: () => void;
     simpleCardImageName?: string;
+    onUnzipZIP: (file: File) => void;
 }
 
 export const SettingsMenu = (props: SettingsMenuProps) => {
@@ -223,6 +224,7 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 onSelectSimpleCard={props.onSelectSimpleCard}
                                 onClearSimpleCard={props.onClearSimpleCard}
                                 simpleCardImageName={props.simpleCardImageName}
+                                onUnzipZIP={props.onUnzipZIP}
                                 onFullReset={props.onFullReset}
                             />
                         )}

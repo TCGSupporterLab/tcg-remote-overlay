@@ -1,4 +1,4 @@
-import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Library, Image, FolderX, FolderPlus, FolderSearch, Unlock, Undo2 } from 'lucide-react';
+import { Dices, Coins, RectangleVertical, RefreshCw, Info, Heart, Sparkles, ChevronRight, ExternalLink, Library, Image, FolderX, FolderPlus, FolderSearch, Unlock, Undo2, Archive } from 'lucide-react';
 import { SettingsToggle, SettingItem } from './SettingsUI';
 import type { LocalCard } from '../../hooks/useLocalCards';
 
@@ -57,6 +57,7 @@ interface CardSettingProps {
     onDropAccess: () => void;
     onRequestAccess: () => void;
     onVerifyPermission: () => void;
+    onUnzipZIP: (file: File) => void;
     cardCount: number;
     onReset: () => void;
 }
@@ -64,7 +65,7 @@ interface CardSettingProps {
 export const CardSetting = ({
     visible, onToggle, cardMode, onCardModeChange, onSelectSimpleCard, onClearSimpleCard, simpleCardImageName, isOpen, onToggleOpen, hasAccess, rootHandleName, localCards,
     mergeSameFileCards, onToggleMergeSameFileCards, isScanning, onDropAccess,
-    onRequestAccess, onVerifyPermission, cardCount, onReset
+    onRequestAccess, onVerifyPermission, onUnzipZIP, cardCount, onReset
 }: CardSettingProps) => (
     <div className="flex flex-col bg-white/5 rounded-xl border border-white/5 transition-all outline-none">
         <div className="flex items-center justify-between p-[6px] px-[16px] hover:bg-white/10 rounded-xl group transition-all">
@@ -154,6 +155,23 @@ export const CardSetting = ({
                                             hasAccess ? <><FolderPlus size={14} />別フォルダを選択</> :
                                                 rootHandleName ? <><Unlock size={14} />アクセスを許可</> :
                                                     <><FolderSearch size={14} />フォルダを選択</>}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = '.zip,application/zip,application/x-zip-compressed,application/zip-compressed';
+                                            input.onchange = (e) => {
+                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                if (file) onUnzipZIP(file);
+                                            };
+                                            input.click();
+                                        }}
+                                        disabled={isScanning}
+                                        className="px-[12px] py-[6px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[11px] transition-all cursor-pointer pointer-events-auto z-50 border shadow-sm flex items-center gap-[6px] disabled:opacity-50"
+                                    >
+                                        <Archive size={14} />
+                                        ZIP展開
                                     </button>
                                 </div>
                             </div>

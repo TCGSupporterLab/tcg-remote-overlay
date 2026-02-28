@@ -60,6 +60,7 @@ interface WidgetsTabProps {
     isCommonCategoryOpen: boolean;
     onToggleCommonCategoryOpen: () => void;
     onResetWidgetPosition: (id: string) => void;
+    onUnzipZIP: (file: File) => void;
     onFullReset: () => void;
 }
 
@@ -159,6 +160,7 @@ export const WidgetsTab = (props: WidgetsTabProps) => {
                             onRequestAccess={props.onRequestAccess}
                             onVerifyPermission={props.onVerifyPermission}
                             cardCount={props.cardCount}
+                            onUnzipZIP={props.onUnzipZIP}
                             onReset={() => props.onResetWidgetPosition('card_widget')}
                         />
                     </div>

@@ -11,7 +11,7 @@ import { SettingsMenu } from './components/SettingsMenu';
 import { type TabType } from './components/SettingsMenu/SettingsTabs';
 import { OverlayWidget } from './components/OverlayWidget';
 import { SPMarkerWidget } from './components/CardSearch/SPMarkerWidget';
-import { useLocalCards } from './hooks/useLocalCards';
+import { useLocalCards, analyzeZip, type ZipMetadata } from './hooks/useLocalCards';
 import { CardSearchContainer } from './components/CardSearch/CardSearchContainer';
 import { CardWidget } from './components/CardSearch/CardWidget';
 import { OverlayDisplay } from './components/OverlayDisplay';
@@ -42,7 +42,8 @@ function App() {
     mergeSameFileCards,
     toggleMergeSameFileCards,
     isLoading,
-    scanDirectory
+    scanDirectory,
+    unzipAndSave
   } = useLocalCards();
 
   const {
@@ -144,6 +145,16 @@ function App() {
     isOpen: false,
     source: 'settings'
   });
+  const [pendingZip, setPendingZip] = useState<{ file: File; metadata: ZipMetadata } | null>(null);
+
+  const handleUnzipRequest = useCallback(async (file: File) => {
+    try {
+      const metadata = await analyzeZip(file);
+      setPendingZip({ file, metadata });
+    } catch (e: any) {
+      alert(`ZIPファイルの解析に失敗しました: ${e.message}`);
+    }
+  }, []);
 
   const openSaveDialog = useCallback((
     source: 'action-bar' | 'video-menu' | 'settings',
@@ -766,6 +777,10 @@ function App() {
                 await set('tcg_remote_root_handle', handle);
                 scanDirectory(handle);
               }}
+              onUnzipZIP={(file) => {
+                setSettings({ cardMode: 'library' });
+                handleUnzipRequest(file);
+              }}
             />
           </OverlayWidget>
         )}
@@ -933,14 +948,77 @@ function App() {
             onSelectSimpleCard={() => simpleFileInputRef.current?.click()}
             onClearSimpleCard={handleClearSimpleCard}
             simpleCardImageName={settings.simpleCardImage?.name}
+            onUnzipZIP={handleUnzipRequest}
           />
         )
       }
 
+      {/* ZIP Confirmation Modal */}
+      {pendingZip && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300 app-modal-overlay">
+          <div
+            className="w-[680px] bg-[#1a1c26] border-2 border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-[20px] py-[10px] space-y-[40px]">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 text-blue-400">
+                  <RefreshCw size={24} className="animate-spin-slow" />
+                  <h2 className="text-xl font-bold tracking-tight">ZIPファイルを検出</h2>
+                </div>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  アーカイブの内容をローカルフォルダへ展開し、カードライブラリとして読み込みます。
+                </p>
+              </div>
+
+              <div className="bg-black/30 rounded-2xl px-8 py-6 border border-white/5 space-y-4">
+                <div className="flex items-baseline gap-4">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">ファイル名</span>
+                  <span className="text-sm font-semibold text-gray-200 truncate">{pendingZip.metadata.fileName}</span>
+                </div>
+                <div className="flex items-baseline gap-4">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">カード枚数</span>
+                  <span className="text-sm font-bold text-blue-400">{pendingZip.metadata.fileCount} 枚</span>
+                </div>
+                {pendingZip.metadata.isSingleRoot && (
+                  <div className="pt-2 border-t border-white/5">
+                    <p className="text-[10px] text-yellow-500/80 italic">
+                      ※ トップレベルの "{pendingZip.metadata.rootName}" フォルダは自動的に省略されます。
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons - Flushed with container padding */}
+              <div className="flex flex-col gap-[1px] mx-[-20px] mb-[-10px] mt-2 border-t border-white/10 overflow-hidden">
+                <button
+                  onClick={async () => {
+                    const file = pendingZip.file;
+                    setPendingZip(null);
+                    await unzipAndSave(file);
+                    // 展開とスキャンが完了したら自動的に設定メニューを閉じる
+                    setShowSettings(false);
+                  }}
+                  className="w-full py-[20px] bg-blue-600 hover:bg-blue-500 text-white font-bold text-[16px] transition-all active:bg-blue-700 flex items-center justify-center gap-2"
+                >
+                  展開先フォルダを選択して開始
+                </button>
+                <button
+                  onClick={() => setPendingZip(null)}
+                  className="w-full py-[14px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 font-semibold text-[14px] transition-all"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 6. Session Resume Overlay (Global) - Appears when we have a saved handle but no current access */}
       {
         !isSearchView && !hasAccess && !isScanning && !isLoading && savedRootName && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[5000] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[5000] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500 app-modal-overlay">
             <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-w-[600px] w-full text-center animate-in zoom-in-95 duration-300 overflow-hidden">
 
               <h2 className="text-2xl font-black mb-3 text-white tracking-tight">セッションを再開しますか？</h2>

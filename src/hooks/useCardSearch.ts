@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { get, set } from 'idb-keyval';
 import type { LocalCard } from './useLocalCards';
 
@@ -633,8 +633,10 @@ export const useCardSearch = (
     }, []);
 
     // 永続化されたカードデータの再同期（Blob URLおよびメタデータの更新）
+    const syncInProgressRef = useRef(false);
+
     useEffect(() => {
-        if (!normalizedData || normalizedData.length === 0) return;
+        if (!normalizedData || normalizedData.length === 0 || syncInProgressRef.current) return;
 
         let pinnedChanged = false;
         const freshPinned = sharedState.pinnedCards.map(pinned => {
@@ -650,18 +652,29 @@ export const useCardSearch = (
         let freshSelected = sharedState.selectedCard;
         if (sharedState.selectedCard) {
             const fresh = normalizedData.find(c => c.id === sharedState.selectedCard?.id);
-            if (fresh && fresh.imageUrl !== sharedState.selectedCard?.imageUrl) {
+            // .imageUrl が null または undefined の場合に備えて安全な比較を行う
+            const oldUrl = sharedState.selectedCard?.imageUrl;
+            const newUrl = fresh?.imageUrl;
+
+            if (fresh && (newUrl !== oldUrl || fresh.name !== sharedState.selectedCard.name)) {
                 selectedChanged = true;
                 freshSelected = fresh;
             }
         }
 
         if (pinnedChanged || selectedChanged) {
+            syncInProgressRef.current = true;
             if (import.meta.env.DEV) console.log(`[Sync] Relinking persisted data with current session cards: pinned=${pinnedChanged}, selected=${selectedChanged}`);
+
             updateShared({
                 pinnedCards: freshPinned,
                 selectedCard: freshSelected
-            }, false, true); // ローカルのBlob URL不一致による修正なので、他タブへのbroadcastは行わない（無限ループ防止）
+            }, false, true); // skipBroadcast = true (無限ループ防止)
+
+            // 次のティックでリセット
+            setTimeout(() => {
+                syncInProgressRef.current = false;
+            }, 0);
         }
     }, [normalizedData, sharedState.pinnedCards]);
 

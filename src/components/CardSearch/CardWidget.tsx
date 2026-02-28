@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCardSearch } from '../../hooks/useCardSearch';
-import { FolderOpen, Search, ExternalLink, RefreshCw, Image, Unlock, Layout, Layers, FolderSearch } from 'lucide-react';
+import { isZipFile } from '../../hooks/useLocalCards';
+import { FolderOpen, Search, ExternalLink, RefreshCw, Image, Unlock, Layout, Layers, FolderSearch, Archive } from 'lucide-react';
 import { useWidgetStore } from '../../store/useWidgetStore';
 
 export const OVERLAY_CARD_RADIUS = '17px';
@@ -14,6 +15,7 @@ interface CardWidgetProps {
     onSelectSimpleCard?: () => void;
     onDropFile?: (file: File) => void;
     onDropFolder?: (handle: FileSystemDirectoryHandle) => void;
+    onUnzipZIP?: (file: File) => void;
 }
 
 export const CardWidget: React.FC<CardWidgetProps> = ({
@@ -24,7 +26,8 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
     onVerifyPermission = () => { },
     onSelectSimpleCard = () => { },
     onDropFile = () => { },
-    onDropFolder = () => { }
+    onDropFolder = () => { },
+    onUnzipZIP = () => { }
 }) => {
     const {
         selectedCard,
@@ -153,6 +156,10 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
                         onDropFile(file);
                         return;
                     }
+                    if (isZipFile(file)) {
+                        onUnzipZIP(file);
+                        return;
+                    }
                 }
             } catch (err) {
                 console.warn('FileSystemHandle access failed, falling back to basic File API:', err);
@@ -164,6 +171,8 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
         if (file) {
             if (file.type.startsWith('image/')) {
                 onDropFile(file);
+            } else if (isZipFile(file)) {
+                onUnzipZIP(file);
             }
         }
     };
@@ -275,6 +284,23 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
                                 >
                                     {isScanning ? <RefreshCw size={16} className="animate-spin" /> : (savedRootName && cardMode === 'library' ? <Unlock size={16} /> : <FolderSearch size={16} />)}
                                     {isScanning ? 'スキャン中' : (savedRootName && cardMode === 'library' ? 'アクセスを許可' : 'フォルダを選択')}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const input = document.createElement('input');
+                                        input.type = 'file';
+                                        input.accept = '.zip,application/zip,application/x-zip-compressed,application/zip-compressed';
+                                        input.onchange = (e) => {
+                                            const file = (e.target as HTMLInputElement).files?.[0];
+                                            if (file) onUnzipZIP(file);
+                                        };
+                                        input.click();
+                                    }}
+                                    disabled={isScanning}
+                                    className="px-[18px] py-[10px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[13px] transition-all cursor-pointer z-50 flex items-center justify-center gap-[8px] shadow-sm disabled:opacity-50"
+                                >
+                                    <Archive size={16} />
+                                    ZIP展開して選択
                                 </button>
                             </div>
                         </>
