@@ -50,6 +50,7 @@ export interface ZipMetadata {
     isValid?: boolean;
     error?: string | null;
     shouldStrip?: boolean;
+    filePaths?: string[]; // 追加: 正規化済みのファイルパスリスト
 }
 
 const isTargetFile = (path: string) => {
@@ -57,109 +58,25 @@ const isTargetFile = (path: string) => {
     return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('/_link.txt') || path.endsWith('_link.txt');
 };
 
-export const analyzeZip = async (file: File, onProgress?: (count: number) => void): Promise<ZipMetadata> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const zipData = new Uint8Array(arrayBuffer);
-
-    return new Promise((resolve, reject) => {
-        const allPaths: string[] = [];
-        let fileCount = 0;
-
-        fflate.unzip(zipData, {
-            filter: (f) => {
-                const path = f.name.replace(/\\/g, '/');
-                allPaths.push(path);
-                if (!path.endsWith('/')) {
-                    fileCount++;
-                    if (onProgress) onProgress(fileCount);
-                }
-                return false;
-            }
-        }, (err) => {
-            if (err) return reject(new Error(`ZIPの解析に失敗しました: ${err.message}`));
-
-            const files = allPaths.filter(p => !p.endsWith('/'));
-            if (files.length === 0) {
-                return resolve({
-                    fileName: file.name,
-                    fileCount: 0,
-                    topFolders: [],
-                    isSingleRoot: false,
-                    rootName: null,
-                    isAnalyzing: false,
-                    isValid: false,
-                    error: 'ZIPファイルが空です。'
-                });
-            }
-
-            // 1. トップフォルダの単一性確認
-            const firstEntry = files[0];
-            const firstPart = firstEntry.split('/')[0];
-            const isSingleRoot = !!firstPart && files.every(p => p.startsWith(firstPart + '/'));
-
-            // 2. 省略判定: 単一ルートであり、かつ3項目目(index 2)に画像やlink.txtがない場合のみ省く
-            let shouldStrip = false;
-            if (isSingleRoot) {
-                const hasImportantFileAtL2 = files.some(p => {
-                    const parts = p.split('/');
-                    return parts.length === 3 && isTargetFile(p);
-                });
-                if (!hasImportantFileAtL2) {
-                    shouldStrip = true;
-                }
-            }
-
-            // 3. バリデーションチェック用の仮想構成を作成
-            const effectivePaths = shouldStrip
-                ? files.map(p => p.substring(firstPart.length).replace(/^\/+/, ''))
-                : files;
-
-            // バリデーション対象をカード関連ファイルのみに絞る（systemファイル等は無視する）
-            const targetFiles = effectivePaths.filter(p => isTargetFile(p));
-
-            // バリデーションA: すべての「カード関連ファイル」が OCG/Deck/File 以上の深度(パーツ数3以上)を持っているか
-            const allAtLeastDepth2 = targetFiles.every(p => p.split('/').filter(Boolean).length >= 3);
-
-            // バリデーションB: index 2 (2階層目) に画像または_link.txtがあるファイルが一つでも存在するか
-            const atLeastOneBodyAtL2 = targetFiles.some(p => {
-                const parts = p.split('/').filter(Boolean);
-                return parts.length === 3;
-            });
-
-            const isValid = targetFiles.length > 0 && allAtLeastDepth2 && atLeastOneBodyAtL2;
-            let validationError = null;
-            if (!isValid) {
-                if (targetFiles.length === 0) validationError = '画像ファイルまたは_link.txtが見つかりません。';
-                else if (!allAtLeastDepth2) validationError = 'フォルダ階層が浅すぎる構成が含まれています。「{OCG}/{デッキ}/{画像}」の構成にしてください。';
-                else if (!atLeastOneBodyAtL2) validationError = 'デッキフォルダ直下に画像ファイルまたは_link.txtが見つかりません。';
-            }
-
-            const folders = new Set<string>();
-            effectivePaths.forEach(p => {
-                const parts = p.split('/').filter(Boolean);
-                if (parts.length >= 1) {
-                    folders.add(parts[0]);
-                }
-            });
-
-            resolve({
-                fileName: file.name,
-                fileCount,
-                topFolders: Array.from(folders).slice(0, 10),
-                isSingleRoot,
-                rootName: isSingleRoot ? firstPart : null,
-                isAnalyzing: false,
-                isValid,
-                error: validationError,
-                shouldStrip
-            });
-        });
-    });
+export const analyzeZip = async (file: File, _onProgress?: (count: number) => void): Promise<ZipMetadata> => {
+    // スキップ: ファイルをロードせずに最低限の情報を即座に返す
+    return {
+        fileName: file.name,
+        fileCount: -1, // 枚数解析をスキップしたことを示す
+        topFolders: [],
+        isSingleRoot: false,
+        rootName: null,
+        isAnalyzing: false,
+        isValid: true,
+        error: null,
+        shouldStrip: false
+    };
 };
 
 export const useLocalCards = () => {
     const [cards, setCards] = useState<LocalCard[]>([]);
     const [isScanning, setIsScanning] = useState(false);
+    const [isUnzipping, setIsUnzipping] = useState(false);
     const [hasAccess, setHasAccess] = useState(false);
     const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -173,42 +90,216 @@ export const useLocalCards = () => {
     const [metadataOrder, setMetadataOrder] = useState<Record<string, Record<string, string[]>>>({});
     const [folderMetadataMap, setFolderMetadataMap] = useState<Map<string, any>>(new Map());
     const scanAbortControllerRef = useRef<AbortController | null>(null);
+    const unzipAbortControllerRef = useRef<AbortController | null>(null);
+
+    const cancelUnzip = useCallback(async () => {
+        if (unzipAbortControllerRef.current) {
+            unzipAbortControllerRef.current.abort();
+            unzipAbortControllerRef.current = null;
+        }
+    }, []);
 
     const loadMetadata = useCallback(async (metadataFiles: Map<string, File>) => {
         const cardMetadataMap = new Map<string, Record<string, any>>();
         const filterMetadataMap = new Map<string, Record<string, string[]>>();
 
-        for (const [path, file] of metadataFiles) {
+        const tasks = Array.from(metadataFiles.entries()).map(async ([path, file]) => {
             const dirPath = path.substring(0, path.lastIndexOf('/'));
             const text = await file.text();
             const json = safeJsonParse(text);
-            if (!json) continue;
+            if (!json) return;
 
             if (path.endsWith('_meta_filter.json')) {
                 filterMetadataMap.set(dirPath, json);
             } else if (path.endsWith('_meta_card.json')) {
                 const dirPrefix = dirPath ? `${dirPath}/` : '';
                 const entries = Object.entries(json);
-                if (import.meta.env.DEV) {
-                    console.log(`[Sync] Loading ${path}: Found ${entries.length} entries. DirPrefix: "${dirPrefix}"`);
-                }
                 entries.forEach(([fileName, data]) => {
                     const fullKey = `${dirPrefix}${fileName}`;
                     cardMetadataMap.set(fullKey, data as any);
-
-                    // 特定のカードが登録されたかチェック
-                    if (import.meta.env.DEV && (fullKey.includes('hBD24-001') || fullKey.includes('korone'))) {
-                        console.log(`[Sync] Registered metaKey: "${fullKey}"`);
-                    }
                 });
             }
-        }
+        });
+
+        await Promise.all(tasks);
         return { cardMetadataMap, filterMetadataMap };
     }, []);
 
+    const processFileSystemItems = useCallback(async (
+        rootName: string,
+        items: { path: string, data: File | Blob }[],
+        signal?: AbortSignal
+    ) => {
+        const filesOnly = items.filter(i => !i.path.endsWith('/'));
+        if (filesOnly.length === 0) {
+            throw new Error('有効なファイルが見つかりません。');
+        }
+
+        // 1. ルート省略判定 (共通ロジック)
+        let stripPrefix = "";
+        const allPaths = filesOnly.map(i => i.path);
+        const firstEntry = allPaths[0];
+        const firstPart = firstEntry.split('/')[0];
+        const isSingleRoot = !!firstPart && allPaths.every(p => p.startsWith(firstPart + '/'));
+
+        if (isSingleRoot) {
+            const hasImportantFileAtL2 = allPaths.some(p => {
+                const parts = p.split('/');
+                return parts.length === 3 && isTargetFile(p);
+            });
+            if (!hasImportantFileAtL2) {
+                stripPrefix = firstPart + "/";
+            }
+        }
+
+        // 2. パス正規化とデータの仕分け
+        const cardInputs: { cleanPath: string, data: File | Blob }[] = [];
+        const metadataFiles = new Map<string, File>();
+        const linkRawData: { cleanPath: string, data: string, ocg: string, folder: string, folderPath: string }[] = [];
+        let hasAtLeastOneAtDepth3 = false;
+
+        for (const item of filesOnly) {
+            if (signal?.aborted) return;
+            const cleanPath = item.path.startsWith(stripPrefix)
+                ? item.path.substring(stripPrefix.length).replace(/^\/+/, '')
+                : item.path;
+
+            if (!cleanPath) continue;
+            const parts = cleanPath.split('/').filter(Boolean);
+
+            const isImg = isTargetFile(cleanPath) && !cleanPath.endsWith('_link.txt');
+            const isJson = cleanPath.endsWith('.json');
+            const isLink = cleanPath.endsWith('_link.txt');
+
+            if (isImg || isJson || isLink) {
+                // バリデーション: 画像およびリンクファイルは OCG/Deck/File (Depth >= 3) が必須
+                if ((isImg || isLink) && parts.length < 3) {
+                    throw new Error(`フォルダ構成が浅すぎます (${cleanPath})。「{OCG}/{デッキ}/{画像}」の構成にしてください。`);
+                }
+
+                if (isJson) {
+                    const file = item.data instanceof File ? item.data : new File([item.data], parts[parts.length - 1]);
+                    metadataFiles.set(cleanPath, file);
+                } else if (isLink) {
+                    const text = await (item.data instanceof Blob ? item.data.text() : (item.data as File).text());
+                    const ocg = parts[0];
+                    const folder = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+                    const folderPath = cleanPath.substring(0, Math.max(0, cleanPath.lastIndexOf('/')));
+                    linkRawData.push({ cleanPath, data: text, ocg, folder, folderPath });
+                    if (parts.length === 3) hasAtLeastOneAtDepth3 = true;
+                } else {
+                    cardInputs.push({ cleanPath, data: item.data });
+                    if (parts.length === 3) hasAtLeastOneAtDepth3 = true;
+                }
+            }
+        }
+
+        if (!hasAtLeastOneAtDepth3 && cardInputs.length > 0) {
+            throw new Error('正しいフォルダ構成（{OCG}/{デッキ}/{画像}）が見つかりません。フォルダが多重になっていないか確認してください。');
+        }
+
+        if (cardInputs.length === 0 && linkRawData.length === 0) {
+            throw new Error('表示可能なカード画像が見つかりませんでした。');
+        }
+
+        // 3. カードオブジェクトの構築
+        const foundCards: LocalCard[] = [];
+        const pathCardMap = new Map<string, LocalCard>();
+
+        for (const input of cardInputs) {
+            if (signal?.aborted) return;
+            const parts = input.cleanPath.split('/');
+            const ocg = parts[0];
+            const folder = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+            const rawName = parts[parts.length - 1];
+
+            const card: LocalCard = {
+                id: `${rootName}/${input.cleanPath}`,
+                name: getExtStripped(rawName),
+                path: input.cleanPath,
+                fullPath: `${rootName}/${input.cleanPath}`,
+                url: URL.createObjectURL(input.data),
+                folderName: folder,
+                ocgName: ocg,
+                deckName: folder,
+                metadata: {},
+                yomi: ''
+            };
+            foundCards.push(card);
+            pathCardMap.set(input.cleanPath, card);
+        }
+
+        // 4. メタデータ読み込み
+        const { cardMetadataMap, filterMetadataMap } = await loadMetadata(metadataFiles);
+
+        // 5. リンク解決
+        for (const linkObj of linkRawData) {
+            if (signal?.aborted) return;
+            const lines = linkObj.data.split(/\r?\n/);
+            for (const line of lines) {
+                let rawLine = line.trim().replace(/^['"]|['"]$/g, '').replace(/\\/g, '/');
+                if (rawLine.startsWith('/')) rawLine = rawLine.substring(1);
+                if (!rawLine || !rawLine.includes('/')) continue;
+
+                const parts = rawLine.split('/');
+                let targetPath = '';
+                if (parts.length === 2) targetPath = `${linkObj.ocg}/${rawLine}`;
+                else if (parts.length >= 3) targetPath = rawLine;
+                else continue;
+
+                if (targetPath.startsWith(linkObj.folderPath + '/')) continue;
+
+                const targetCard = pathCardMap.get(targetPath);
+                if (targetCard) {
+                    foundCards.push({
+                        ...targetCard,
+                        id: `${rootName}/${targetPath}-${foundCards.length}`, // ユニークID
+                        path: `${linkObj.folderPath}/${getBasename(targetPath)}`,
+                        fullPath: `${rootName}/${targetPath}`,
+                        folderName: linkObj.folder,
+                        ocgName: linkObj.ocg,
+                        deckName: linkObj.folder,
+                        _linkedFrom: targetPath
+                    });
+                }
+            }
+        }
+
+        // 6. ソートとメタデータ適用
+        const cardWithDepth = foundCards.map(c => ({ card: c, depth: c.path.split('/').length }));
+        cardWithDepth.sort((a, b) => a.depth - b.depth);
+
+        const finalCards: LocalCard[] = cardWithDepth.map(({ card }) => {
+            const path = card.path;
+            const pathParts = path.split('/');
+            const fileName = pathParts[pathParts.length - 1];
+            const ocgName = pathParts[0];
+
+            let data = cardMetadataMap.get(path);
+            if (!data && pathParts.length > 2) {
+                data = cardMetadataMap.get(`${ocgName}/${fileName}`);
+            }
+            if (!data && card._linkedFrom) {
+                const linkPath = card._linkedFrom;
+                const linkParts = linkPath.split('/');
+                data = cardMetadataMap.get(linkPath) || cardMetadataMap.get(`${ocgName}/${linkParts[linkParts.length - 1]}`);
+            }
+
+            const finalData = data || {};
+            return { ...card, metadata: finalData, yomi: finalData.yomi || '' };
+        });
+
+        // ステート更新
+        setCards(prev => {
+            prev.forEach(c => URL.revokeObjectURL(c.url));
+            return finalCards;
+        });
+        setMetadataOrder(Object.fromEntries(filterMetadataMap) as Record<string, Record<string, string[]>>);
+        setFolderMetadataMap(filterMetadataMap);
+    }, [loadMetadata, getExtStripped]);
+
     const scanInProgressRef = useRef(false);
     const scanDirectory = useCallback(async (handle: FileSystemDirectoryHandle) => {
-        // 多重実行防止ガード
         if (scanInProgressRef.current) return;
         scanInProgressRef.current = true;
 
@@ -227,173 +318,55 @@ export const useLocalCards = () => {
         setHasAccess(true);
         setRootHandle(handle);
 
-        const foundCards: LocalCard[] = [];
-        const metadataFiles = new Map<string, File>();
-        const linkFiles: { ocg: string, folder: string, file: File, folderPath: string }[] = [];
+        const foundItems: { path: string, data: File }[] = [];
 
         try {
-            const recursiveScan = async (entry: FileSystemHandle, currentPath: string, depth: number) => {
+            const CONCURRENCY_LIMIT = 64;
+
+            const recursiveScan = async (dirHandle: any, currentPath: string) => {
                 if (signal.aborted) return;
 
-                if (entry.kind === 'file') {
-                    const rawName = entry.name;
-                    const lowerName = rawName.toLowerCase();
-                    const isImage = lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.webp');
-                    const isJson = lowerName.endsWith('.json');
-                    const isLink = lowerName === '_link.txt';
+                const entries = [];
+                for await (const entry of dirHandle.values()) {
+                    if (signal.aborted) break;
+                    entries.push(entry);
+                }
 
-                    if (isImage || isJson || isLink) {
-                        const file = await (entry as any).getFile();
-                        if (!file) return;
+                const tasks: Promise<void>[] = [];
+                for (const entry of entries) {
+                    const childPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
+                    if (entry.kind === 'directory') {
+                        tasks.push(recursiveScan(entry, childPath));
+                    } else if (entry.kind === 'file') {
+                        tasks.push((async () => {
+                            const file = await entry.getFile();
+                            foundItems.push({ path: childPath, data: file });
+                        })());
+                    }
 
-                        const parts = currentPath.split('/');
-                        const ocg = parts[0];
-                        const folder = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
-                        const folderPath = currentPath.substring(0, Math.max(0, currentPath.lastIndexOf('/')));
-
-                        if (isJson) {
-                            metadataFiles.set(currentPath, file);
-                        }
-                        else if (isLink) {
-                            linkFiles.push({ ocg, folder, file, folderPath });
-                        }
-                        else if (isImage) {
-                            foundCards.push({
-                                id: `${handle.name}/${currentPath}`,
-                                name: getExtStripped(rawName),
-                                path: currentPath,
-                                fullPath: `${handle.name}/${currentPath}`,
-                                url: URL.createObjectURL(file),
-                                folderName: folder,
-                                ocgName: ocg,
-                                deckName: folder,
-                                metadata: {},
-                                yomi: ''
-                            });
-                        }
+                    if (tasks.length >= CONCURRENCY_LIMIT) {
+                        await Promise.all(tasks);
+                        tasks.length = 0;
                     }
                 }
-                else if (entry.kind === 'directory') {
-                    const entries = (entry as any).values();
-                    for await (const childEntry of entries) {
-                        if (signal.aborted) break;
-                        const childPath = currentPath ? `${currentPath}/${childEntry.name}` : childEntry.name;
-                        await recursiveScan(childEntry, childPath, depth + 1);
-                    }
-                }
+                await Promise.all(tasks);
             };
 
-            await recursiveScan(handle, '', 0);
+            await recursiveScan(handle, '');
 
-            if (signal.aborted) {
-                foundCards.forEach(c => URL.revokeObjectURL(c.url));
-                return;
-            }
+            if (signal.aborted) return;
 
-            const { cardMetadataMap, filterMetadataMap } = await loadMetadata(metadataFiles);
-            if (signal.aborted) {
-                foundCards.forEach(c => URL.revokeObjectURL(c.url));
-                return;
-            }
+            // 共通ロジックで処理
+            await processFileSystemItems(handle.name, itemsMapToArr(foundItems), signal);
 
-            // Resolve Links
-            for (const linkObj of linkFiles) {
-                if (signal.aborted) break;
-                const text = await linkObj.file.text();
-                const lines = text.split(/\r?\n/);
-                for (const line of lines) {
-                    let rawLine = line.trim().replace(/^['"]|['"]$/g, '').replace(/\\/g, '/');
-                    if (rawLine.startsWith('/')) rawLine = rawLine.substring(1);
-                    if (!rawLine || !rawLine.includes('/')) continue;
-
-                    const parts = rawLine.split('/');
-                    let targetPath = '';
-                    if (parts.length === 2) targetPath = `${linkObj.ocg}/${rawLine}`;
-                    else if (parts.length >= 3) targetPath = rawLine;
-                    else continue;
-
-                    if (targetPath.startsWith(linkObj.folderPath + '/')) continue;
-
-                    // ターゲットカードを完全一致で検索
-                    const targetCard = foundCards.find(c => c.path === targetPath);
-
-                    if (targetCard) {
-                        foundCards.push({
-                            ...targetCard,
-                            id: `${handle.name}/${targetPath}`,
-                            path: `${linkObj.folderPath}/${getBasename(targetPath)}`,
-                            fullPath: `${handle.name}/${targetPath}`,
-                            folderName: linkObj.folder,
-                            ocgName: linkObj.ocg,
-                            deckName: linkObj.folder,
-                            _linkedFrom: targetPath
-                        });
-                    } else {
-                        if (import.meta.env.DEV) console.warn(`[Sync] Link target not found: ${targetPath} (linked from ${linkObj.folderPath}/_link.txt)`);
-                    }
-                }
-            }
-
-            if (signal.aborted) {
-                foundCards.forEach(c => URL.revokeObjectURL(c.url));
-                return;
-            }
-
-            const finalCards: LocalCard[] = foundCards.sort((a, b) => a.path.split('/').length - b.path.split('/').length).map(card => {
-                const path = card.path;
-                const pathParts = path.split('/');
-                const fileName = pathParts[pathParts.length - 1];
-                const ocgName = pathParts[0];
-
-                // 1. まずはフルパスの実測ケースで照合
-                let data = cardMetadataMap.get(path);
-
-                // 2. 失敗した場合、OCG直下のファイル名としてフォールバック (all/, test/ などの階層を無視)
-                if (!data && pathParts.length > 2) {
-                    const fallbackKey = `${ocgName}/${fileName}`;
-                    data = cardMetadataMap.get(fallbackKey);
-                }
-
-                // 3. リンク元のパスでも同様に試行
-                if (!data && card._linkedFrom) {
-                    const linkPath = card._linkedFrom;
-                    const linkParts = linkPath.split('/');
-                    const linkFileName = linkParts[linkParts.length - 1];
-                    data = cardMetadataMap.get(linkPath) || cardMetadataMap.get(`${ocgName}/${linkFileName}`);
-                }
-
-                const finalData = data || {};
-
-                if (import.meta.env.DEV && (path.includes('hBD24-001') || path.includes('korone'))) {
-                    console.log(`[Sync] Mapping for ${card.path}: found=${!!data}, metaKey="${ocgName}/${fileName}"`);
-                }
-
-                return { ...card, metadata: finalData, yomi: finalData.yomi || '' };
-            });
-
-            if (signal.aborted) {
-                foundCards.forEach(c => URL.revokeObjectURL(c.url));
-                return;
-            }
-
-            if (import.meta.env.DEV) console.log(`[Sync] Scanning finished. Found ${foundCards.length} raw cards. Status: Success`);
-            setCards(prev => {
-                prev.forEach(c => URL.revokeObjectURL(c.url));
-                return finalCards;
-            });
-            setMetadataOrder(Object.fromEntries(filterMetadataMap) as Record<string, Record<string, string[]>>);
-            setFolderMetadataMap(filterMetadataMap);
             localStorage.setItem(ROOT_NAME_KEY, handle.name);
             setSavedRootName(handle.name);
-
             setIsScanning(false);
             setIsLoading(false);
-            if (import.meta.env.DEV) console.log(`[Sync] All data set and flags lowered`);
 
         } catch (err: any) {
             if (err.name === 'AbortError') return;
             console.error('Scan error:', err);
-            foundCards.forEach(c => URL.revokeObjectURL(c.url));
             setError(err instanceof Error ? err.message : String(err));
             setIsScanning(false);
             setIsLoading(false);
@@ -403,7 +376,10 @@ export const useLocalCards = () => {
             }
             scanInProgressRef.current = false;
         }
-    }, [loadMetadata]);
+    }, [processFileSystemItems]);
+
+    // Helper to match the interface
+    const itemsMapToArr = (items: { path: string, data: File | Blob }[]) => items;
 
     const requestAccess = useCallback(async () => {
         try {
@@ -463,17 +439,20 @@ export const useLocalCards = () => {
         }
 
         unzipInProgressRef.current = true;
+        unzipAbortControllerRef.current = new AbortController();
+        const signal = unzipAbortControllerRef.current.signal;
+
+        setIsScanning(true);
+        setIsLoading(true);
+        let extractionRoot: FileSystemDirectoryHandle | null = null;
+        let zipBaseName = '';
 
         try {
-            setIsScanning(true);
-            setIsLoading(true);
             setError(null);
 
-            // 1. 展開先フォルダの選択
             if (import.meta.env.DEV) console.log('[ZIP] Opening directory picker...');
-            let targetHandle: FileSystemDirectoryHandle;
             try {
-                targetHandle = await (window as any).showDirectoryPicker({
+                extractionRoot = await (window as any).showDirectoryPicker({
                     mode: 'readwrite',
                     startIn: 'pictures'
                 });
@@ -482,35 +461,29 @@ export const useLocalCards = () => {
                     if (import.meta.env.DEV) console.log('[ZIP] Picker aborted by user');
                     setIsScanning(false);
                     setIsLoading(false);
+                    setIsUnzipping(false);
                     unzipInProgressRef.current = false;
                     return;
                 }
                 throw e;
             }
 
-            if (!targetHandle) throw new Error('フォルダが選択されませんでした。');
-            if (import.meta.env.DEV) console.log(`[ZIP] Target directory picked: ${targetHandle.name}`);
+            if (!extractionRoot) throw new Error('フォルダが選択されませんでした。');
 
-            // ZIP名に基づいたサブフォルダの作成
-            // Windowsで禁止されている文字を除去
-            const zipBaseName = zipFile.name.replace(/\.[^/.]+$/, "").replace(/[<>:"/\\|?*]/g, '_').trim() || 'unzipped_cards';
-            if (import.meta.env.DEV) console.log(`[ZIP] Creating extraction root: "${zipBaseName}"`);
+            // フォルダが選択されたこのタイミングでオーバーレイを表示
+            setIsUnzipping(true);
 
-            let extractionRoot: FileSystemDirectoryHandle;
-            try {
-                extractionRoot = await targetHandle.getDirectoryHandle(zipBaseName, { create: true });
-            } catch (e: any) {
-                console.error(`[ZIP] Failed to create root directory "${zipBaseName}":`, e);
-                throw e;
-            }
+            // 1. ZIPファイル名（拡張子なし）のサブフォルダを作成
+            zipBaseName = getExtStripped(zipFile.name).replace(/[<>:"/\\|?*]/g, '_');
+            const targetParentHandle = await extractionRoot.getDirectoryHandle(zipBaseName, { create: true });
 
-            // 2. ZIPデータの取得
+            if (import.meta.env.DEV) console.log(`[ZIP] Created target subdirectory: ${targetParentHandle.name}`);
+
             if (import.meta.env.DEV) console.log('[ZIP] Reading ZIP file data...');
             const arrayBuffer = await zipFile.arrayBuffer();
             const zipData = new Uint8Array(arrayBuffer);
             if (import.meta.env.DEV) console.log(`[ZIP] ZIP data loaded (${zipData.length} bytes)`);
 
-            // 3. 展開 (fflate.unzip はコールバック版を使用)
             await new Promise<void>((resolve, reject) => {
                 fflate.unzip(zipData, async (err, unzipped) => {
                     if (err) {
@@ -519,120 +492,131 @@ export const useLocalCards = () => {
                     }
 
                     try {
-                        // パスを正規化（Windows形式の \ も / に統一し、重複する / も削除）
-                        const rawPaths = Object.keys(unzipped);
-                        const filePaths = rawPaths.map(p => p.replace(/\\/g, '/').replace(/\/+/g, '/'));
+                        const dirCache = new Map<string, Promise<FileSystemDirectoryHandle>>();
+                        dirCache.set('', Promise.resolve(targetParentHandle));
 
-                        // マッピング用
-                        const pathMap = new Map<string, string>();
-                        rawPaths.forEach((rp, i) => pathMap.set(filePaths[i], rp));
-
-                        if (filePaths.length === 0) {
-                            reject(new Error('ZIPファイルが空です。'));
+                        const allPaths = Object.keys(unzipped).map(p => p.replace(/\\/g, '/').replace(/\/+/g, '/'));
+                        const writeTasks = allPaths.filter(p => !p.endsWith('/'));
+                        if (writeTasks.length === 0) {
+                            resolve();
                             return;
                         }
 
-                        // 4. 階層構造の自動調整 (analyzeZip と同じルールを適用)
-                        const entries = filePaths.filter(p => !p.endsWith('/'));
-                        if (entries.length === 0) {
-                            reject(new Error('ZIP内にファイルが見つかりません。'));
-                            return;
-                        }
+                        const getDirHandleCached = (dirParts: string[]): Promise<FileSystemDirectoryHandle> => {
+                            let currentPath = '';
+                            let currentPromise = dirCache.get('')!;
 
-                        const firstEntry = entries[0];
+                            for (const part of dirParts) {
+                                const parentPath = currentPath;
+                                const sanitizedPart = part.replace(/[<>:"/\\|?*]/g, '_');
+                                currentPath += (currentPath ? '/' : '') + sanitizedPart;
+
+                                if (!dirCache.has(currentPath)) {
+                                    const parentDirPromise = dirCache.get(parentPath)!;
+                                    dirCache.set(currentPath, (async () => {
+                                        const parentDir = await parentDirPromise;
+                                        return await parentDir.getDirectoryHandle(sanitizedPart, { create: true });
+                                    })());
+                                }
+                                currentPromise = dirCache.get(currentPath)!;
+                            }
+                            return currentPromise;
+                        };
+
+                        let processedCount = 0;
+                        const foundItems: { path: string, data: Blob }[] = [];
+
+                        const processFile = async (pathOnly: string) => {
+                            if (signal.aborted) throw new Error('ABORT');
+
+                            const data = unzipped[pathOnly];
+                            const blob = new Blob([data as any]);
+                            foundItems.push({ path: pathOnly, data: blob });
+
+                            // ディスクへの書き込み
+                            const parts = pathOnly.split('/').map(p => p.trim()).filter(Boolean);
+                            const dirParts = parts.slice(0, -1);
+                            const fileName = parts[parts.length - 1].replace(/[<>:"/\\|?*]/g, '_');
+
+                            try {
+                                const dirHandle = await getDirHandleCached(dirParts);
+                                const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                                const writable = await fileHandle.createWritable();
+                                await writable.write(data as any);
+                                await writable.close();
+
+                                processedCount++;
+                                if (import.meta.env.DEV && processedCount % 100 === 0) {
+                                    console.log(`[ZIP] Writing file ${processedCount}/${writeTasks.length}: ${fileName}`);
+                                }
+                            } catch (e) {
+                                console.error(`[ZIP] Failed to write file "${fileName}":`, e);
+                                throw e;
+                            }
+                        };
+
+                        // 並列書き込み
+                        const CONCURRENCY = 24;
+                        let taskIndex = 0;
+                        const worker = async () => {
+                            while (taskIndex < writeTasks.length) {
+                                if (signal.aborted) break;
+                                const task = writeTasks[taskIndex++];
+                                await processFile(task);
+                            }
+                        };
+                        await Promise.all(Array(Math.min(CONCURRENCY, writeTasks.length)).fill(null).map(worker));
+
+                        if (signal.aborted) throw new Error('ABORT');
+
+                        if (import.meta.env.DEV) console.log(`[ZIP] Extraction complete. Total files: ${processedCount}. Determining optimal root...`);
+
+                        // --- 物理的な接続ルートの決定ロジック ---
+                        // 1. ルート省略判定ロジックを流用して、物理的な共通接頭辞を特定
+                        let stripPrefixParts: string[] = [];
+                        const filesOnlyPaths = foundItems.map(i => i.path);
+                        const firstEntry = filesOnlyPaths[0];
                         const firstPart = firstEntry.split('/')[0];
-                        const isSingleRoot = !!firstPart && entries.every(p => p.startsWith(firstPart + '/'));
+                        const isSingleRootInZip = !!firstPart && filesOnlyPaths.every(p => p.startsWith(firstPart + '/'));
 
-                        let shouldStrip = false;
-                        if (isSingleRoot) {
-                            const hasImportantFileAtL2 = entries.some(p => {
+                        if (isSingleRootInZip) {
+                            const hasImportantFileAtL2 = filesOnlyPaths.some(p => {
                                 const parts = p.split('/');
                                 return parts.length === 3 && isTargetFile(p);
                             });
                             if (!hasImportantFileAtL2) {
-                                shouldStrip = true;
+                                stripPrefixParts = [firstPart];
                             }
                         }
 
-                        const prefixLength = shouldStrip ? firstPart.length + 1 : 0;
-
-                        // 5. 展開先への書き込み
-                        let processedCount = 0;
-                        for (const cleanPathFull of filePaths) {
-                            // フォルダエントリ自体はスキップ（ファイル作成時に getDirectoryHandle で自動作成されるため）
-                            if (cleanPathFull.endsWith('/')) continue;
-
-                            // 共通ルートの除去と先頭スラッシュのトリム
-                            const cleanPath = cleanPathFull.substring(prefixLength).replace(/^\/+/, '');
-                            if (!cleanPath) continue;
-
-                            // セキュリティチェックと不適切なパスの除外
-                            if (cleanPath.includes('..')) continue;
-
-                            const originalPath = pathMap.get(cleanPathFull)!;
-                            const data = unzipped[originalPath];
-
-                            // パスを要素ごとに分解し、"." や空文字を除去
-                            const parts = cleanPath.split('/').map(p => p.trim()).filter(p => p && p !== '.');
-                            if (parts.length === 0) continue;
-
-                            let currentDir = extractionRoot;
-
-                            // ディレクトリの再帰的作成（最後の要素はファイル名なので除外）
-                            for (let i = 0; i < parts.length - 1; i++) {
-                                let dirName = parts[i];
-                                // Windows禁止文字のサニタイズ
-                                dirName = dirName.replace(/[<>:"/\\|?*]/g, '_');
-
-                                try {
-                                    currentDir = await currentDir.getDirectoryHandle(dirName, { create: true });
-                                } catch (e) {
-                                    console.error(`[ZIP] Failed to create directory "${dirName}" in path "${cleanPath}":`, e);
-                                    throw e;
-                                }
-                            }
-
-                            // ファイルの書き込み
-                            let fileName = parts[parts.length - 1];
-                            // Windows禁止文字のサニタイズ
-                            fileName = fileName.replace(/[<>:"/\\|?*]/g, '_');
-
+                        // 2. 確定したパスの DirectoryHandle を取得する
+                        let finalRootHandle = targetParentHandle;
+                        for (const part of stripPrefixParts) {
                             try {
-                                if (import.meta.env.DEV && processedCount % 50 === 0) {
-                                    console.log(`[ZIP] Writing file ${processedCount}/${entries.length}: ${fileName}`);
-                                }
-                                const fileHandle = await currentDir.getFileHandle(fileName, { create: true });
-                                const writable = await fileHandle.createWritable();
-                                await writable.write(data as any);
-                                await writable.close();
-                                processedCount++;
+                                finalRootHandle = await finalRootHandle.getDirectoryHandle(part);
                             } catch (e) {
-                                console.error(`[ZIP] Failed to write file "${fileName}" in path "${cleanPath}":`, e);
-                                throw e;
+                                console.warn(`[ZIP] Failed to enter subfolder "${part}" for root sync, staying at parent.`, e);
+                                break;
                             }
                         }
-                        if (import.meta.env.DEV) console.log(`[ZIP] Extraction complete. Total files: ${processedCount}`);
 
-                        // 6. 完了後のスキャンと状態更新
-                        // インデックスDBに保存
-                        await set(ROOT_HANDLE_KEY, extractionRoot);
-                        localStorage.setItem(ROOT_NAME_KEY, extractionRoot.name);
+                        if (import.meta.env.DEV) console.log(`[ZIP] Connected to optimal root: ${finalRootHandle.name}`);
 
-                        // ステート更新
-                        setSavedRootName(extractionRoot.name);
+                        // 3. 共通ロジックでメモリ上のカードリスト化
+                        await processFileSystemItems(finalRootHandle.name, itemsMapToArr(foundItems));
+
+                        // 4. インデックスDBとステートに保存
+                        await set(ROOT_HANDLE_KEY, finalRootHandle);
+                        localStorage.setItem(ROOT_NAME_KEY, finalRootHandle.name);
+
+                        setSavedRootName(finalRootHandle.name);
+                        setRootHandle(finalRootHandle);
                         setHasAccess(true);
-                        setIsLoading(true);
-
-                        // 重要: 既存のスキャンを確実にキャンセルし、新規展開先でスキャン開始
-                        if (scanAbortControllerRef.current) {
-                            scanAbortControllerRef.current.abort();
-                        }
-
-                        // cardsステートをクリアしてスキャン開始（新旧カードの混同防止）
-                        setCards([]);
-                        await scanDirectory(extractionRoot);
-
+                        setIsLoading(false);
+                        setIsScanning(false);
+                        setIsUnzipping(false);
                         resolve();
+
                     } catch (innerErr: any) {
                         console.error('Inner ZIP Processing Error:', innerErr);
                         reject(innerErr);
@@ -642,13 +626,45 @@ export const useLocalCards = () => {
 
         } catch (err: any) {
             console.error('ZIP Process Error:', err);
+
+            if (err.message === 'ABORT') {
+                if (import.meta.env.DEV) console.log('[ZIP] Extraction aborted by user. Cleaning up...');
+                if (extractionRoot && zipBaseName) {
+                    try {
+                        await extractionRoot.removeEntry(zipBaseName, { recursive: true });
+                        if (import.meta.env.DEV) console.log(`[ZIP] Cleaned up aborted directory: ${zipBaseName}`);
+                    } catch (deleteErr) {
+                        console.error('[ZIP] Failed to cleanup aborted directory:', deleteErr);
+                    }
+                }
+                setIsScanning(false);
+                setIsLoading(false);
+                setIsUnzipping(false);
+                return;
+            }
+
+            // 構成エラー等の場合、作成されたばかりのフォルダの削除を提案する
+            if (extractionRoot && zipBaseName && err.name !== 'AbortError') {
+                const message = `構成エラー: ${err.message}\n\n展開されたフォルダ「${zipBaseName}」の構成が正しくないため、ツールで認識できませんでした。このフォルダを削除しますか？`;
+                if (window.confirm(message)) {
+                    try {
+                        await extractionRoot.removeEntry(zipBaseName, { recursive: true });
+                        if (import.meta.env.DEV) console.log(`[ZIP] Cleaned up invalid directory: ${zipBaseName}`);
+                    } catch (deleteErr) {
+                        console.error('[ZIP] Failed to delete invalid directory:', deleteErr);
+                    }
+                }
+            }
+
             setError(`ZIP展開中にエラーが発生しました: ${err.message}`);
             setIsScanning(false);
             setIsLoading(false);
+            setIsUnzipping(false);
         } finally {
             unzipInProgressRef.current = false;
+            unzipAbortControllerRef.current = null;
         }
-    }, [scanDirectory]);
+    }, [processFileSystemItems]);
 
     const toggleMergeSameFileCards = useCallback((val: boolean) => {
         setMergeSameFileCards(val);
@@ -674,6 +690,8 @@ export const useLocalCards = () => {
         verifyPermissionAndScan,
         dropAccess,
         unzipAndSave,
+        isUnzipping,
+        cancelUnzip,
         analyzeZip,
         mergeSameFileCards,
         toggleMergeSameFileCards,

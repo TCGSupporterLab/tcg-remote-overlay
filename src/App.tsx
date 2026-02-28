@@ -43,7 +43,9 @@ function App() {
     toggleMergeSameFileCards,
     isLoading,
     scanDirectory,
-    unzipAndSave
+    unzipAndSave,
+    isUnzipping,
+    cancelUnzip
   } = useLocalCards();
 
   const {
@@ -152,38 +154,9 @@ function App() {
   const [pendingZip, setPendingZip] = useState<{ file: File; metadata: ZipMetadata } | null>(null);
 
   const handleUnzipRequest = useCallback(async (file: File) => {
-    // 1. まず必要最低限の情報でモーダルをすぐ出す
-    const initialMetadata: ZipMetadata = {
-      fileName: file.name,
-      fileCount: 0,
-      topFolders: [],
-      isSingleRoot: false,
-      rootName: null,
-      isAnalyzing: true
-    };
-    setPendingZip({ file, metadata: initialMetadata });
-
-    try {
-      // 2. 非同期で解析。進捗（枚数）を動的に更新
-      const metadata = await analyzeZip(file, (count) => {
-        setPendingZip(current => {
-          if (!current || current.file !== file) return current;
-          return {
-            ...current,
-            metadata: { ...current.metadata, fileCount: count }
-          };
-        });
-      });
-
-      // 3. 解析完了。最終的なメタデータをセット
-      setPendingZip(current => {
-        if (!current || current.file !== file) return current;
-        return { file, metadata };
-      });
-    } catch (e: any) {
-      setPendingZip(null);
-      alert(`ZIPファイルの解析に失敗しました: ${e.message}`);
-    }
+    // 事前解析をスキップし、即座に確認画面を表示
+    const metadata = await analyzeZip(file);
+    setPendingZip({ file, metadata });
   }, []);
 
   const openSaveDialog = useCallback((
@@ -408,6 +381,10 @@ function App() {
   useEffect(() => {
     // Prevent default right click menu and instead open settings
     const handleContextMenu = (e: MouseEvent) => {
+      if (isUnzipping) {
+        e.preventDefault();
+        return;
+      }
       // Allow right click interacting with an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       e.preventDefault();
@@ -425,6 +402,7 @@ function App() {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isUnzipping) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.repeat) return;
 
@@ -926,6 +904,7 @@ function App() {
         effectiveSelectionMembers={effectiveSelectionMembers}
         widgetRefsMap={widgetRefsMap}
         isAdjustingVideo={isAdjustingVideo}
+        isUnzipping={isUnzipping}
       />
 
       {!isSearchView && <SelectionActionBar onOpenSaveDialog={openSaveDialog} />}
@@ -1013,81 +992,83 @@ function App() {
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">ファイル名</span>
                   <span className="text-sm font-semibold text-gray-200 truncate">{pendingZip.metadata.fileName}</span>
                 </div>
-                <div className="flex items-baseline gap-4">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">解析状況</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${pendingZip.metadata.fileCount > 0 ? "text-blue-400" : "text-yellow-500"}`}>
-                      {pendingZip.metadata.isAnalyzing
-                        ? pendingZip.metadata.fileCount > 0
-                          ? `カードを解析中 (${pendingZip.metadata.fileCount.toLocaleString()} 枚)`
-                          : "システムによる安全確認を待機中..."
-                        : `解析完了 (${pendingZip.metadata.fileCount.toLocaleString()} 枚)`}
-                    </span>
-                    {pendingZip.metadata.isAnalyzing && (
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] text-blue-400 font-bold animate-pulse">
-                        <RefreshCw size={10} className="animate-spin" />
-                        {pendingZip.metadata.fileCount > 0 ? "走査中" : "待機中"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {pendingZip.metadata.isAnalyzing && pendingZip.metadata.fileCount === 0 && (
-                  <div className="px-4 py-3 bg-yellow-500/5 border border-yellow-500/20 rounded-xl">
-                    <p className="text-[11px] text-yellow-500/90 leading-relaxed">
-                      💡 <strong>ヒント</strong>: インターネットから取得したZIPはWindowsの保護により読み込みが制限される場合があります。
-                      プロパティから「ブロック解除」を行うか、ローカルで作成したZIPを利用すると一瞬で読み込めます。
-                    </p>
-                  </div>
-                )}
-                {!pendingZip.metadata.isAnalyzing && !pendingZip.metadata.isValid && (
-                  <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2">
-                    <AlertCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
-                    <p className="text-[11px] text-red-400 font-bold leading-relaxed">
-                      {pendingZip.metadata.error || "不適切なフォルダ構成です。"}
-                    </p>
-                  </div>
-                )}
-                {pendingZip.metadata.shouldStrip && (
-                  <div className="pt-2 border-t border-white/5">
-                    <p className="text-[10px] text-yellow-500/80 italic">
-                      ※ トップレベルの "{pendingZip.metadata.rootName}" フォルダは自動的に省略されます。
-                    </p>
-                  </div>
-                )}
               </div>
 
-              {/* Action Buttons - Flushed with container padding */}
-              <div className="flex flex-col gap-[1px] mx-[-20px] mb-[-10px] mt-2 border-t border-white/10 overflow-hidden">
-                <button
-                  onClick={async () => {
-                    if (!pendingZip.metadata.isValid) return;
-                    const file = pendingZip.file;
-                    setPendingZip(null);
-                    await unzipAndSave(file);
-                    // 展開とスキャンが完了したら自動的に設定メニューを閉じる
-                    setShowSettings(false);
-                  }}
-                  disabled={pendingZip.metadata.isAnalyzing || !pendingZip.metadata.isValid}
-                  className={`w-full py-[20px] font-bold text-[16px] transition-all flex items-center justify-center gap-2 ${pendingZip.metadata.isAnalyzing || !pendingZip.metadata.isValid
-                    ? "bg-gray-600/50 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-500 text-white active:bg-blue-700"
-                    }`}
-                >
-                  {pendingZip.metadata.isAnalyzing
-                    ? "解析を待機中..."
-                    : !pendingZip.metadata.isValid
-                      ? "構成が不適切です"
-                      : "展開先フォルダを選択して開始"}
-                </button>
-                <button
-                  onClick={() => setPendingZip(null)}
-                  className="w-full py-[14px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 font-semibold text-[14px] transition-all"
-                >
-                  キャンセル
-                </button>
+              {!pendingZip.metadata.isAnalyzing && pendingZip.metadata.fileCount === 0 && (
+                <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2">
+                  <AlertCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-red-400 font-bold leading-relaxed">
+                    {pendingZip.metadata.error || "ZIPファイルに有効なファイルが含まれていません。"}
+                  </p>
+                </div>
+              )}
+              {!pendingZip.metadata.isAnalyzing && pendingZip.metadata.fileCount > 0 && (
+                <div className="pt-2 border-t border-white/5">
+                  <p className="text-[10px] text-blue-400/80 italic">
+                    ※ 展開後にフォルダ構成の自動判定と最適化が行われます。
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons - Flushed with container padding */}
+            <div className="flex flex-col gap-[1px] mx-[-20px] mb-[-10px] mt-2 border-t border-white/10 overflow-hidden">
+              <button
+                onClick={async () => {
+                  const file = pendingZip.file;
+                  setPendingZip(null);
+                  setShowSettings(false);
+                  await unzipAndSave(file);
+                }}
+                disabled={pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0}
+                className={`w-full py-[20px] font-bold text-[16px] transition-all flex items-center justify-center gap-2 ${pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0
+                  ? "bg-gray-600/50 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-500 text-white active:bg-blue-700"
+                  }`}
+              >
+                {pendingZip.metadata.isAnalyzing
+                  ? "解析中..."
+                  : pendingZip.metadata.fileCount === 0
+                    ? "ファイルが見つかりません"
+                    : "展開先フォルダを選択して開始"}
+              </button>
+              <button
+                onClick={() => setPendingZip(null)}
+                className="w-full py-[14px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 font-semibold text-[14px] transition-all"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ZIP Extraction Loading Overlay */}
+      {isUnzipping && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[6000] flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-w-[500px] w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
+            <div className="relative w-24 h-24 mx-auto">
+              <RefreshCw size={96} className="text-blue-500 animate-spin-slow opacity-20 absolute inset-0" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <RefreshCw size={48} className="text-blue-400 animate-spin" />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-white tracking-tight">ZIPファイルを展開中...</h2>
+              <p className="text-gray-400 text-sm leading-relaxed px-4">
+                アーカイブの内容をフォルダに書き出し、<br />
+                カードライブラリを構築しています。<br />
+                <span className="text-yellow-500/80 text-xs italic mt-2 block">※枚数が多い場合、数分かかることがあります</span>
+              </p>
+            </div>
+
+            <button
+              onClick={cancelUnzip}
+              className="mt-4 px-8 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-2xl font-bold text-sm transition-all active:scale-95 flex items-center gap-2 mx-auto"
+            >
+              処理を中断して削除
+            </button>
           </div>
         </div>
       )}
@@ -1142,7 +1123,7 @@ function App() {
         onClose={() => setSaveDialog(prev => ({ ...prev, isOpen: false }))}
         onSave={handleSaveLayout}
       />
-    </div>
+    </div >
   );
 }
 

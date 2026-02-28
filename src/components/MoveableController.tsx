@@ -26,12 +26,14 @@ interface MoveableControllerProps {
     effectiveSelectionMembers: WidgetId[];
     widgetRefsMap: React.RefObject<Map<WidgetId, HTMLDivElement>>;
     isAdjustingVideo: boolean;
+    isUnzipping: boolean;
 }
 
 export const MoveableController: React.FC<MoveableControllerProps> = ({
     effectiveSelectionMembers,
     widgetRefsMap,
-    isAdjustingVideo
+    isAdjustingVideo,
+    isUnzipping
 }) => {
     const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
     const groupData = useWidgetStore(s => s.groupData);
@@ -692,6 +694,7 @@ export const MoveableController: React.FC<MoveableControllerProps> = ({
                 continueSelect={true}
                 ratio={0}
                 dragCondition={(e) => {
+                    if (isUnzipping) return false;
                     if (e.inputEvent.button !== 0) return false;
                     const target = e.inputEvent.target as Element;
                     if (target.closest('.selection-action-bar')) return false;
