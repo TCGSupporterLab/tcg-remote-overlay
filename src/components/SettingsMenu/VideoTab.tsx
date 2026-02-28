@@ -1,4 +1,4 @@
-import { Camera, Monitor, X, Save } from 'lucide-react';
+import { Camera, Monitor, X, Save, MousePointerClick } from 'lucide-react';
 import type { VideoSourceType } from '../../types/widgetTypes';
 
 interface VideoTabProps {
@@ -9,6 +9,9 @@ interface VideoTabProps {
     onOpenSaveDialog: (source: 'video-menu', initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
     obsMode: 'normal' | 'green';
     onObsModeChange: (mode: 'normal' | 'green') => void;
+    availableCameras: MediaDeviceInfo[];
+    selectedCameraId: string | null;
+    onCameraIdChange: (id: string | null) => void;
 }
 
 export const VideoTab = ({
@@ -18,7 +21,10 @@ export const VideoTab = ({
     onToggleVideoAdjust,
     onOpenSaveDialog,
     obsMode,
-    onObsModeChange
+    onObsModeChange,
+    availableCameras,
+    selectedCameraId,
+    onCameraIdChange
 }: VideoTabProps) => (
     <div className="space-y-[24px]">
         <section className="space-y-[8px]">
@@ -60,6 +66,34 @@ export const VideoTab = ({
                 </button>
             </div>
         </section>
+
+        {videoSource === 'camera' && availableCameras.length > 0 && (
+            <section className="space-y-[8px]">
+                <h3 className="text-sm font-bold text-gray-400 flex items-center gap-[8px] uppercase tracking-tight">
+                    <MousePointerClick size={14} className="text-blue-400" />
+                    カメラを選択
+                </h3>
+                <div className="relative group">
+                    <select
+                        value={selectedCameraId || ''}
+                        onChange={(e) => onCameraIdChange(e.target.value || null)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-[12px] pr-[40px] py-[10px] text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer hover:bg-white/10 transition-colors"
+                    >
+                        <option value="" className="bg-[#1e293b]">デフォルトカメラ</option>
+                        {availableCameras.map(camera => (
+                            <option key={camera.deviceId} value={camera.deviceId} className="bg-[#1e293b]">
+                                {camera.label || `カメラ (${camera.deviceId.slice(0, 8)}...)`}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-[12px] top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
+            </section>
+        )}
 
         {videoSource !== 'none' && (
             <section className="space-y-[12px]">

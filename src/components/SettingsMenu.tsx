@@ -26,6 +26,10 @@ interface SettingsMenuProps {
     onObsModeChange: (mode: ObsMode) => void;
     // Layout Prop
     onOpenSaveDialog: (source: 'video-menu' | 'settings', initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
+    // Camera Props
+    availableCameras: MediaDeviceInfo[];
+    selectedCameraId: string | null;
+    onCameraIdChange: (id: string | null) => void;
     // File System Access Props
     hasAccess: boolean;
     rootHandleName?: string;
@@ -238,6 +242,9 @@ export const SettingsMenu = (props: SettingsMenuProps) => {
                                 onOpenSaveDialog={props.onOpenSaveDialog}
                                 obsMode={props.obsMode}
                                 onObsModeChange={props.onObsModeChange}
+                                availableCameras={props.availableCameras}
+                                selectedCameraId={props.selectedCameraId}
+                                onCameraIdChange={props.onCameraIdChange}
                             />
                         )}
 

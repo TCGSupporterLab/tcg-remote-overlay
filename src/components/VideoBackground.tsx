@@ -16,6 +16,10 @@ interface VideoBackgroundProps {
     onClose?: () => void;
     isAdjustmentMode?: boolean;
     onOpenSaveDialog?: (source: 'action-bar' | 'video-menu' | 'settings', initialOptions?: { includeWidgets: boolean, includeVideo: boolean, hideOthers: boolean }) => void;
+    selectedCameraId?: string | null;
+    onCameraIdChange?: (id: string | null) => void;
+    availableCameras?: MediaDeviceInfo[];
+    onCamerasUpdate?: (cameras: MediaDeviceInfo[]) => void;
 }
 
 export const VideoBackground: React.FC<VideoBackgroundProps> = ({
@@ -26,7 +30,11 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
     onReset,
     onClose,
     isAdjustmentMode = false,
-    onOpenSaveDialog
+    onOpenSaveDialog,
+    selectedCameraId = null,
+    onCameraIdChange,
+    availableCameras = [],
+    onCamerasUpdate
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -147,14 +155,19 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         try {
             let stream: MediaStream;
             if (sourceType === 'camera') {
-                stream = await navigator.mediaDevices.getUserMedia({
+                const constraints: MediaStreamConstraints = {
                     video: {
+                        deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined,
                         width: { min: 1280, ideal: 1920, max: 3840 },
                         height: { min: 720, ideal: 1080, max: 2160 },
                         frameRate: { ideal: 30 }
                     },
                     audio: false
-                });
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                // 許可が得られたのでデバイス名を再取得
+                refreshDevices();
             } else {
                 // @ts-ignore
                 stream = await navigator.mediaDevices.getDisplayMedia({
@@ -203,6 +216,22 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         }
     };
 
+    const refreshDevices = useCallback(async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === 'videoinput');
+            onCamerasUpdate?.(cameras);
+        } catch (e) {
+            console.error('Failed to enumerate devices:', e);
+        }
+    }, [onCamerasUpdate]);
+
+    useEffect(() => {
+        if (sourceType === 'camera') {
+            refreshDevices();
+        }
+    }, [sourceType, refreshDevices]);
+
     useEffect(() => {
         if (lastSourceTypeRef.current !== sourceType) {
             setError(null);
@@ -210,6 +239,13 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
         }
         stopStream();
     }, [sourceType, stopStream]);
+
+    // 選択中のカメラIDが変わったら自動再起動
+    useEffect(() => {
+        if (sourceType === 'camera' && isActive && streamRef.current) {
+            startStream();
+        }
+    }, [selectedCameraId]);
 
     if (sourceType === 'none') return null;
 
@@ -575,16 +611,41 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             )}
 
             {!isActive && (
-                <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-[1000] p-6 text-center">
-                    <p className="text-white mb-4 text-sm font-medium whitespace-pre-wrap">
+                <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/80 pointer-events-auto z-[1000] p-[24px] text-center">
+                    <p className="text-white mb-[16px] text-sm font-medium whitespace-pre-wrap">
                         {error || (sourceType === 'camera' ? 'カメラの許可が必要です。' : '画面共有の許可が必要です。')}
                     </p>
                     <button
                         onClick={startStream}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+                        className="px-[24px] py-[12px] bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-[8px]"
                     >
                         {sourceType === 'camera' ? 'カメラを起動' : '画面共有を開始'}
                     </button>
+
+                    {sourceType === 'camera' && availableCameras.length > 0 && (
+                        <div className="mt-[32px] w-[380px] space-y-[8px] animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <label className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em] block">カメラデバイス</label>
+                            <div className="relative group">
+                                <select
+                                    value={selectedCameraId || ''}
+                                    onChange={(e) => onCameraIdChange?.(e.target.value || null)}
+                                    className="w-full bg-white/10 border border-white/20 rounded-xl pl-[16px] pr-[40px] py-[12px] text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer hover:bg-white/20 transition-colors"
+                                >
+                                    <option value="">デフォルトカメラ</option>
+                                    {availableCameras.map(camera => (
+                                        <option key={camera.deviceId} value={camera.deviceId}>
+                                            {camera.label || `カメラ (${camera.deviceId.slice(0, 8)}...)`}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-[16px] top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </>

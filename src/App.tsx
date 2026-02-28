@@ -60,6 +60,8 @@ function App() {
   const videoCrop = useWidgetStore(s => s.videoCrop);
   const diceValue = useWidgetStore(s => s.diceValue);
   const coinValue = useWidgetStore(s => s.coinValue);
+  const selectedCameraId = useWidgetStore(s => s.selectedCameraId);
+  const availableCameras = useWidgetStore(s => s.availableCameras);
   const groupData = useWidgetStore(s => s.groupData);
   const selectedWidgetIds = useWidgetStore(s => s.selectedWidgetIds);
   const simpleCardImageUrl = useWidgetStore(s => s.simpleCardImageUrl);
@@ -73,6 +75,8 @@ function App() {
   const setDiceValue = useWidgetStore(s => s.setDiceValue);
   const setCoinValue = useWidgetStore(s => s.setCoinValue);
   const setSelectedWidgets = useWidgetStore(s => s.setSelectedWidgets);
+  const setSelectedCameraId = useWidgetStore(s => s.setSelectedCameraId);
+  const setAvailableCameras = useWidgetStore(s => s.setAvailableCameras);
   const importDefaultLayouts = useWidgetStore(s => s.importDefaultLayouts);
   const resetWidgetPosition = useWidgetStore(s => s.resetWidgetPosition);
   const hideSelectedWidgets = useWidgetStore(s => s.hideSelectedWidgets);
@@ -744,6 +748,10 @@ function App() {
         onClose={() => setIsAdjustingVideo(false)}
         isAdjustmentMode={isAdjustingVideo}
         onOpenSaveDialog={openSaveDialog}
+        selectedCameraId={selectedCameraId}
+        onCameraIdChange={setSelectedCameraId}
+        availableCameras={availableCameras}
+        onCamerasUpdate={setAvailableCameras}
       />
 
       {/* 2 & 3. GB and Widgets Layer */}
@@ -910,6 +918,9 @@ function App() {
             onOpenSaveDialog={openSaveDialog}
             obsMode={obsMode}
             onObsModeChange={setObsMode}
+            availableCameras={availableCameras}
+            selectedCameraId={selectedCameraId}
+            onCameraIdChange={setSelectedCameraId}
             // Tab State Props (Lifted)
             activeTab={activeSettingsTab}
             onTabChange={setActiveSettingsTab}

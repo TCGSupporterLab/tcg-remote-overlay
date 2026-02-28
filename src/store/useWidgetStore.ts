@@ -58,6 +58,8 @@ interface WidgetStoreState {
     // システム/映像設定
     obsMode: ObsMode;
     videoSource: VideoSourceType;
+    selectedCameraId: string | null;
+    availableCameras: MediaDeviceInfo[];
     videoCrop: CropConfig;
     viewSize: { w: number; h: number };
 
@@ -80,6 +82,8 @@ interface WidgetStoreState {
     setGroupData: (data: WidgetGroupData) => void;
     setObsMode: (mode: ObsMode) => void;
     setVideoSource: (source: VideoSourceType) => void;
+    setSelectedCameraId: (id: string | null) => void;
+    setAvailableCameras: (cameras: MediaDeviceInfo[]) => void;
     setVideoCrop: (crop: CropConfig) => void;
     setViewSize: (size: { w: number; h: number }) => void;
     setDiceValue: (val: 1 | 2 | 3 | 4 | 5 | 6) => void;
@@ -140,6 +144,8 @@ const getInitialState = () => {
         groupData: savedGroups ? JSON.parse(savedGroups) : { groups: [], relativeTransforms: {} },
         obsMode: (localStorage.getItem('tcg_remote_obs_mode') as ObsMode) || 'normal',
         videoSource: (localStorage.getItem('tcg_remote_video_source') || 'none') as VideoSourceType,
+        selectedCameraId: localStorage.getItem('tcg_remote_selected_camera_id') || null,
+        availableCameras: [],
         videoCrop: DEFAULT_CROP,
         diceValue: 1 as const,
         coinValue: 1 as const,
@@ -259,6 +265,17 @@ export const useWidgetStore = create<WidgetStoreState>()(
             localStorage.setItem('tcg_remote_video_source', videoSource);
             set({ videoSource });
         },
+
+        setSelectedCameraId: (selectedCameraId) => {
+            if (selectedCameraId) {
+                localStorage.setItem('tcg_remote_selected_camera_id', selectedCameraId);
+            } else {
+                localStorage.removeItem('tcg_remote_selected_camera_id');
+            }
+            set({ selectedCameraId });
+        },
+
+        setAvailableCameras: (availableCameras) => set({ availableCameras }),
 
         setVideoCrop: (videoCrop) => {
             localStorage.setItem('tcg_remote_video_crop', JSON.stringify(videoCrop));
