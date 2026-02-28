@@ -20,7 +20,7 @@ import { MoveableController } from './components/MoveableController';
 import { SelectionActionBar } from './components/SelectionActionBar';
 import { SaveLayoutDialog } from './components/SaveLayoutDialog';
 import { type WidgetId, type WidgetGroup } from './types/widgetTypes';
-import { Layers, RefreshCw } from 'lucide-react';
+import { Layers, RefreshCw, AlertCircle } from 'lucide-react';
 import './App.css';
 
 const TAB_ID = crypto.randomUUID();
@@ -152,10 +152,36 @@ function App() {
   const [pendingZip, setPendingZip] = useState<{ file: File; metadata: ZipMetadata } | null>(null);
 
   const handleUnzipRequest = useCallback(async (file: File) => {
+    // 1. まず必要最低限の情報でモーダルをすぐ出す
+    const initialMetadata: ZipMetadata = {
+      fileName: file.name,
+      fileCount: 0,
+      topFolders: [],
+      isSingleRoot: false,
+      rootName: null,
+      isAnalyzing: true
+    };
+    setPendingZip({ file, metadata: initialMetadata });
+
     try {
-      const metadata = await analyzeZip(file);
-      setPendingZip({ file, metadata });
+      // 2. 非同期で解析。進捗（枚数）を動的に更新
+      const metadata = await analyzeZip(file, (count) => {
+        setPendingZip(current => {
+          if (!current || current.file !== file) return current;
+          return {
+            ...current,
+            metadata: { ...current.metadata, fileCount: count }
+          };
+        });
+      });
+
+      // 3. 解析完了。最終的なメタデータをセット
+      setPendingZip(current => {
+        if (!current || current.file !== file) return current;
+        return { file, metadata };
+      });
     } catch (e: any) {
+      setPendingZip(null);
       alert(`ZIPファイルの解析に失敗しました: ${e.message}`);
     }
   }, []);
@@ -988,10 +1014,41 @@ function App() {
                   <span className="text-sm font-semibold text-gray-200 truncate">{pendingZip.metadata.fileName}</span>
                 </div>
                 <div className="flex items-baseline gap-4">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">カード枚数</span>
-                  <span className="text-sm font-bold text-blue-400">{pendingZip.metadata.fileCount} 枚</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">解析状況</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold ${pendingZip.metadata.fileCount > 0 ? "text-blue-400" : "text-yellow-500"}`}>
+                      {pendingZip.metadata.isAnalyzing
+                        ? pendingZip.metadata.fileCount > 0
+                          ? `カードを解析中 (${pendingZip.metadata.fileCount.toLocaleString()} 枚)`
+                          : "システムによる安全確認を待機中..."
+                        : `解析完了 (${pendingZip.metadata.fileCount.toLocaleString()} 枚)`}
+                    </span>
+                    {pendingZip.metadata.isAnalyzing && (
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] text-blue-400 font-bold animate-pulse">
+                        <RefreshCw size={10} className="animate-spin" />
+                        {pendingZip.metadata.fileCount > 0 ? "走査中" : "待機中"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {pendingZip.metadata.isSingleRoot && (
+
+                {pendingZip.metadata.isAnalyzing && pendingZip.metadata.fileCount === 0 && (
+                  <div className="px-4 py-3 bg-yellow-500/5 border border-yellow-500/20 rounded-xl">
+                    <p className="text-[11px] text-yellow-500/90 leading-relaxed">
+                      💡 <strong>ヒント</strong>: インターネットから取得したZIPはWindowsの保護により読み込みが制限される場合があります。
+                      プロパティから「ブロック解除」を行うか、ローカルで作成したZIPを利用すると一瞬で読み込めます。
+                    </p>
+                  </div>
+                )}
+                {!pendingZip.metadata.isAnalyzing && !pendingZip.metadata.isValid && (
+                  <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2">
+                    <AlertCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-red-400 font-bold leading-relaxed">
+                      {pendingZip.metadata.error || "不適切なフォルダ構成です。"}
+                    </p>
+                  </div>
+                )}
+                {pendingZip.metadata.shouldStrip && (
                   <div className="pt-2 border-t border-white/5">
                     <p className="text-[10px] text-yellow-500/80 italic">
                       ※ トップレベルの "{pendingZip.metadata.rootName}" フォルダは自動的に省略されます。
@@ -1004,15 +1061,24 @@ function App() {
               <div className="flex flex-col gap-[1px] mx-[-20px] mb-[-10px] mt-2 border-t border-white/10 overflow-hidden">
                 <button
                   onClick={async () => {
+                    if (!pendingZip.metadata.isValid) return;
                     const file = pendingZip.file;
                     setPendingZip(null);
                     await unzipAndSave(file);
                     // 展開とスキャンが完了したら自動的に設定メニューを閉じる
                     setShowSettings(false);
                   }}
-                  className="w-full py-[20px] bg-blue-600 hover:bg-blue-500 text-white font-bold text-[16px] transition-all active:bg-blue-700 flex items-center justify-center gap-2"
+                  disabled={pendingZip.metadata.isAnalyzing || !pendingZip.metadata.isValid}
+                  className={`w-full py-[20px] font-bold text-[16px] transition-all flex items-center justify-center gap-2 ${pendingZip.metadata.isAnalyzing || !pendingZip.metadata.isValid
+                    ? "bg-gray-600/50 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-500 text-white active:bg-blue-700"
+                    }`}
                 >
-                  展開先フォルダを選択して開始
+                  {pendingZip.metadata.isAnalyzing
+                    ? "解析を待機中..."
+                    : !pendingZip.metadata.isValid
+                      ? "構成が不適切です"
+                      : "展開先フォルダを選択して開始"}
                 </button>
                 <button
                   onClick={() => setPendingZip(null)}

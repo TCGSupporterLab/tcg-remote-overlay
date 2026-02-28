@@ -46,54 +46,112 @@ export interface ZipMetadata {
     topFolders: string[];
     isSingleRoot: boolean;
     rootName: string | null;
+    isAnalyzing?: boolean;
+    isValid?: boolean;
+    error?: string | null;
+    shouldStrip?: boolean;
 }
 
-export const analyzeZip = async (file: File): Promise<ZipMetadata> => {
+const isTargetFile = (path: string) => {
+    const lower = path.toLowerCase();
+    return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('/_link.txt') || path.endsWith('_link.txt');
+};
+
+export const analyzeZip = async (file: File, onProgress?: (count: number) => void): Promise<ZipMetadata> => {
     const arrayBuffer = await file.arrayBuffer();
     const zipData = new Uint8Array(arrayBuffer);
 
     return new Promise((resolve, reject) => {
-        fflate.unzip(zipData, (err, unzipped) => {
+        const allPaths: string[] = [];
+        let fileCount = 0;
+
+        fflate.unzip(zipData, {
+            filter: (f) => {
+                const path = f.name.replace(/\\/g, '/');
+                allPaths.push(path);
+                if (!path.endsWith('/')) {
+                    fileCount++;
+                    if (onProgress) onProgress(fileCount);
+                }
+                return false;
+            }
+        }, (err) => {
             if (err) return reject(new Error(`ZIPの解析に失敗しました: ${err.message}`));
 
-            // パスを正規化（Windows形式の \ も / に統一）
-            const allPaths = Object.keys(unzipped).map(p => p.replace(/\\/g, '/'));
             const files = allPaths.filter(p => !p.endsWith('/'));
+            if (files.length === 0) {
+                return resolve({
+                    fileName: file.name,
+                    fileCount: 0,
+                    topFolders: [],
+                    isSingleRoot: false,
+                    rootName: null,
+                    isAnalyzing: false,
+                    isValid: false,
+                    error: 'ZIPファイルが空です。'
+                });
+            }
 
-            // 単一ルートの判定
+            // 1. トップフォルダの単一性確認
             const firstEntry = files[0];
-            const firstPart = firstEntry ? firstEntry.split('/')[0] : null;
+            const firstPart = firstEntry.split('/')[0];
             const isSingleRoot = !!firstPart && files.every(p => p.startsWith(firstPart + '/'));
 
-            const folders = new Set<string>();
-            allPaths.forEach(p => {
-                const parts = p.split('/').filter(Boolean);
+            // 2. 省略判定: 単一ルートであり、かつ3項目目(index 2)に画像やlink.txtがない場合のみ省く
+            let shouldStrip = false;
+            if (isSingleRoot) {
+                const hasImportantFileAtL2 = files.some(p => {
+                    const parts = p.split('/');
+                    return parts.length === 3 && isTargetFile(p);
+                });
+                if (!hasImportantFileAtL2) {
+                    shouldStrip = true;
+                }
+            }
 
-                // フォルダ名を抽出
-                if (isSingleRoot) {
-                    // Root/SubFolder/... の SubFolder を取り出す
-                    if (parts.length >= 2) {
-                        // ファイル名（最後の要素）ではないことを確認（フォルダエントリか、さらに下の階層がある場合）
-                        if (p.endsWith('/') || parts.length > 2) {
-                            folders.add(parts[1]);
-                        }
-                    }
-                } else {
-                    // SubFolder/... の SubFolder を取り出す
-                    if (parts.length >= 1) {
-                        if (p.endsWith('/') || parts.length > 1) {
-                            folders.add(parts[0]);
-                        }
-                    }
+            // 3. バリデーションチェック用の仮想構成を作成
+            const effectivePaths = shouldStrip
+                ? files.map(p => p.substring(firstPart.length).replace(/^\/+/, ''))
+                : files;
+
+            // バリデーション対象をカード関連ファイルのみに絞る（systemファイル等は無視する）
+            const targetFiles = effectivePaths.filter(p => isTargetFile(p));
+
+            // バリデーションA: すべての「カード関連ファイル」が OCG/Deck/File 以上の深度(パーツ数3以上)を持っているか
+            const allAtLeastDepth2 = targetFiles.every(p => p.split('/').filter(Boolean).length >= 3);
+
+            // バリデーションB: index 2 (2階層目) に画像または_link.txtがあるファイルが一つでも存在するか
+            const atLeastOneBodyAtL2 = targetFiles.some(p => {
+                const parts = p.split('/').filter(Boolean);
+                return parts.length === 3;
+            });
+
+            const isValid = targetFiles.length > 0 && allAtLeastDepth2 && atLeastOneBodyAtL2;
+            let validationError = null;
+            if (!isValid) {
+                if (targetFiles.length === 0) validationError = '画像ファイルまたは_link.txtが見つかりません。';
+                else if (!allAtLeastDepth2) validationError = 'フォルダ階層が浅すぎる構成が含まれています。「{OCG}/{デッキ}/{画像}」の構成にしてください。';
+                else if (!atLeastOneBodyAtL2) validationError = 'デッキフォルダ直下に画像ファイルまたは_link.txtが見つかりません。';
+            }
+
+            const folders = new Set<string>();
+            effectivePaths.forEach(p => {
+                const parts = p.split('/').filter(Boolean);
+                if (parts.length >= 1) {
+                    folders.add(parts[0]);
                 }
             });
 
             resolve({
                 fileName: file.name,
-                fileCount: files.length,
+                fileCount,
                 topFolders: Array.from(folders).slice(0, 10),
                 isSingleRoot,
-                rootName: isSingleRoot ? firstPart : null
+                rootName: isSingleRoot ? firstPart : null,
+                isAnalyzing: false,
+                isValid,
+                error: validationError,
+                shouldStrip
             });
         });
     });
@@ -474,7 +532,7 @@ export const useLocalCards = () => {
                             return;
                         }
 
-                        // 4. 階層構造の自動調整 (1段階の共通ルートフォルダをスキップするか判定)
+                        // 4. 階層構造の自動調整 (analyzeZip と同じルールを適用)
                         const entries = filePaths.filter(p => !p.endsWith('/'));
                         if (entries.length === 0) {
                             reject(new Error('ZIP内にファイルが見つかりません。'));
@@ -483,9 +541,20 @@ export const useLocalCards = () => {
 
                         const firstEntry = entries[0];
                         const firstPart = firstEntry.split('/')[0];
-                        // 全てのファイルが共通のトップフォルダ配下にあるか？
-                        const allFilesInSameFolder = firstPart && entries.every(p => p.startsWith(firstPart + '/'));
-                        const prefixLength = allFilesInSameFolder ? firstPart.length + 1 : 0;
+                        const isSingleRoot = !!firstPart && entries.every(p => p.startsWith(firstPart + '/'));
+
+                        let shouldStrip = false;
+                        if (isSingleRoot) {
+                            const hasImportantFileAtL2 = entries.some(p => {
+                                const parts = p.split('/');
+                                return parts.length === 3 && isTargetFile(p);
+                            });
+                            if (!hasImportantFileAtL2) {
+                                shouldStrip = true;
+                            }
+                        }
+
+                        const prefixLength = shouldStrip ? firstPart.length + 1 : 0;
 
                         // 5. 展開先への書き込み
                         let processedCount = 0;
