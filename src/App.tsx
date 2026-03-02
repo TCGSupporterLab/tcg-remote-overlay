@@ -45,6 +45,7 @@ function App() {
     scanDirectory,
     unzipAndSave,
     isUnzipping,
+    unzipProgress,
     cancelUnzip
   } = useLocalCards();
 
@@ -1054,18 +1055,32 @@ function App() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black text-white tracking-tight">ZIPファイルを展開中...</h2>
-              <p className="text-gray-400 text-sm leading-relaxed px-4">
+            <div className="space-y-[16px] w-[100%]">
+              <div className="space-y-[8px]">
+                <h2 className="text-[24px] font-black text-white tracking-tight">ZIPファイルを展開中...</h2>
+                <div className="flex items-center justify-center gap-[8px]">
+                  <span className="text-[20px] font-black text-blue-400">{unzipProgress}%</span>
+                </div>
+              </div>
+
+              {/* Progress Bar Container */}
+              <div className="relative w-[100%] h-[12px] bg-white/5 rounded-full overflow-hidden border border-white/10 p-[2px]">
+                <div
+                  className="h-[100%] bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                  style={{ width: `${unzipProgress}%` }}
+                />
+              </div>
+
+              <p className="text-gray-400 text-[14px] leading-relaxed px-[16px]">
                 アーカイブの内容をフォルダに書き出し、<br />
                 カードライブラリを構築しています。<br />
-                <span className="text-yellow-500/80 text-xs italic mt-2 block">※枚数が多い場合、数分かかることがあります</span>
+                <span className="text-yellow-500/80 text-[12px] italic mt-[8px] block">※枚数が多い場合、数分かかることがあります</span>
               </p>
             </div>
 
             <button
               onClick={cancelUnzip}
-              className="mt-4 px-8 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-2xl font-bold text-sm transition-all active:scale-95 flex items-center gap-2 mx-auto"
+              className="mt-[8px] px-[32px] py-[12px] bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-[16px] font-bold text-[14px] transition-all active:scale-95 flex items-center gap-[8px] mx-auto"
             >
               処理を中断して削除
             </button>

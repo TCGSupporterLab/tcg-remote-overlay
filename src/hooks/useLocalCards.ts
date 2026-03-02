@@ -77,6 +77,7 @@ export const useLocalCards = () => {
     const [cards, setCards] = useState<LocalCard[]>([]);
     const [isScanning, setIsScanning] = useState(false);
     const [isUnzipping, setIsUnzipping] = useState(false);
+    const [unzipProgress, setUnzipProgress] = useState(0);
     const [hasAccess, setHasAccess] = useState(false);
     const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -479,150 +480,203 @@ export const useLocalCards = () => {
 
             if (import.meta.env.DEV) console.log(`[ZIP] Created target subdirectory: ${targetParentHandle.name}`);
 
-            if (import.meta.env.DEV) console.log('[ZIP] Reading ZIP file data...');
-            const arrayBuffer = await zipFile.arrayBuffer();
-            const zipData = new Uint8Array(arrayBuffer);
-            if (import.meta.env.DEV) console.log(`[ZIP] ZIP data loaded (${zipData.length} bytes)`);
+            if (import.meta.env.DEV) console.log('[ZIP] Starting random-access extraction...');
+            setUnzipProgress(0);
 
-            await new Promise<void>((resolve, reject) => {
-                fflate.unzip(zipData, async (err, unzipped) => {
-                    if (err) {
-                        reject(new Error(`ZIPの解析に失敗しました: ${err.message}`));
-                        return;
+            const readSlice = async (offset: number, length: number) => {
+                const blob = zipFile.slice(offset, offset + length);
+                return new Uint8Array(await blob.arrayBuffer());
+            };
+
+            // 1. EOCD (End of Central Directory) を探す
+            const fileSize = zipFile.size;
+            const scanSize = Math.min(fileSize, 65557);
+            const footer = await readSlice(fileSize - scanSize, scanSize);
+
+            let eocdPos = -1;
+            for (let i = scanSize - 22; i >= 0; i--) {
+                if (footer[i] === 0x50 && footer[i + 1] === 0x4b && footer[i + 2] === 0x05 && footer[i + 3] === 0x06) {
+                    eocdPos = i;
+                    break;
+                }
+            }
+            if (eocdPos === -1) throw new Error('ZIPの目録（EOCD）が見つかりません。');
+
+            const eocdView = new DataView(footer.buffer, eocdPos);
+            const cdSize = eocdView.getUint32(12, true);
+            const cdOffset = eocdView.getUint32(16, true);
+            const totalEntries = eocdView.getUint16(10, true);
+
+            if (import.meta.env.DEV) console.log(`[ZIP] Found index. Entries: ${totalEntries}, CD Size: ${cdSize}`);
+
+            // 2. セントラルディレクトリ (CD) を読み込む
+            const cdData = await readSlice(cdOffset, cdSize);
+            const cdView = new DataView(cdData.buffer);
+
+            interface ZipEntry {
+                path: string;
+                method: number;
+                compSize: number;
+                uncompSize: number;
+                localOffset: number;
+            }
+            const entries: ZipEntry[] = [];
+            let pos = 0;
+            const decoder = new TextDecoder();
+
+            for (let i = 0; i < totalEntries; i++) {
+                if (pos + 46 > cdSize) break;
+                const sig = cdView.getUint32(pos, true);
+                if (sig !== 0x02014b50) break;
+
+                const method = cdView.getUint16(pos + 10, true);
+                const compSize = cdView.getUint32(pos + 20, true);
+                const uncompSize = cdView.getUint32(pos + 24, true);
+                const nameLen = cdView.getUint16(pos + 28, true);
+                const extraLen = cdView.getUint16(pos + 30, true);
+                const commLen = cdView.getUint16(pos + 32, true);
+                const localOffset = cdView.getUint32(pos + 42, true);
+
+                const nameRaw = cdData.slice(pos + 46, pos + 46 + nameLen);
+                const path = decoder.decode(nameRaw).replace(/\\/g, '/').replace(/\/+/g, '/');
+
+                entries.push({ path, method, compSize, uncompSize, localOffset });
+                pos += 46 + nameLen + extraLen + commLen;
+            }
+
+            // 3. 各ファイルを個別解凍
+            const foundItems: { path: string, data: Blob }[] = [];
+            const pendingWrites: Promise<void>[] = [];
+            const dirCache = new Map<string, Promise<FileSystemDirectoryHandle>>();
+            dirCache.set('', Promise.resolve(targetParentHandle));
+
+            const getDirHandleCached = (dirParts: string[]): Promise<FileSystemDirectoryHandle> => {
+                let currentPath = '';
+                let currentPromise = dirCache.get('')!;
+                for (const part of dirParts) {
+                    const parentPath = currentPath;
+                    const sanitizedPart = part.replace(/[<>:"/\\|?*]/g, '_');
+                    currentPath += (currentPath ? '/' : '') + sanitizedPart;
+                    if (!dirCache.has(currentPath)) {
+                        const parentDirPromise = dirCache.get(parentPath)!;
+                        dirCache.set(currentPath, (async () => {
+                            const parentDir = await parentDirPromise;
+                            return await parentDir.getDirectoryHandle(sanitizedPart, { create: true });
+                        })());
+                    }
+                    currentPromise = dirCache.get(currentPath)!;
+                }
+                return currentPromise;
+            };
+
+            for (let i = 0; i < entries.length; i++) {
+                if (signal.aborted) throw new Error('ABORT');
+                const entry = entries[i];
+                if (entry.path.endsWith('/')) {
+                    setUnzipProgress(Math.floor(((i + 1) / entries.length) * 100));
+                    continue;
+                }
+
+                // ローカルヘッダーからデータの開始位置を特定
+                const lhData = await readSlice(entry.localOffset, 30);
+                const lhView = new DataView(lhData.buffer);
+                const n = lhView.getUint16(26, true);
+                const m = lhView.getUint16(28, true);
+                const dataStart = entry.localOffset + 30 + n + m;
+
+                const compressedData = await readSlice(dataStart, entry.compSize);
+                let decompressed: Uint8Array;
+
+                try {
+                    if (entry.method === 8) {
+                        decompressed = fflate.inflateSync(compressedData);
+                    } else if (entry.method === 0) {
+                        decompressed = compressedData;
+                    } else {
+                        throw new Error(`Unsupported compression method: ${entry.method}`);
                     }
 
-                    try {
-                        const dirCache = new Map<string, Promise<FileSystemDirectoryHandle>>();
-                        dirCache.set('', Promise.resolve(targetParentHandle));
+                    const blob = new Blob([decompressed]);
+                    foundItems.push({ path: entry.path, data: blob });
 
-                        const allPaths = Object.keys(unzipped).map(p => p.replace(/\\/g, '/').replace(/\/+/g, '/'));
-                        const writeTasks = allPaths.filter(p => !p.endsWith('/'));
-                        if (writeTasks.length === 0) {
-                            resolve();
-                            return;
-                        }
+                    const parts = entry.path.split('/').map((p: string) => p.trim()).filter(Boolean);
+                    const dirParts = parts.slice(0, -1);
+                    const fileName = parts[parts.length - 1].replace(/[<>:"/\\|?*]/g, '_');
 
-                        const getDirHandleCached = (dirParts: string[]): Promise<FileSystemDirectoryHandle> => {
-                            let currentPath = '';
-                            let currentPromise = dirCache.get('')!;
-
-                            for (const part of dirParts) {
-                                const parentPath = currentPath;
-                                const sanitizedPart = part.replace(/[<>:"/\\|?*]/g, '_');
-                                currentPath += (currentPath ? '/' : '') + sanitizedPart;
-
-                                if (!dirCache.has(currentPath)) {
-                                    const parentDirPromise = dirCache.get(parentPath)!;
-                                    dirCache.set(currentPath, (async () => {
-                                        const parentDir = await parentDirPromise;
-                                        return await parentDir.getDirectoryHandle(sanitizedPart, { create: true });
-                                    })());
-                                }
-                                currentPromise = dirCache.get(currentPath)!;
-                            }
-                            return currentPromise;
-                        };
-
-                        let processedCount = 0;
-                        const foundItems: { path: string, data: Blob }[] = [];
-
-                        const processFile = async (pathOnly: string) => {
-                            if (signal.aborted) throw new Error('ABORT');
-
-                            const data = unzipped[pathOnly];
-                            const blob = new Blob([data as any]);
-                            foundItems.push({ path: pathOnly, data: blob });
-
-                            // ディスクへの書き込み
-                            const parts = pathOnly.split('/').map(p => p.trim()).filter(Boolean);
-                            const dirParts = parts.slice(0, -1);
-                            const fileName = parts[parts.length - 1].replace(/[<>:"/\\|?*]/g, '_');
-
-                            try {
-                                const dirHandle = await getDirHandleCached(dirParts);
-                                const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-                                const writable = await fileHandle.createWritable();
-                                await writable.write(data as any);
-                                await writable.close();
-
-                                processedCount++;
-                                if (import.meta.env.DEV && processedCount % 100 === 0) {
-                                    console.log(`[ZIP] Writing file ${processedCount}/${writeTasks.length}: ${fileName}`);
-                                }
-                            } catch (e) {
+                    const writeTask = (async () => {
+                        try {
+                            if (signal.aborted) return;
+                            const dirHandle = await getDirHandleCached(dirParts);
+                            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+                        } catch (e) {
+                            if ((e as Error).name !== 'AbortError') {
                                 console.error(`[ZIP] Failed to write file "${fileName}":`, e);
-                                throw e;
-                            }
-                        };
-
-                        // 並列書き込み
-                        const CONCURRENCY = 24;
-                        let taskIndex = 0;
-                        const worker = async () => {
-                            while (taskIndex < writeTasks.length) {
-                                if (signal.aborted) break;
-                                const task = writeTasks[taskIndex++];
-                                await processFile(task);
-                            }
-                        };
-                        await Promise.all(Array(Math.min(CONCURRENCY, writeTasks.length)).fill(null).map(worker));
-
-                        if (signal.aborted) throw new Error('ABORT');
-
-                        if (import.meta.env.DEV) console.log(`[ZIP] Extraction complete. Total files: ${processedCount}. Determining optimal root...`);
-
-                        // --- 物理的な接続ルートの決定ロジック ---
-                        // 1. ルート省略判定ロジックを流用して、物理的な共通接頭辞を特定
-                        let stripPrefixParts: string[] = [];
-                        const filesOnlyPaths = foundItems.map(i => i.path);
-                        const firstEntry = filesOnlyPaths[0];
-                        const firstPart = firstEntry.split('/')[0];
-                        const isSingleRootInZip = !!firstPart && filesOnlyPaths.every(p => p.startsWith(firstPart + '/'));
-
-                        if (isSingleRootInZip) {
-                            const hasImportantFileAtL2 = filesOnlyPaths.some(p => {
-                                const parts = p.split('/');
-                                return parts.length === 3 && isTargetFile(p);
-                            });
-                            if (!hasImportantFileAtL2) {
-                                stripPrefixParts = [firstPart];
                             }
                         }
+                    })();
+                    pendingWrites.push(writeTask);
+                } catch (e) {
+                    console.error(`[ZIP] Failed to decompress ${entry.path}:`, e);
+                }
 
-                        // 2. 確定したパスの DirectoryHandle を取得する
-                        let finalRootHandle = targetParentHandle;
-                        for (const part of stripPrefixParts) {
-                            try {
-                                finalRootHandle = await finalRootHandle.getDirectoryHandle(part);
-                            } catch (e) {
-                                console.warn(`[ZIP] Failed to enter subfolder "${part}" for root sync, staying at parent.`, e);
-                                break;
-                            }
-                        }
+                setUnzipProgress(Math.floor(((i + 1) / entries.length) * 100));
+            }
 
-                        if (import.meta.env.DEV) console.log(`[ZIP] Connected to optimal root: ${finalRootHandle.name}`);
+            if (import.meta.env.DEV) console.log(`[ZIP] Reached end of entries. Waiting for ${pendingWrites.length} writes...`);
+            await Promise.all(pendingWrites);
 
-                        // 3. 共通ロジックでメモリ上のカードリスト化
-                        await processFileSystemItems(finalRootHandle.name, itemsMapToArr(foundItems));
+            if (signal.aborted) throw new Error('ABORT');
+            setUnzipProgress(100);
 
-                        // 4. インデックスDBとステートに保存
-                        await set(ROOT_HANDLE_KEY, finalRootHandle);
-                        localStorage.setItem(ROOT_NAME_KEY, finalRootHandle.name);
+            if (import.meta.env.DEV) console.log(`[ZIP] Extraction complete. Total files: ${foundItems.length}. Determining optimal root...`);
 
-                        setSavedRootName(finalRootHandle.name);
-                        setRootHandle(finalRootHandle);
-                        setHasAccess(true);
-                        setIsLoading(false);
-                        setIsScanning(false);
-                        setIsUnzipping(false);
-                        resolve();
+            // --- 物理的な接続ルートの決定ロジック ---
+            // 1. ルート省略判定ロジックを流用して、物理的な共通接頭辞を特定
+            let stripPrefixParts: string[] = [];
+            const filesOnlyPaths = foundItems.map(i => i.path);
+            const firstEntry = filesOnlyPaths[0];
+            const firstPart = firstEntry?.split('/')[0];
+            const isSingleRootInZip = !!firstPart && filesOnlyPaths.every(p => p.startsWith(firstPart + '/'));
 
-                    } catch (innerErr: any) {
-                        console.error('Inner ZIP Processing Error:', innerErr);
-                        reject(innerErr);
-                    }
+            if (isSingleRootInZip) {
+                const hasImportantFileAtL2 = filesOnlyPaths.some(p => {
+                    const parts = p.split('/');
+                    return parts.length === 3 && isTargetFile(p);
                 });
-            });
+                if (!hasImportantFileAtL2) {
+                    stripPrefixParts = [firstPart];
+                }
+            }
+
+            // 2. 確定したパスの DirectoryHandle を取得する
+            let finalRootHandle = targetParentHandle;
+            for (const part of stripPrefixParts) {
+                try {
+                    finalRootHandle = await finalRootHandle.getDirectoryHandle(part);
+                } catch (e) {
+                    console.warn(`[ZIP] Failed to enter subfolder "${part}" for root sync, staying at parent.`, e);
+                    break;
+                }
+            }
+
+            if (import.meta.env.DEV) console.log(`[ZIP] Connected to optimal root: ${finalRootHandle.name}`);
+
+            // 3. 共通ロジックでメモリ上のカードリスト化
+            await processFileSystemItems(finalRootHandle.name, itemsMapToArr(foundItems));
+
+            // 4. インデックスDBとステートに保存
+            await set(ROOT_HANDLE_KEY, finalRootHandle);
+            localStorage.setItem(ROOT_NAME_KEY, finalRootHandle.name);
+
+            setSavedRootName(finalRootHandle.name);
+            setRootHandle(finalRootHandle);
+            setHasAccess(true);
+            setIsLoading(false);
+            setIsScanning(false);
+            setIsUnzipping(false);
 
         } catch (err: any) {
             console.error('ZIP Process Error:', err);
@@ -691,6 +745,7 @@ export const useLocalCards = () => {
         dropAccess,
         unzipAndSave,
         isUnzipping,
+        unzipProgress,
         cancelUnzip,
         analyzeZip,
         mergeSameFileCards,
