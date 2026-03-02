@@ -477,7 +477,8 @@ export const useWidgetStore = create<WidgetStoreState>()(
                 groupData: {
                     ...groupData,
                     groups: nextGroups,
-                }
+                },
+                selectedWidgetIds: [], // グループ解除後は選択状態をすべてリセットする
             };
         }),
 
