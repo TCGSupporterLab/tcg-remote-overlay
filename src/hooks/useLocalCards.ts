@@ -585,6 +585,7 @@ export const useLocalCards = () => {
                 const dataStart = entry.localOffset + 30 + n + m;
 
                 const compressedData = await readSlice(dataStart, entry.compSize);
+                if (signal.aborted) throw new Error('ABORT');
                 let decompressed: Uint8Array;
 
                 try {
@@ -596,7 +597,8 @@ export const useLocalCards = () => {
                         throw new Error(`Unsupported compression method: ${entry.method}`);
                     }
 
-                    const blob = new Blob([decompressed]);
+                    if (signal.aborted) throw new Error('ABORT');
+                    const blob = new Blob([decompressed] as any);
                     foundItems.push({ path: entry.path, data: blob });
 
                     const parts = entry.path.split('/').map((p: string) => p.trim()).filter(Boolean);
@@ -607,7 +609,9 @@ export const useLocalCards = () => {
                         try {
                             if (signal.aborted) return;
                             const dirHandle = await getDirHandleCached(dirParts);
+                            if (signal.aborted) return;
                             const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                            if (signal.aborted) return;
                             const writable = await fileHandle.createWritable();
                             await writable.write(blob);
                             await writable.close();
@@ -619,6 +623,7 @@ export const useLocalCards = () => {
                     })();
                     pendingWrites.push(writeTask);
                 } catch (e) {
+                    if ((e as Error).message === 'ABORT') throw e;
                     console.error(`[ZIP] Failed to decompress ${entry.path}:`, e);
                 }
 
