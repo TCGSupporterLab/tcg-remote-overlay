@@ -33,7 +33,7 @@ export const GuideTab = () => {
                 </h2>
                 <p className="text-xs text-white/50 leading-relaxed">
                     TCG Remote Overlay は、リモート対戦時に必要なダイス・コイン・ライフポイント計算・カード画像表示などを、
-                    ブラウザ1つで完結させるオーバーレイツールです。<br />
+                    ブラウザ1つで完結させるオーバーレイツールです。特定のゲームタイトルに限らずあらゆるTCGで汎用的に利用でき、一部のタイトル向けには専用の拡張機能も備えています。<br />
                     Discord等で画面共有するだけで、相手にもオーバーレイが見える状態で対戦を始められます。
                 </p>
                 <p className="text-xs text-white/50 leading-relaxed">

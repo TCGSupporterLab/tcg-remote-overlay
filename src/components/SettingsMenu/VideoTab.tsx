@@ -131,7 +131,7 @@ export const VideoTab = ({
         <section className="space-y-[8px]">
             <h3 className="text-lg font-bold mb-[8px] flex items-center gap-[6px] border-b border-white/10 pb-[8px]">
                 <Monitor size={18} className="text-secondary" />
-                背景色 (OBS透過用)
+                背景色 (クロマキー合成・補助用)
             </h3>
             <div className="flex gap-[8px]">
                 <button
