@@ -450,6 +450,7 @@ export const useLocalCards = () => {
 
         try {
             setError(null);
+            setUnzipProgress(0); // 開始時に確実にリセット
 
             if (import.meta.env.DEV) console.log('[ZIP] Opening directory picker...');
             try {
@@ -481,7 +482,7 @@ export const useLocalCards = () => {
             if (import.meta.env.DEV) console.log(`[ZIP] Created target subdirectory: ${targetParentHandle.name}`);
 
             if (import.meta.env.DEV) console.log('[ZIP] Starting random-access extraction...');
-            setUnzipProgress(0);
+            // setUnzipProgress(0); // 上で既に実行済み
 
             const readSlice = async (offset: number, length: number) => {
                 const blob = zipFile.slice(offset, offset + length);
@@ -569,69 +570,79 @@ export const useLocalCards = () => {
                 return currentPromise;
             };
 
-            for (let i = 0; i < entries.length; i++) {
-                if (signal.aborted) throw new Error('ABORT');
-                const entry = entries[i];
-                if (entry.path.endsWith('/')) {
-                    setUnzipProgress(Math.floor(((i + 1) / entries.length) * 100));
-                    continue;
-                }
-
-                // ローカルヘッダーからデータの開始位置を特定
-                const lhData = await readSlice(entry.localOffset, 30);
-                const lhView = new DataView(lhData.buffer);
-                const n = lhView.getUint16(26, true);
-                const m = lhView.getUint16(28, true);
-                const dataStart = entry.localOffset + 30 + n + m;
-
-                const compressedData = await readSlice(dataStart, entry.compSize);
-                if (signal.aborted) throw new Error('ABORT');
-                let decompressed: Uint8Array;
-
-                try {
-                    if (entry.method === 8) {
-                        decompressed = fflate.inflateSync(compressedData);
-                    } else if (entry.method === 0) {
-                        decompressed = compressedData;
-                    } else {
-                        throw new Error(`Unsupported compression method: ${entry.method}`);
+            try {
+                for (let i = 0; i < entries.length; i++) {
+                    if (signal.aborted) throw new Error('ABORT');
+                    const entry = entries[i];
+                    if (entry.path.endsWith('/')) {
+                        setUnzipProgress(Math.floor(((i + 1) / entries.length) * 100));
+                        continue;
                     }
 
+                    // ローカルヘッダーからデータの開始位置を特定
+                    const lhData = await readSlice(entry.localOffset, 30);
+                    const lhView = new DataView(lhData.buffer);
+                    const n = lhView.getUint16(26, true);
+                    const m = lhView.getUint16(28, true);
+                    const dataStart = entry.localOffset + 30 + n + m;
+
+                    const compressedData = await readSlice(dataStart, entry.compSize);
                     if (signal.aborted) throw new Error('ABORT');
-                    const blob = new Blob([decompressed] as any);
-                    foundItems.push({ path: entry.path, data: blob });
+                    let decompressed: Uint8Array;
 
-                    const parts = entry.path.split('/').map((p: string) => p.trim()).filter(Boolean);
-                    const dirParts = parts.slice(0, -1);
-                    const fileName = parts[parts.length - 1].replace(/[<>:"/\\|?*]/g, '_');
-
-                    const writeTask = (async () => {
-                        try {
-                            if (signal.aborted) return;
-                            const dirHandle = await getDirHandleCached(dirParts);
-                            if (signal.aborted) return;
-                            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-                            if (signal.aborted) return;
-                            const writable = await fileHandle.createWritable();
-                            await writable.write(blob);
-                            await writable.close();
-                        } catch (e) {
-                            if ((e as Error).name !== 'AbortError') {
-                                console.error(`[ZIP] Failed to write file "${fileName}":`, e);
-                            }
+                    try {
+                        if (entry.method === 8) {
+                            decompressed = fflate.inflateSync(compressedData);
+                        } else if (entry.method === 0) {
+                            decompressed = compressedData;
+                        } else {
+                            throw new Error(`Unsupported compression method: ${entry.method}`);
                         }
-                    })();
-                    pendingWrites.push(writeTask);
-                } catch (e) {
-                    if ((e as Error).message === 'ABORT') throw e;
-                    console.error(`[ZIP] Failed to decompress ${entry.path}:`, e);
+
+                        if (signal.aborted) throw new Error('ABORT');
+                        const blob = new Blob([decompressed] as any);
+                        foundItems.push({ path: entry.path, data: blob });
+
+                        const parts = entry.path.split('/').map((p: string) => p.trim()).filter(Boolean);
+                        const dirParts = parts.slice(0, -1);
+                        const fileName = parts[parts.length - 1].replace(/[<>:"/\\|?*]/g, '_');
+
+                        const writeTask = (async () => {
+                            let writable: FileSystemWritableFileStream | undefined;
+                            try {
+                                if (signal.aborted) return;
+                                const dirHandle = await getDirHandleCached(dirParts);
+                                if (signal.aborted) return;
+                                const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                                if (signal.aborted) return;
+                                writable = await fileHandle.createWritable();
+                                await writable.write(blob);
+                            } catch (e) {
+                                if ((e as Error).name !== 'AbortError') {
+                                    console.error(`[ZIP] Failed to write file "${fileName}":`, e);
+                                }
+                            } finally {
+                                if (writable) {
+                                    try { await writable.close(); } catch { }
+                                }
+                            }
+                        })();
+                        pendingWrites.push(writeTask);
+                    } catch (e) {
+                        if ((e as Error).message === 'ABORT') throw e;
+                        console.error(`[ZIP] Failed to decompress ${entry.path}:`, e);
+                    }
+
+                    setUnzipProgress(Math.floor(((i + 1) / entries.length) * 100));
                 }
 
-                setUnzipProgress(Math.floor(((i + 1) / entries.length) * 100));
+                if (import.meta.env.DEV) console.log(`[ZIP] Reached end of entries. Waiting for ${pendingWrites.length} writes...`);
+                await Promise.all(pendingWrites);
+            } catch (innerErr: any) {
+                // ここで未完了のプロセスを待ってから外側の catch に流す
+                await Promise.allSettled(pendingWrites);
+                throw innerErr;
             }
-
-            if (import.meta.env.DEV) console.log(`[ZIP] Reached end of entries. Waiting for ${pendingWrites.length} writes...`);
-            await Promise.all(pendingWrites);
 
             if (signal.aborted) throw new Error('ABORT');
             setUnzipProgress(100);
@@ -687,18 +698,24 @@ export const useLocalCards = () => {
             console.error('ZIP Process Error:', err);
 
             if (err.message === 'ABORT') {
-                if (import.meta.env.DEV) console.log('[ZIP] Extraction aborted by user. Cleaning up...');
-                if (extractionRoot && zipBaseName) {
-                    try {
-                        await extractionRoot.removeEntry(zipBaseName, { recursive: true });
-                        if (import.meta.env.DEV) console.log(`[ZIP] Cleaned up aborted directory: ${zipBaseName}`);
-                    } catch (deleteErr) {
-                        console.error('[ZIP] Failed to cleanup aborted directory:', deleteErr);
-                    }
-                }
+                if (import.meta.env.DEV) console.log('[ZIP] Extraction aborted by user. Cleaning up in background...');
+
+                // ダイアログを即座に閉じる
                 setIsScanning(false);
                 setIsLoading(false);
                 setIsUnzipping(false);
+
+                if (extractionRoot && zipBaseName) {
+                    // 削除処理はバックグラウンド（awaitしない）で実行
+                    (async () => {
+                        try {
+                            await extractionRoot.removeEntry(zipBaseName, { recursive: true });
+                            if (import.meta.env.DEV) console.log(`[ZIP] Background cleanup complete: ${zipBaseName}`);
+                        } catch (deleteErr) {
+                            console.error('[ZIP] Background cleanup failed:', deleteErr);
+                        }
+                    })();
+                }
                 return;
             }
 

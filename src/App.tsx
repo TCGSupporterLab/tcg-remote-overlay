@@ -26,6 +26,14 @@ import './App.css';
 const TAB_ID = crypto.randomUUID();
 (window as any).TAB_ID = TAB_ID;
 
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 function App() {
 
 
@@ -993,6 +1001,10 @@ function App() {
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">ファイル名</span>
                   <span className="text-sm font-semibold text-gray-200 truncate">{pendingZip.metadata.fileName}</span>
                 </div>
+                <div className="flex items-baseline gap-4 pt-2 border-t border-white/5">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest w-[80px] shrink-0">サイズ</span>
+                  <span className="text-sm font-semibold text-blue-400">{formatFileSize(pendingZip.file.size)}</span>
+                </div>
               </div>
 
               {!pendingZip.metadata.isAnalyzing && pendingZip.metadata.fileCount === 0 && (
@@ -1012,8 +1024,8 @@ function App() {
               )}
             </div>
 
-            {/* Action Buttons - Flushed with container padding */}
-            <div className="flex flex-col gap-[1px] mx-[-20px] mb-[-10px] mt-2 border-t border-white/10 overflow-hidden">
+            {/* Action Buttons - Moved outside padded container to avoid clipping */}
+            <div className="flex flex-col gap-[1px] border-t border-white/10 bg-black/20">
               <button
                 onClick={async () => {
                   const file = pendingZip.file;
@@ -1022,9 +1034,9 @@ function App() {
                   await unzipAndSave(file);
                 }}
                 disabled={pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0}
-                className={`w-full py-[20px] font-bold text-[16px] transition-all flex items-center justify-center gap-2 ${pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0
+                className={`w-full py-[20px] font-black text-[18px] transition-all flex items-center justify-center gap-[8px] tracking-tight ${pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0
                   ? "bg-gray-600/50 text-gray-500 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-500 text-white active:bg-blue-700"
+                  : "bg-blue-600 hover:bg-blue-500 text-white active:bg-blue-700 active:scale-[0.99] shadow-inner"
                   }`}
               >
                 {pendingZip.metadata.isAnalyzing
@@ -1035,7 +1047,7 @@ function App() {
               </button>
               <button
                 onClick={() => setPendingZip(null)}
-                className="w-full py-[14px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 font-semibold text-[14px] transition-all"
+                className="w-full py-[16px] bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 font-semibold text-[14px] transition-all flex items-center justify-center"
               >
                 キャンセル
               </button>
@@ -1048,13 +1060,6 @@ function App() {
       {isUnzipping && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[6000] flex flex-col items-center justify-center animate-in fade-in duration-500">
           <div className="bg-[#0f111a] p-10 rounded-[2.5rem] border-2 border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-w-[500px] w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
-            <div className="relative w-24 h-24 mx-auto">
-              <RefreshCw size={96} className="text-blue-500 animate-spin-slow opacity-20 absolute inset-0" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <RefreshCw size={48} className="text-blue-400 animate-spin" />
-              </div>
-            </div>
-
             <div className="space-y-[16px] w-[100%]">
               <div className="space-y-[8px]">
                 <h2 className="text-[24px] font-black text-white tracking-tight">ZIPファイルを展開中...</h2>
@@ -1064,10 +1069,17 @@ function App() {
               </div>
 
               {/* Progress Bar Container */}
-              <div className="relative w-[100%] h-[12px] bg-white/5 rounded-full overflow-hidden border border-white/10 p-[2px]">
+              <div
+                className="relative w-[100%] h-[12px] rounded-full overflow-hidden border border-white/20 p-[1px]"
+                style={{ backgroundColor: '#1e293b' }}
+              >
                 <div
-                  className="h-[100%] bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-                  style={{ width: `${unzipProgress}%` }}
+                  className="h-[100%] rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${unzipProgress}%`,
+                    backgroundColor: '#22d3ee',
+                    boxShadow: '0 0 20px #22d3ee'
+                  }}
                 />
               </div>
 
