@@ -43,21 +43,66 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
     const pinnedTabRef = React.useRef<{ scrollToTop: () => void; scrollToBottom: () => void; }>(null);
 
 
-    // Keyboard Navigation
+    // Keyboard Navigation & Global Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Ignore if typing in an input or textarea
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-                if (e.key === 'Tab') {
-                    // Do not prevent default for Tab in input, let focus move normally
-                } else {
-                    return;
-                }
+                return;
             }
 
             if (e.key === 'Tab') {
                 e.preventDefault();
                 setActiveTab(prev => prev === 'search' ? 'pinned' : 'search');
+                return;
+            }
+
+            // Broadcast logic with robust Shift/Numpad detection
+            const isNumpad = e.code.startsWith('Numpad');
+            const isDigit = /^(Digit|Numpad)[0-9]$/.test(e.code);
+            const isShift = e.shiftKey || (e.getModifierState?.('Shift') ?? false);
+            // High-reliability shift detection for Numpad (Windows behavior)
+            const isShiftedDigit = isDigit && (isShift || (isNumpad && !/^\d$/.test(e.key)));
+
+            if (/^[dcvAo\.]$/i.test(e.key) || e.code === 'NumpadDecimal' || isShiftedDigit) {
+                e.preventDefault();
+                const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+                channel.postMessage({
+                    type: 'remote_keydown',
+                    event: {
+                        key: e.key,
+                        code: e.code,
+                        shiftKey: true, // Force true if we matched isShiftedDigit
+                        ctrlKey: e.ctrlKey,
+                        altKey: e.altKey,
+                        metaKey: e.metaKey,
+                        repeat: e.repeat
+                    }
+                });
+                channel.close();
+                return;
+            }
+
+            // Broadcaster for LP Calculator shortcuts
+            const isLPKey = /^[0-9\+\-\/\*p]$/i.test(e.key) ||
+                ['Enter', 'Delete', 'Backspace', 'Add', 'Subtract', 'Divide', 'Multiply', 'Decimal'].includes(e.key) ||
+                ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y'));
+
+            if (isLPKey) {
+                const channel = new BroadcastChannel('tcg_remote_sync_lp');
+                channel.postMessage({
+                    type: 'remote_keydown',
+                    event: {
+                        key: e.key,
+                        code: e.code,
+                        shiftKey: isShift,
+                        ctrlKey: e.ctrlKey,
+                        altKey: e.altKey,
+                        metaKey: e.metaKey,
+                        repeat: e.repeat
+                    }
+                });
+                channel.close();
             }
         };
 

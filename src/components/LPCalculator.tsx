@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Undo2, Redo2 } from 'lucide-react';
 
 import { OverlayDisplay } from './OverlayDisplay';
@@ -214,69 +214,98 @@ export const LPCalculator: React.FC<LPCalculatorProps> = ({
         handleSetTarget(next);
     };
 
+    const processKey = useCallback((e: { key: string, ctrlKey?: boolean, metaKey?: boolean, shiftKey?: boolean, preventDefault?: () => void }) => {
+        // Undo / Redo
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault?.();
+            handleUndo();
+            return true;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+            e.preventDefault?.();
+            handleRedo();
+            return true;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault?.();
+            handleRedo();
+            return true;
+        }
+
+        // Numbers
+        if (/^[0-9]$/.test(e.key)) {
+            e.preventDefault?.();
+            handleNumClick(parseInt(e.key));
+            return true;
+        }
+
+        // Operations
+        if (e.key === '+' || e.key === 'Add') {
+            e.preventDefault?.();
+            handleOperation('+');
+            return true;
+        }
+        if (e.key === '-' || e.key === 'Subtract' || e.key === 'Enter') { // Enter is treated as -
+            e.preventDefault?.();
+            handleOperation('-');
+            return true;
+        }
+        if (e.key === '/' || e.key === 'Divide') {
+            e.preventDefault?.();
+            handleHalf();
+            return true;
+        }
+        if (e.key === 'Delete' || e.key === 'Del') {
+            e.preventDefault?.();
+            handleClear();
+            return true;
+        }
+
+        // Target Toggle
+        if (e.key === 'p' || e.key === 'P' || e.key === '*' || e.key === 'Multiply') {
+            e.preventDefault?.();
+            handleToggleTarget();
+            return true;
+        }
+        return false;
+    }, [handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo, handleToggleTarget]);
+
     // Keyboard Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return; // Ignore if typing in an input
+            processKey(e);
+        };
 
-            // Undo / Redo
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                e.preventDefault();
-                handleUndo();
+        const channel = new BroadcastChannel(CHANNEL_NAME);
+        channel.onmessage = (event) => {
+            const data = event.data;
+            if (data.type === 'remote_keydown') {
+                processKey(data.event);
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-                e.preventDefault();
-                handleRedo();
+            // Existing sync logic
+            if (data.type === 'reset') {
+                const initial = { life: data.initialLP || 8000, log: [data.initialLP || 8000], isRotated: false };
+                setP1(initial);
+                setP2(initial);
+                setHistory([{ p1: initial, p2: initial }]);
+                setCurrentStep(0);
+                setInputValue('');
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
-                e.preventDefault();
-                handleRedo();
-                return;
-            }
-
-            // Numbers
-            if (/^[0-9]$/.test(e.key)) {
-                e.preventDefault();
-                handleNumClick(parseInt(e.key));
-                return;
-            }
-
-            // Operations
-            if (e.key === '+' || e.key === 'Add') {
-                e.preventDefault();
-                handleOperation('+');
-                return;
-            }
-            if (e.key === '-' || e.key === 'Subtract' || e.key === 'Enter') { // Enter is treated as -
-                e.preventDefault();
-                handleOperation('-');
-                return;
-            }
-            if (e.key === '/' || e.key === 'Divide') {
-                e.preventDefault();
-                handleHalf();
-                return;
-            }
-            if (e.key === 'Delete' || e.key === 'Del') {
-                e.preventDefault();
-                handleClear();
-                return;
-            }
-
-            // Target Toggle
-            if (e.key === 'p' || e.key === 'P' || e.key === '*' || e.key === 'Multiply') {
-                e.preventDefault();
-                handleToggleTarget();
-                return;
-            }
-
+            if (data.p1) setP1(data.p1);
+            if (data.p2) setP2(data.p2);
+            if (data.target !== undefined) setTargetPlayer(data.target);
+            if (data.input !== undefined) setInputValue(data.input);
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOverlay, onlyShowPlayer1, handleNumClick, handleOperation, handleHalf, handleClear, handleUndo, handleRedo, handleSetTarget, handleToggleTarget, p1, p2, targetPlayer]);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            channel.close();
+        };
+    }, [processKey]); // CHANNEL_NAME is constant
 
     const getPlayerCardClass = (isOverlay: boolean) => {
         if (isOverlay) return "flex flex-col items-center justify-center relative p-3 rounded-2xl transition-all duration-500 transform";

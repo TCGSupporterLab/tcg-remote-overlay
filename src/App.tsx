@@ -386,27 +386,149 @@ function App() {
   }, [videoSource, setVideoSource]);
 
 
-  // Keyboard Shortcuts & Global Context Menu
-  useEffect(() => {
-    // Prevent default right click menu and instead open settings
-    const handleContextMenu = (e: MouseEvent) => {
-      if (isUnzipping) {
-        e.preventDefault();
+  const processShortcut = useCallback((e: any) => {
+    // Allow hotkeys only if settings are closed
+    if (showSettings) return;
+
+    // Ignore single-key shortcuts if Ctrl, Meta, or Alt is held
+    // (Alt is allowed if it's a digit key for layout switching)
+    const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
+    if (e.ctrlKey || e.metaKey || (e.altKey && !digitMatch)) return;
+
+    if (e.key === 'd' || e.key === 'D') {
+      handleRollDice();
+    }
+    if (e.key === 'c' || e.key === 'C') {
+      handleFlipCoin();
+    }
+    if (e.key === 'v' || e.key === 'V') {
+      toggleVideoSource(e.shiftKey);
+    }
+    if (e.key === 'a' || e.key === 'A') {
+      toggleAdjustmentMode();
+    }
+
+    // Reset Long Press (1.5s)
+    if (e.key === 'r' || e.key === 'R') {
+      if (!rPressTimerRef.current) {
+        if (import.meta.env.DEV) console.log("[Shortcut] R key pressed, starting long press timer...");
+        rPressTimerRef.current = window.setTimeout(() => {
+          fullReset();
+          rPressTimerRef.current = undefined;
+          if (import.meta.env.DEV) console.log('[App] Full reset triggered by R long press');
+        }, 1500);
+      }
+    }
+    // SP Marker Shortcuts (O: Flip, Double tap: Temporary Toggle)
+    if (e.key === 'o' || e.key === 'O') {
+      e.preventDefault?.();
+      const now = Date.now();
+      const diff = now - lastOTapRef.current;
+
+      if (diff > 0 && diff < 200) {
+        // Double tap!
+        if (oTimerRef.current) {
+          window.clearTimeout(oTimerRef.current);
+          oTimerRef.current = undefined;
+        }
+        toggleSPMarkerForceHidden();
+        lastOTapRef.current = 0; // Reset
+      } else {
+        // First tap or outside double-tap window
+        lastOTapRef.current = now;
+        if (oTimerRef.current) window.clearTimeout(oTimerRef.current);
+        oTimerRef.current = window.setTimeout(() => {
+          toggleSPMarkerFace();
+          oTimerRef.current = undefined;
+          lastOTapRef.current = 0;
+        }, 200);
+      }
+    }
+
+    // Numpad "." (Roll Dice / Double tap for Coin)
+    if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
+      e.preventDefault?.();
+      const now = Date.now();
+      const diff = now - lastDotTapRef.current;
+
+      if (diff > 0 && diff < 150) {
+        // Double tap!
+        if (dotTimerRef.current) {
+          window.clearTimeout(dotTimerRef.current);
+          dotTimerRef.current = undefined;
+        }
+        handleFlipCoin();
+        lastDotTapRef.current = 0; // Reset
+      } else {
+        // First tap or outside double-tap window
+        lastDotTapRef.current = now;
+        if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
+        dotTimerRef.current = window.setTimeout(() => {
+          handleRollDice();
+          dotTimerRef.current = undefined;
+          lastDotTapRef.current = 0;
+        }, 150);
+      }
+    }
+
+    // Number keys (Digit0-9 or Numpad0-9) for Selection / Layouts
+    if (digitMatch) {
+      // Alt + Number keys for Layout selection
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault?.();
+        const digit = digitMatch[2];
+        if (layoutTimerRef.current) window.clearTimeout(layoutTimerRef.current);
+        else layoutBufferRef.current = "";
+        layoutBufferRef.current += digit;
+        const num = parseInt(layoutBufferRef.current, 10);
+        if (!isNaN(num) && myLayouts[num]) {
+          applyLayout(myLayouts[num].id);
+        }
+        layoutTimerRef.current = window.setTimeout(() => {
+          layoutBufferRef.current = "";
+          layoutTimerRef.current = undefined;
+        }, 200);
         return;
       }
-      // Allow right click interacting with an input
+
+      const isNumpad = digitMatch[1] === 'Numpad';
+      const isNumLock = e.getModifierState?.('NumLock') ?? true;
+      const isShift = e.shiftKey || (e.getModifierState?.('Shift') ?? false);
+      let isShiftedDigit = false;
+      if (!isNumpad) {
+        isShiftedDigit = isShift;
+      } else {
+        if (isNumLock) {
+          isShiftedDigit = isShift || !/^\d$/.test(e.key);
+        }
+      }
+
+      if (isShiftedDigit) {
+        e.preventDefault?.();
+        const digit = digitMatch[2];
+        if (displayCardNoTimerRef.current) window.clearTimeout(displayCardNoTimerRef.current);
+        else displayCardNoBufferRef.current = "";
+        displayCardNoBufferRef.current += digit;
+        const num = parseInt(displayCardNoBufferRef.current, 10);
+        setDisplayCardNo(num);
+        displayCardNoTimerRef.current = window.setTimeout(() => {
+          displayCardNoBufferRef.current = "";
+          displayCardNoTimerRef.current = undefined;
+        }, 400);
+      }
+    }
+  }, [showSettings, myLayouts, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, fullReset, setDisplayCardNo, applyLayout]);
+
+  // Keyboard Shortcuts & Global Context Menu
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      if (isUnzipping) { e.preventDefault(); return; }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       e.preventDefault();
-
-      if (!showSettings) {
-        setShowSettings(true);
-      } else {
-        // If already open, close if we click on a non-interactive element
+      if (!showSettings) { setShowSettings(true); } else {
         const target = e.target as HTMLElement;
         const isInteractive = target.closest?.('button, a, kbd, input, select, textarea');
-        if (!isInteractive) {
-          setShowSettings(false);
-        }
+        if (!isInteractive) setShowSettings(false);
       }
     };
 
@@ -415,17 +537,12 @@ function App() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.repeat) return;
 
-      // Settings / Selection toggle
       if (e.key === 'Escape') {
-        if (selectedWidgetIds.length > 0) {
-          clearSelection();
-          return;
-        }
+        if (selectedWidgetIds.length > 0) { clearSelection(); return; }
         setShowSettings(prev => !prev);
         return;
       }
 
-      // Handle Delete (Hide Selected Widgets)
       if (e.key === 'Delete') {
         if (selectedWidgetIds.length > 0) {
           e.preventDefault();
@@ -434,195 +551,15 @@ function App() {
         }
       }
 
-      // Handle Ctrl+A (Select All Widgets)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
-        // Get all widget containers currently in the DOM
         const allWidgets = document.querySelectorAll('[data-widget-id]');
-        const ids = Array.from(allWidgets)
-          .map(el => el.getAttribute('data-widget-id'))
-          .filter((id): id is string => id !== null);
-
-        if (ids.length > 0) {
-          setSelectedWidgets(ids);
-          if (import.meta.env.DEV) {
-            console.log(`[Shortcut] Select All: found ${ids.length} widgets`);
-          }
-        }
+        const ids = Array.from(allWidgets).map(el => el.getAttribute('data-widget-id')).filter((id): id is string => id !== null);
+        if (ids.length > 0) setSelectedWidgets(ids);
         return;
       }
 
-      // Allow hotkeys only if settings are closed
-      if (showSettings) return;
-
-      // Ignore single-key shortcuts if Ctrl, Meta, or Alt is held
-      // (Alt is allowed if it's a digit key for layout switching)
-      const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
-      if (e.ctrlKey || e.metaKey || (e.altKey && !digitMatch)) return;
-
-      if (e.key === 'd' || e.key === 'D') {
-        handleRollDice();
-      }
-      if (e.key === 'c' || e.key === 'C') {
-        handleFlipCoin();
-      }
-      if (e.key === 'v' || e.key === 'V') {
-        toggleVideoSource(e.shiftKey);
-      }
-      if (e.key === 'a' || e.key === 'A') {
-        toggleAdjustmentMode();
-      }
-
-
-
-      // Reset Long Press (1.5s)
-      if (e.key === 'r' || e.key === 'R') {
-        if (!rPressTimerRef.current) {
-          if (import.meta.env.DEV) console.log("[Shortcut] R key pressed, starting long press timer...");
-          rPressTimerRef.current = window.setTimeout(() => {
-            fullReset();
-            rPressTimerRef.current = undefined;
-            if (import.meta.env.DEV) console.log('[App] Full reset triggered by R long press');
-          }, 1500);
-        }
-      }
-      // SP Marker Shortcuts (O: Flip, Double tap: Temporary Toggle)
-      if (e.key === 'o' || e.key === 'O') {
-        e.preventDefault();
-        const now = Date.now();
-        const diff = now - lastOTapRef.current;
-
-        if (diff > 0 && diff < 200) {
-          // Double tap!
-          if (oTimerRef.current) {
-            window.clearTimeout(oTimerRef.current);
-            oTimerRef.current = undefined;
-          }
-          toggleSPMarkerForceHidden();
-          lastOTapRef.current = 0; // Reset
-        } else {
-          // First tap or outside double-tap window
-          lastOTapRef.current = now;
-          if (oTimerRef.current) window.clearTimeout(oTimerRef.current);
-          oTimerRef.current = window.setTimeout(() => {
-            toggleSPMarkerFace();
-            oTimerRef.current = undefined;
-            lastOTapRef.current = 0;
-          }, 200);
-        }
-      }
-
-
-
-      // Numpad "." (Roll Dice / Double tap for Coin)
-      if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
-        e.preventDefault();
-        const now = Date.now();
-        const diff = now - lastDotTapRef.current;
-
-        if (diff > 0 && diff < 150) {
-          // Double tap!
-          if (dotTimerRef.current) {
-            window.clearTimeout(dotTimerRef.current);
-            dotTimerRef.current = undefined;
-          }
-          handleFlipCoin();
-          lastDotTapRef.current = 0; // Reset
-        } else {
-          // First tap or outside double-tap window
-          lastDotTapRef.current = now;
-          if (dotTimerRef.current) window.clearTimeout(dotTimerRef.current);
-          dotTimerRef.current = window.setTimeout(() => {
-            handleRollDice();
-            dotTimerRef.current = undefined;
-            lastDotTapRef.current = 0;
-          }, 150);
-        }
-      }
-
-
-      // Number keys (Digit0-9 or Numpad0-9) for Selection / Layouts
-      if (digitMatch) {
-        // Alt + Number keys for Layout selection
-        // Support multi-digit input by buffering digits within a 200ms window
-        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-          e.preventDefault();
-          const digit = digitMatch[2];
-
-          if (layoutTimerRef.current) {
-            window.clearTimeout(layoutTimerRef.current);
-          } else {
-            layoutBufferRef.current = "";
-          }
-
-          layoutBufferRef.current += digit;
-
-          const num = parseInt(layoutBufferRef.current, 10);
-          if (!isNaN(num) && myLayouts[num]) {
-            applyLayout(myLayouts[num].id);
-            if (import.meta.env.DEV) console.log(`[Shortcut] Applied layout at index ${num}: ${myLayouts[num].name}`);
-          }
-
-          layoutTimerRef.current = window.setTimeout(() => {
-            layoutBufferRef.current = "";
-            layoutTimerRef.current = undefined;
-          }, 200);
-          return;
-        }
-
-        // Shift + Number keys (Digit0-9 or Numpad0-9) for Display Card Number
-        const isNumpad = digitMatch[1] === 'Numpad';
-        const isNumLock = e.getModifierState('NumLock');
-        const isShift = e.shiftKey || e.getModifierState('Shift');
-
-        // Check if this is a "Shift + Digit" combination
-        let isShiftedDigit = false;
-        if (!isNumpad) {
-          isShiftedDigit = isShift;
-        } else {
-          // For Numpad, only allow shortcuts if NumLock is ON.
-          // Note: On Windows, Shift + Numpad (NumLock ON) often clears e.shiftKey and changes e.key to "End", etc.
-          // We detect this by checking if e.key is NOT a digit when the code is a Numpad digit.
-          if (isNumLock) {
-            isShiftedDigit = isShift || !/^\d$/.test(e.key);
-          }
-        }
-
-        if (isShiftedDigit) {
-          e.preventDefault();
-          const digit = digitMatch[2];
-
-          if (displayCardNoTimerRef.current) {
-            window.clearTimeout(displayCardNoTimerRef.current);
-          } else {
-            displayCardNoBufferRef.current = "";
-          }
-
-          displayCardNoBufferRef.current += digit;
-
-          const num = parseInt(displayCardNoBufferRef.current, 10);
-          if (!isNaN(num)) {
-            setDisplayCardNo(num);
-          }
-
-          displayCardNoTimerRef.current = window.setTimeout(() => {
-            displayCardNoBufferRef.current = "";
-            displayCardNoTimerRef.current = undefined;
-          }, 200); // Match Hololive card selection window (200ms)
-        }
-      }
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      // Middle click (button 1)
-      if (e.button === 1) {
-        // If interactive element, allow default behavior (though usually middle click doesn't have much)
-        const target = e.target as HTMLElement;
-        if (target.closest?.('button, a, kbd, input, select, textarea')) return;
-
-        e.preventDefault();
-        toggleAdjustmentMode();
-      }
+      processShortcut(e);
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -630,8 +567,23 @@ function App() {
         if (rPressTimerRef.current) {
           window.clearTimeout(rPressTimerRef.current);
           rPressTimerRef.current = undefined;
-          if (import.meta.env.DEV) console.log("[Shortcut] R key released, timer cancelled");
         }
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 1) {
+        const target = e.target as HTMLElement;
+        if (target.closest?.('button, a, kbd, input, select, textarea')) return;
+        e.preventDefault();
+        toggleAdjustmentMode();
+      }
+    };
+
+    const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+    channel.onmessage = (e) => {
+      if (e.data.type === 'remote_keydown') {
+        processShortcut(e.data.event);
       }
     };
 
@@ -639,13 +591,15 @@ function App() {
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('mousedown', handleMouseDown, true);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('mousedown', handleMouseDown, true);
+      channel.close();
     };
-  }, [handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, showSettings, isAdjustingVideo, setDisplayCardNo, selectedWidgetIds, clearSelection, setSelectedWidgets, fullReset, myLayouts, applyLayout]);
+  }, [isUnzipping, showSettings, selectedWidgetIds, clearSelection, hideSelectedWidgets, setSelectedWidgets, processShortcut, toggleAdjustmentMode]);
 
 
   if (import.meta.env.DEV) {

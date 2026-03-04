@@ -125,8 +125,13 @@ export const CardGrid: React.FC<CardGridProps> = ({
         const handleKeyDown = (e: KeyboardEvent) => {
             if (cards.length === 0) return;
 
-            // Ignore if typing in an input
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+            // Ignore if typing in an input or if any modifier is held (conflicts with shortcuts)
+            const hasModifier = e.shiftKey || e.ctrlKey || e.altKey || e.metaKey ||
+                (e.getModifierState?.('Shift')) || (e.getModifierState?.('Control')) || (e.getModifierState?.('Alt'));
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || hasModifier) return;
+
+            // Specifically block navigation if it's a Numpad key acting as an arrow (Shifted Numpad)
+            if (e.code.startsWith('Numpad') && !/^\d$/.test(e.key)) return;
 
             const currentIndex = cards.findIndex(c => c.id === selectedId);
             let nextIndex = -1;
