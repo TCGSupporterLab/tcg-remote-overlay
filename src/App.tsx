@@ -292,8 +292,19 @@ function App() {
 
   const handleSimpleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleSimpleFile(file);
-  }, [handleSimpleFile]);
+    if (file) {
+      await handleSimpleFile(file);
+      setSettings({ cardMode: 'simple' });
+      // シンプルモード切替時はライブラリモードの接続を解除
+      dropAccess();
+      // 検索画面を閉じる
+      const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+      channel.postMessage({ type: 'close_search' });
+      channel.close();
+    }
+    // 同じファイルを再度選択できるようにリセット
+    e.target.value = '';
+  }, [handleSimpleFile, setSettings, dropAccess]);
 
   const handleClearSimpleCard = useCallback(async () => {
     try {
@@ -796,17 +807,23 @@ function App() {
               onDropFile={(file) => {
                 setSettings({ cardMode: 'simple' });
                 handleSimpleFile(file);
+                // シンプルモード切替時はライブラリモードの接続を解除
+                dropAccess();
                 const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
                 channel.postMessage({ type: 'close_search' });
                 channel.close();
               }}
               onDropFolder={async (handle) => {
                 setSettings({ cardMode: 'library' });
+                // ライブラリモード切替時はシンプルモードの選択を解除
+                handleClearSimpleCard();
                 await set('tcg_remote_root_handle', handle);
                 scanDirectory(handle);
               }}
               onUnzipZIP={(file) => {
                 setSettings({ cardMode: 'library' });
+                // ライブラリモード切替時はシンプルモードの選択を解除
+                handleClearSimpleCard();
                 handleUnzipRequest(file);
               }}
             />
@@ -979,9 +996,14 @@ function App() {
             onCardModeChange={(mode) => {
               setSettings({ cardMode: mode });
               if (mode === 'simple') {
+                // シンプルモード切替時はライブラリモードの接続を解除
+                dropAccess();
                 const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
                 channel.postMessage({ type: 'close_search' });
                 channel.close();
+              } else if (mode === 'library') {
+                // ライブラリモード切替時はシンプルモードの選択を解除
+                handleClearSimpleCard();
               }
             }}
             onSelectSimpleCard={() => simpleFileInputRef.current?.click()}
