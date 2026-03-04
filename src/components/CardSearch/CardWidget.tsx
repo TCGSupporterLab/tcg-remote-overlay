@@ -16,6 +16,8 @@ interface CardWidgetProps {
     onDropFile?: (file: File) => void;
     onDropFolder?: (handle: FileSystemDirectoryHandle) => void;
     onUnzipZIP?: (file: File) => void;
+    onDropAccess?: () => void;
+    onClearSimpleCard?: () => void;
 }
 
 export const CardWidget: React.FC<CardWidgetProps> = ({
@@ -27,7 +29,9 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
     onSelectSimpleCard = () => { },
     onDropFile = () => { },
     onDropFolder = () => { },
-    onUnzipZIP = () => { }
+    onUnzipZIP = () => { },
+    onDropAccess = () => { },
+    onClearSimpleCard = () => { }
 }) => {
     const {
         selectedCard,
@@ -182,12 +186,31 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
         e.preventDefault();
     };
 
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        if (e.ctrlKey || e.metaKey) return;
+
+        if (cardMode === 'library') {
+            if (hasAccess || savedRootName) {
+                if (window.confirm('フォルダの接続を解除しますか？')) {
+                    onDropAccess();
+                }
+            }
+        } else if (cardMode === 'simple') {
+            if (simpleCardImageUrl) {
+                if (window.confirm('カード画像の選択を解除しますか？')) {
+                    onClearSimpleCard();
+                }
+            }
+        }
+    };
+
     return (
         <div className="overlay-card-frame relative flex flex-col items-center justify-center animate-in zoom-in duration-500 transform"
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onDoubleClick={handleDoubleClick}
             style={{
                 width: '400px',
                 height: '560px',

@@ -318,6 +318,13 @@ function App() {
     }
   }, [simpleCardImageUrl, setSimpleCardImageUrl, setSettings]);
 
+  const handleDropAccessAction = useCallback(() => {
+    dropAccess();
+    const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+    channel.postMessage({ type: 'close_search' });
+    channel.close();
+  }, [dropAccess]);
+
   // Load simple card image on mount
   useEffect(() => {
     const loadSimpleCard = async () => {
@@ -423,8 +430,8 @@ function App() {
       toggleAdjustmentMode();
     }
 
-    // L key for Library Search (Main view only, Library mode only)
-    if ((e.key === 'l' || e.key === 'L') && !isSearchView && settings.cardMode === 'library') {
+    // L key for Library Search (Main view only, Library mode only, and must have folder access)
+    if ((e.key === 'l' || e.key === 'L') && !isSearchView && settings.cardMode === 'library' && hasAccess) {
       const now = Date.now();
       const diff = now - lastLTapRef.current;
 
@@ -576,7 +583,7 @@ function App() {
         }, 250);
       }
     }
-  }, [showSettings, myLayouts, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, fullReset, setDisplayCardNo, applyLayout]);
+  }, [showSettings, myLayouts, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, fullReset, setDisplayCardNo, applyLayout, isSearchView, settings, hasAccess]);
 
   // Keyboard Shortcuts & Global Context Menu
   useEffect(() => {
@@ -601,6 +608,9 @@ function App() {
         setShowSettings(prev => !prev);
         return;
       }
+
+      // Allow hotkeys ONLY if settings are closed (except Escape)
+      if (showSettings) return;
 
       if (e.key === 'Delete') {
         if (selectedWidgetIds.length > 0) {
@@ -826,6 +836,8 @@ function App() {
                 handleClearSimpleCard();
                 handleUnzipRequest(file);
               }}
+              onDropAccess={handleDropAccessAction}
+              onClearSimpleCard={handleClearSimpleCard}
             />
           </OverlayWidget>
         )}
@@ -968,7 +980,7 @@ function App() {
             cardCount={cards.length}
             isScanning={isScanning}
             onRequestAccess={requestAccess}
-            onDropAccess={dropAccess}
+            onDropAccess={handleDropAccessAction}
             mergeSameFileCards={mergeSameFileCards}
             onToggleMergeSameFileCards={toggleMergeSameFileCards}
             localCards={cards}
@@ -1158,7 +1170,7 @@ function App() {
                   アクセスを許可して開始
                 </button>
                 <button
-                  onClick={dropAccess}
+                  onClick={handleDropAccessAction}
                   className="w-full py-4 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-2xl font-bold transition-all border border-white/5"
                 >
                   別のフォルダを選択
