@@ -40,6 +40,7 @@ export const ShortcutTab = () => {
                     <ShortcutRow desc="映像ソース切替（逆方向）" keys={['Shift+V']} />
                     <ShortcutRow desc="映像調整モード切替" keys={['A']} />
                     <ShortcutRow desc="映像調整モード切替（マウス）" keys={['ホイールクリック']} />
+                    <ShortcutRow desc="カード表示設定（別窓/別タブ：2連打）" keys={['L']} />
 
                     <div className="text-[10px] text-gray-500 font-bold mt-[16px] mb-1 uppercase tracking-wider">
                         ツール

@@ -259,6 +259,8 @@ function App() {
   const displayCardNoTimerRef = useRef<number | undefined>(undefined);
   const layoutBufferRef = useRef<string>("");
   const layoutTimerRef = useRef<number | undefined>(undefined);
+  const lTimerRef = useRef<number | undefined>(undefined);
+  const lastLTapRef = useRef<number>(0);
   // View mode detection
   const searchViewParam = new URLSearchParams(window.location.search).get('view');
   const isSearchView = searchViewParam === 'search';
@@ -408,6 +410,42 @@ function App() {
     }
     if (e.key === 'a' || e.key === 'A') {
       toggleAdjustmentMode();
+    }
+
+    // L key for Library Search (Main view only, Library mode only)
+    if ((e.key === 'l' || e.key === 'L') && !isSearchView && settings.cardMode === 'library') {
+      const now = Date.now();
+      const diff = now - lastLTapRef.current;
+
+      const openSearch = (mode: 'tab' | 'window') => {
+        const url = window.location.origin + window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'view=search';
+        if (mode === 'tab') {
+          window.open(url, '_blank');
+        } else {
+          const width = 1200; const height = 800;
+          const left = (window.screen.width - width) / 2; const top = (window.screen.height - height) / 2;
+          window.open(url, 'CardSearchWindow', `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+        }
+      };
+
+      if (diff > 0 && diff < 200) {
+        // Double tap -> Open in Tab
+        if (lTimerRef.current) {
+          window.clearTimeout(lTimerRef.current);
+          lTimerRef.current = undefined;
+        }
+        openSearch('tab');
+        lastLTapRef.current = 0;
+      } else {
+        // First tap -> Prepare for Window
+        lastLTapRef.current = now;
+        if (lTimerRef.current) window.clearTimeout(lTimerRef.current);
+        lTimerRef.current = window.setTimeout(() => {
+          openSearch('window');
+          lTimerRef.current = undefined;
+          lastLTapRef.current = 0;
+        }, 200);
+      }
     }
 
     // Reset Long Press (1.5s)
