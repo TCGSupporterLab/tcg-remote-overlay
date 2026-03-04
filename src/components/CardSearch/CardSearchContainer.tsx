@@ -50,6 +50,7 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
                 return;
             }
+            if (e.repeat) return;
 
             if (e.key === 'Tab') {
                 e.preventDefault();
@@ -59,12 +60,18 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
 
             // Broadcast logic with robust Shift/Numpad detection
             const isNumpad = e.code.startsWith('Numpad');
+            const isNumpadDot = e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal';
             const isDigit = /^(Digit|Numpad)[0-9]$/.test(e.code);
             const isShift = e.shiftKey || (e.getModifierState?.('Shift') ?? false);
+            const isActuallyDelete = e.key === 'Delete' || e.key === 'Del' || (isShift && isNumpadDot);
             // High-reliability shift detection for Numpad (Windows behavior)
             const isShiftedDigit = isDigit && (isShift || (isNumpad && !/^\d$/.test(e.key)));
 
-            if (/^[dcvAo\.]$/i.test(e.key) || e.code === 'NumpadDecimal' || isShiftedDigit) {
+            const isAppShortcut = (/^[dcor]$/i.test(e.key)) ||
+                (isNumpadDot && !isActuallyDelete && !isShift) ||
+                isShiftedDigit;
+
+            if (isAppShortcut) {
                 e.preventDefault();
                 const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
                 channel.postMessage({
@@ -72,7 +79,7 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
                     event: {
                         key: e.key,
                         code: e.code,
-                        shiftKey: true, // Force true if we matched isShiftedDigit
+                        shiftKey: isShift || isShiftedDigit,
                         ctrlKey: e.ctrlKey,
                         altKey: e.altKey,
                         metaKey: e.metaKey,
@@ -84,16 +91,17 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
             }
 
             // Broadcaster for LP Calculator shortcuts
-            const isLPKey = /^[0-9\+\-\/\*p]$/i.test(e.key) ||
-                ['Enter', 'Delete', 'Backspace', 'Add', 'Subtract', 'Divide', 'Multiply', 'Decimal'].includes(e.key) ||
+            const isLPKey = isActuallyDelete || /^[0-9\+\-\/\*p]$/i.test(e.key) ||
+                ['Enter', 'Backspace', 'Add', 'Subtract', 'Divide', 'Multiply', 'Decimal', 'Delete', 'Del'].includes(e.key) ||
                 ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y'));
 
             if (isLPKey) {
+                e.preventDefault();
                 const channel = new BroadcastChannel('tcg_remote_sync_lp');
                 channel.postMessage({
                     type: 'remote_keydown',
                     event: {
-                        key: e.key,
+                        key: isActuallyDelete ? 'Delete' : e.key,
                         code: e.code,
                         shiftKey: isShift,
                         ctrlKey: e.ctrlKey,
@@ -106,8 +114,35 @@ export const CardSearchContainer: React.FC<CardSearchContainerProps> = ({
             }
         };
 
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+            if (e.key === 'r' || e.key === 'R') {
+                const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+                channel.postMessage({
+                    type: 'remote_keyup',
+                    event: {
+                        key: e.key,
+                        code: e.code
+                    }
+                });
+                channel.close();
+            }
+        };
+
+        const shortcutChannel = new BroadcastChannel('tcg_remote_app_shortcuts');
+        shortcutChannel.onmessage = (e) => {
+            if (e.data.type === 'close_search') {
+                window.close();
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            shortcutChannel.close();
+        };
     }, []);
 
     const handleSelectCard = (card: any) => {

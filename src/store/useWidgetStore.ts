@@ -41,7 +41,7 @@ interface WidgetStoreState {
         onlyShowPlayer1: boolean;
         spMarkerFace: SPMarkerFace;
         hideSettingsOnStart: boolean;
-        cardMode: 'library' | 'simple';
+        cardMode: 'library' | 'simple'; // 'library': ライブラリモード（フォルダ内検索）, 'simple': シンプルモード（固定枚表示）
         lpTargetPlayer: 'p1' | 'p2';
         simpleCardImage?: { name: string; type: string };
     };

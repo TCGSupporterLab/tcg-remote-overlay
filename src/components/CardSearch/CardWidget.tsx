@@ -54,7 +54,7 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
 
     if (cardMode === 'simple') {
         imageUrl = simpleCardImageUrl;
-        cardName = simpleCardImageName || "カスタム画像";
+        cardName = simpleCardImageName || "シンプルモード（画像未設定）";
     } else {
         const hasPins = pinnedCards && pinnedCards.length > 0;
 
@@ -268,6 +268,9 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
                                     onClick={() => {
                                         setSettings({ cardMode: 'simple' });
                                         onSelectSimpleCard();
+                                        const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+                                        channel.postMessage({ type: 'close_search' });
+                                        channel.close();
                                     }}
                                     className="px-[18px] py-[10px] bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 rounded-lg font-bold text-[13px] transition-all cursor-pointer z-50 flex items-center justify-center gap-[8px] shadow-sm"
                                 >

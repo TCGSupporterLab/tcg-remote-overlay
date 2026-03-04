@@ -392,7 +392,9 @@ function App() {
 
     // Ignore single-key shortcuts if Ctrl, Meta, or Alt is held
     // (Alt is allowed if it's a digit key for layout switching)
-    const digitMatch = e.code.match(/^(Digit|Numpad)(\d)$/);
+    const isShift = e.shiftKey || (e.getModifierState?.('Shift') ?? false);
+    const isActuallyDelete = e.key === 'Delete' || e.key === 'Del';
+    const digitMatch = e.code?.match(/^(Digit|Numpad)(\d)$/);
     if (e.ctrlKey || e.metaKey || (e.altKey && !digitMatch)) return;
 
     if (e.key === 'd' || e.key === 'D') {
@@ -446,7 +448,7 @@ function App() {
     }
 
     // Numpad "." (Roll Dice / Double tap for Coin)
-    if (e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') {
+    if ((e.key === '.' || e.key === 'Decimal' || e.code === 'NumpadDecimal') && !isActuallyDelete && !isShift) {
       e.preventDefault?.();
       const now = Date.now();
       const diff = now - lastDotTapRef.current;
@@ -493,7 +495,6 @@ function App() {
 
       const isNumpad = digitMatch[1] === 'Numpad';
       const isNumLock = e.getModifierState?.('NumLock') ?? true;
-      const isShift = e.shiftKey || (e.getModifierState?.('Shift') ?? false);
       let isShiftedDigit = false;
       if (!isNumpad) {
         isShiftedDigit = isShift;
@@ -506,15 +507,24 @@ function App() {
       if (isShiftedDigit) {
         e.preventDefault?.();
         const digit = digitMatch[2];
-        if (displayCardNoTimerRef.current) window.clearTimeout(displayCardNoTimerRef.current);
-        else displayCardNoBufferRef.current = "";
+
+        // 既存のタイマーがあればキャンセル（複数桁入力中）
+        if (displayCardNoTimerRef.current) {
+          window.clearTimeout(displayCardNoTimerRef.current);
+        } else {
+          displayCardNoBufferRef.current = "";
+        }
+
         displayCardNoBufferRef.current += digit;
         const num = parseInt(displayCardNoBufferRef.current, 10);
-        setDisplayCardNo(num);
+
+        // 250ms待機してから実際に反映する（デバウンス）
+        // これにより、例えば "1", "2" と素早く打った場合に "1" が表示されるのを防ぐ
         displayCardNoTimerRef.current = window.setTimeout(() => {
+          setDisplayCardNo(num);
           displayCardNoBufferRef.current = "";
           displayCardNoTimerRef.current = undefined;
-        }, 400);
+        }, 250);
       }
     }
   }, [showSettings, myLayouts, handleRollDice, handleFlipCoin, toggleVideoSource, toggleAdjustmentMode, toggleSPMarkerFace, toggleSPMarkerForceHidden, fullReset, setDisplayCardNo, applyLayout]);
@@ -584,6 +594,8 @@ function App() {
     channel.onmessage = (e) => {
       if (e.data.type === 'remote_keydown') {
         processShortcut(e.data.event);
+      } else if (e.data.type === 'remote_keyup') {
+        handleKeyUp(e.data.event);
       }
     };
 
@@ -746,6 +758,9 @@ function App() {
               onDropFile={(file) => {
                 setSettings({ cardMode: 'simple' });
                 handleSimpleFile(file);
+                const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+                channel.postMessage({ type: 'close_search' });
+                channel.close();
               }}
               onDropFolder={async (handle) => {
                 setSettings({ cardMode: 'library' });
@@ -923,7 +938,14 @@ function App() {
             hideSettingsOnStart={settings.hideSettingsOnStart}
             onToggleHideSettingsOnStart={(val) => setSettings({ hideSettingsOnStart: val })}
             cardMode={settings.cardMode}
-            onCardModeChange={(mode) => setSettings({ cardMode: mode })}
+            onCardModeChange={(mode) => {
+              setSettings({ cardMode: mode });
+              if (mode === 'simple') {
+                const channel = new BroadcastChannel('tcg_remote_app_shortcuts');
+                channel.postMessage({ type: 'close_search' });
+                channel.close();
+              }
+            }}
             onSelectSimpleCard={() => simpleFileInputRef.current?.click()}
             onClearSimpleCard={handleClearSimpleCard}
             simpleCardImageName={settings.simpleCardImage?.name}

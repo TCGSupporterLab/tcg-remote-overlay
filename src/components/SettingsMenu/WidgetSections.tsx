@@ -84,14 +84,14 @@ export const CardSetting = ({
                     <button
                         onClick={(e) => { e.stopPropagation(); onCardModeChange('library'); }}
                         className={`p-[4px] rounded-md transition-all cursor-pointer ${cardMode === 'library' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                        title="ライブラリスキャン"
+                        title="ライブラリモード"
                     >
                         <Library size={14} />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onCardModeChange('simple'); }}
                         className={`p-[4px] rounded-md transition-all cursor-pointer ${cardMode === 'simple' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                        title="カスタム画像"
+                        title="シンプルモード"
                     >
                         <Image size={14} />
                     </button>

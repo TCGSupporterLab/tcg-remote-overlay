@@ -7,9 +7,12 @@ export const ShortcutTab = () => {
         </kbd>
     );
 
-    const ShortcutRow = ({ keys, desc }: { keys: string[], desc: string }) => (
+    const ShortcutRow = ({ keys, desc, hasAsterisk }: { keys: string[], desc: string, hasAsterisk?: boolean }) => (
         <div className="flex items-center justify-between text-[11px] py-[6px] border-b border-white/5 last:border-0">
-            <span className="text-white/60">{desc}</span>
+            <span className="text-white/60">
+                {desc}
+                {hasAsterisk && <sup className="text-cyan-400 ml-0.5">※</sup>}
+            </span>
             <div className="flex gap-1 flex-shrink-0 ml-[16px]">
                 {keys.map((k, i) => (
                     <Kbd key={i}>{k}</Kbd>
@@ -41,16 +44,16 @@ export const ShortcutTab = () => {
                     <div className="text-[10px] text-gray-500 font-bold mt-[16px] mb-1 uppercase tracking-wider">
                         ツール
                     </div>
-                    <ShortcutRow desc="※ ダイスを振る" keys={['D']} />
-                    <ShortcutRow desc="※ コイントス" keys={['C']} />
-                    <ShortcutRow desc="※ SPマーカー反転 / 表示切替（2回連打）" keys={['O']} />
-                    <ShortcutRow desc="※ ダイス / コイン（2回連打）" keys={['.']} />
-                    <ShortcutRow desc="全状態リセット（長押し）" keys={['R']} />
+                    <ShortcutRow desc="ダイスを振る" keys={['D']} hasAsterisk />
+                    <ShortcutRow desc="コイントス" keys={['C']} hasAsterisk />
+                    <ShortcutRow desc="SPマーカー反転 / 表示切替（2回連打）" keys={['O']} hasAsterisk />
+                    <ShortcutRow desc="ダイス / コイン（2回連打）" keys={['.']} hasAsterisk />
+                    <ShortcutRow desc="全状態リセット（長押し）" keys={['R']} hasAsterisk />
 
                     <div className="text-[10px] text-gray-500 font-bold mt-[16px] mb-1 uppercase tracking-wider">
                         選択・表示
                     </div>
-                    <ShortcutRow desc="※ カード画像切替（複数桁対応）" keys={['Shift+数字']} />
+                    <ShortcutRow desc="カード画像切替（複数桁対応）" keys={['Shift+数字']} hasAsterisk />
                     <ShortcutRow desc="レイアウト呼び出し（複数桁対応）" keys={['Alt+数字']} />
                     <ShortcutRow desc="全ウィジェット選択" keys={['Ctrl+A']} />
                     <ShortcutRow desc="選択中のウィジェットを非表示" keys={['Del']} />
@@ -58,14 +61,14 @@ export const ShortcutTab = () => {
                     <div className="text-[10px] text-gray-500 font-bold mt-[16px] mb-1 uppercase tracking-wider">
                         ライフポイント計算機（遊戯王）
                     </div>
-                    <ShortcutRow desc="※ 数値入力" keys={['0-9']} />
-                    <ShortcutRow desc="※ 加算" keys={['+']} />
-                    <ShortcutRow desc="※ 減算" keys={['-', 'Enter']} />
-                    <ShortcutRow desc="※ 半分" keys={['/']} />
-                    <ShortcutRow desc="※ 入力クリア" keys={['Del']} />
-                    <ShortcutRow desc="※ 対象プレイヤー切替" keys={['P', '*']} />
-                    <ShortcutRow desc="※ 元に戻す" keys={['Ctrl+Z']} />
-                    <ShortcutRow desc="※ やり直し" keys={['Ctrl+Y']} />
+                    <ShortcutRow desc="数値入力" keys={['0-9']} hasAsterisk />
+                    <ShortcutRow desc="加算" keys={['+']} hasAsterisk />
+                    <ShortcutRow desc="減算" keys={['-', 'Enter']} hasAsterisk />
+                    <ShortcutRow desc="半分" keys={['/']} hasAsterisk />
+                    <ShortcutRow desc="入力クリア" keys={['Del']} hasAsterisk />
+                    <ShortcutRow desc="対象プレイヤー切替" keys={['P', '*']} hasAsterisk />
+                    <ShortcutRow desc="元に戻す" keys={['Ctrl+Z']} hasAsterisk />
+                    <ShortcutRow desc="やり直し" keys={['Ctrl+Y']} hasAsterisk />
                 </div>
             </div>
         </div>
