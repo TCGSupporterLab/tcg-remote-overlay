@@ -755,6 +755,8 @@ export const useWidgetStore = create<WidgetStoreState>()(
             };
         }),
 
+        // Resets current game state (LP, Dice, Coin, SP Face, LP Target).
+        // Note: Does NOT reset widget positions, pinned cards, or overlay visibility flags.
         fullReset: () => set((state) => {
             // Trigger LP Reset via BroadcastChannel
             const lpChannel = new BroadcastChannel('tcg_remote_sync_lp');

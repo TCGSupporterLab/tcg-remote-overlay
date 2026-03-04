@@ -430,7 +430,7 @@ function App() {
       toggleAdjustmentMode();
     }
 
-    // L key for Library Search (Main view only, Library mode only, and must have folder access)
+    // L key for Library Search (Library mode & Access granted only)
     if ((e.key === 'l' || e.key === 'L') && !isSearchView && settings.cardMode === 'library' && hasAccess) {
       const now = Date.now();
       const diff = now - lastLTapRef.current;
@@ -466,7 +466,7 @@ function App() {
       }
     }
 
-    // Reset Long Press (1.5s)
+    // Full Game State Reset (1.5s Long Press)
     if (e.key === 'r' || e.key === 'R') {
       if (!rPressTimerRef.current) {
         if (import.meta.env.DEV) console.log("[Shortcut] R key pressed, starting long press timer...");
@@ -477,7 +477,7 @@ function App() {
         }, 1500);
       }
     }
-    // SP Marker Shortcuts (O: Flip, Double tap: Temporary Toggle)
+    // SP Marker (O: Flip, Double tap: Hide/Show Toggle)
     if (e.key === 'o' || e.key === 'O') {
       e.preventDefault?.();
       const now = Date.now();
