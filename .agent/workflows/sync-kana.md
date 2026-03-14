@@ -6,31 +6,33 @@ description: Synchronize kana readings by merging dictionaries, filtering entrie
 
 1. Merge manual dictionary additions into the main dictionary.
 ```
-node scripts/merge-dicts.js
+node tools/merge-dicts.js
 ```
 
-2. Filter the dictionary to remove plain kana entries.
+2. Filter the dictionary to remove plain kana entries (cleaning up).
 ```
-node scripts/filter-dict.js
-```
-
-3. Enrich the card data JSON with the latest kana readings.
-```
-node scripts/enrich-cards.js
+node tools/filter-dict.js
 ```
 
-4. Audit the results to ensure no missing readings for non-kana names.
+3. Enrich the card data JSON from script scraping with the latest kana readings.
 ```
-node scripts/audit-missing-kana.js
-```
-
-5. Add changes to Git.
-```
-git add src/data/kana-dictionary.json src/data/hololive-cards.json scripts/merge-dicts.js
+node tools/enrich-cards.js
 ```
 
-6. Commit and push the changes.
+4. Audit the results to see if any Kanji/English names are still missing readings.
 ```
-git commit -m "chore: sync and audit kana readings"
-git push origin master
+node tools/find-missing-kana.js
+```
+
+5. Regenerate the final metadata for the app.
+```
+node tools/generate-metadata.js
+```
+
+6. Commit changes to the local backup branch.
+```
+git checkout local-dev-tools
+git add tools/cache/ working-cards.json tools/cache/kana-dictionary.json tools/merge-dicts.js
+git commit -m "chore: sync and audit kana readings (local update)"
+git checkout master
 ```
