@@ -428,15 +428,15 @@ export const useLocalCards = () => {
     }, []);
 
     const unzipInProgressRef = useRef(false);
-    const unzipAndSave = useCallback(async (zipFile: File) => {
+    const unzipAndSave = useCallback(async (zipFile: File): Promise<boolean> => {
         if (unzipInProgressRef.current) {
             console.warn('[ZIP] Unzip already in progress, skipping...');
-            return;
+            return false;
         }
 
         if (!isZipFile(zipFile)) {
             setError('ZIPファイルではありません。');
-            return;
+            return false;
         }
 
         unzipInProgressRef.current = true;
@@ -465,12 +465,21 @@ export const useLocalCards = () => {
                     setIsLoading(false);
                     setIsUnzipping(false);
                     unzipInProgressRef.current = false;
-                    return;
+                    return false;
+                }
+                // ブラウザの制限（Downloads、Desktop、システム領域等の選択）を検知
+                if (e.name === 'SecurityError' || e.message?.includes('sensitive') || e.message?.includes('system')) {
+                    throw new Error('ブラウザのセキュリティ制限により、この場所には展開できません。「ダウンロード」や「デスクトップ」などを避け、別の場所に新しいフォルダを作成して選択してください。');
                 }
                 throw e;
             }
 
-            if (!extractionRoot) throw new Error('フォルダが選択されませんでした。');
+            if (!extractionRoot) {
+                setIsScanning(false);
+                setIsLoading(false);
+                unzipInProgressRef.current = false;
+                return false;
+            }
 
             // フォルダが選択されたこのタイミングでオーバーレイを表示
             setIsUnzipping(true);
@@ -693,6 +702,7 @@ export const useLocalCards = () => {
             setIsLoading(false);
             setIsScanning(false);
             setIsUnzipping(false);
+            return true;
 
         } catch (err: any) {
             console.error('ZIP Process Error:', err);
@@ -716,7 +726,7 @@ export const useLocalCards = () => {
                         }
                     })();
                 }
-                return;
+                return false;
             }
 
             // 構成エラー等の場合、作成されたばかりのフォルダの削除を提案する
@@ -736,6 +746,7 @@ export const useLocalCards = () => {
             setIsScanning(false);
             setIsLoading(false);
             setIsUnzipping(false);
+            return false;
         } finally {
             unzipInProgressRef.current = false;
             unzipAbortControllerRef.current = null;

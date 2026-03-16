@@ -1040,7 +1040,8 @@ function App() {
                   <h2 className="text-xl font-bold tracking-tight">ZIPファイルを検出</h2>
                 </div>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  アーカイブの内容をローカルフォルダへ展開し、カードライブラリとして読み込みます。
+                  アーカイブの内容をローカルフォルダへ展開し、カードライブラリとして読み込みます。<br />
+                  <span className="text-blue-400/80 text-[12px] mt-[4px] block">※ ブラウザの制限により「ダウンロード」や「デスクトップ」は選択できません。別途、空のフォルダを作成して選択してください。</span>
                 </p>
               </div>
 
@@ -1077,9 +1078,11 @@ function App() {
               <button
                 onClick={async () => {
                   const file = pendingZip.file;
-                  setPendingZip(null);
-                  setShowSettings(false);
-                  await unzipAndSave(file);
+                  const success = await unzipAndSave(file);
+                  if (success) {
+                    setPendingZip(null);
+                    setShowSettings(false);
+                  }
                 }}
                 disabled={pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0}
                 className={`w-full py-[20px] font-black text-[18px] transition-all flex items-center justify-center gap-[8px] tracking-tight ${pendingZip.metadata.isAnalyzing || pendingZip.metadata.fileCount === 0
